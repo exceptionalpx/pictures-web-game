@@ -1,0 +1,18 @@
+{
+  "name": "pictures-web-game",
+  "version": "0.2.0",
+  "private": true,
+  "description": "巧手猜图网页版：单机 Demo + 联机最小闭环（Node + ws + Express，可部署 Render）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test --test-force-exit --test-concurrency=1 test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
