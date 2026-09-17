@@ -1004,8 +1004,21 @@ const __PW = window.__pwOnline = {
         if(window.__pwDrawerStatus) window.__pwDrawerStatus(m);
         break;
       case "guess_ok":
-        if(m.correct) toast(m.first?"🎉 首答正确！+3 分（等待揭晓）":"✅ 猜中！+1 分（等待揭晓）");
-        else toast("没猜中，等待揭晓…");
+        if(window.__pwGuessOk) window.__pwGuessOk(m);
+        else if(m.correct) toast(m.first?"🎉 首答正确！+3 分（等待揭晓）":"✅ 猜中！+1 分（等待揭晓）");
+        else if(m.done) toast("没猜中，机会用完，等待揭晓…");
+        else toast(`没猜中，还有 ${m.maxAttempts-m.attempts} 次机会`);
+        break;
+      case "word_res":
+        if(window.__pwWordRes) window.__pwWordRes(m);
+        else if(m.correct) toast(m.repeat?"已文字命中 +2":"🎯 文字命中！+2 分");
+        break;
+      case "word_hit":
+        if(window.__pwWordHit) window.__pwWordHit(m);
+        else toast(`${m.nickname} 猜中了！`);
+        break;
+      case "list":
+        if(window.__pwRooms) window.__pwRooms(m);
         break;
       case "reveal":
         this.reveal=m; this.status=m.state; renderOnlineReveal(); break;
@@ -1019,11 +1032,13 @@ const __PW = window.__pwOnline = {
 window.__pwDrawerStatus = (m)=>{ toast(`有人已作答（${m.answered}/${m.total}）`); };
 
 function pwLeave(){
+  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
   Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
   location.hash="#/";
 }
 function pwReset(){
+  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
   Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
 }
@@ -1035,7 +1050,7 @@ function renderOnline(){
   const card=html("div",{class:"card",style:"max-width:520px;margin:0 auto"});
   card.innerHTML=`
     <h1>联机对战</h1>
-    <div class="sub">2–6 人同房：一人拼剪影，其他人实时观看抢答；首个猜对 +3、其余 +1、出题人被猜中 +1，轮流出题。</div>
+    <div class="sub">2–6 人同房：一人拼剪影，其他人实时观看；前 30 秒可无限次文字竞猜（猜中 +2），之后点选照片作答（最多 2 次，首答 +3 / 猜中 +1），出题人被猜中 +1，轮流出题。</div>
     <h3>你的昵称</h3>
     <input id="pw-nick" placeholder="随便填，如：阿明" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
     <h3>创建新房间</h3>
@@ -1045,6 +1060,8 @@ function renderOnline(){
       <input id="pw-code" placeholder="房间码，如 AB12" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;font-family:ui-monospace,monospace;text-transform:uppercase;background:#FCFBF8;color:var(--ink)">
       <button class="primary" id="pw-join">加入</button>
     </div>
+    <h3>在线房间 · 点击加入</h3>
+    <div id="pw-rooms"><div class="note">连接后自动加载…</div></div>
     ${__PW.roomId?`<div style="margin-top:10px"><button class="accent" id="pw-back" style="width:100%">回到当前房间（${__PW.roomId}）</button></div>`:""}
     <div class="note">需要先启动服务端（<code>node server.js</code>）或部署到线上；当前连接：${PW_WS_URL}</div>
     <div class="foot-actions"><button class="ghost" onclick="location.hash='#/'">回首页</button></div>`;
@@ -1061,6 +1078,24 @@ function renderOnline(){
     __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
     pwConnect(()=>__PW.send({t:"join",room_id:code,nickname:__PW.nickname}));
   };
+  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
+  const loadRooms=()=>{ if(__PW.ws&&__PW.ws.readyState===1) __PW.send({t:"list"}); };
+  window.__pwRooms=(m)=>{
+    const box=card.querySelector("#pw-rooms"); if(!box) return;
+    if(!m.rooms.length){ box.innerHTML='<div class="note">暂无等待中的房间，创建一个吧</div>'; return; }
+    box.innerHTML="";
+    m.rooms.forEach(rm=>{
+      const row=html("div",{class:"review-item"});
+      row.innerHTML=`<div><b>${rm.host||"匿名"}</b><div class="sub">房间码 ${rm.room_id} · ${rm.players}/${rm.max} 人</div></div><button class="primary" id="pw-join-${rm.room_id}">加入</button>`;
+      box.appendChild(row);
+      row.querySelector(`#pw-join-${rm.room_id}`).onclick=()=>{
+        __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
+        pwConnect(()=>__PW.send({t:"join",room_id:rm.room_id,nickname:__PW.nickname}));
+      };
+    });
+  };
+  if(__PW.ws&&__PW.ws.readyState===1) loadRooms();
+  window.listTimer=setInterval(loadRooms,3000);
 }
 function pwConnect(action){
   if(__PW.ws&&__PW.ws.readyState===1){ action(); return; }
@@ -1069,6 +1104,7 @@ function pwConnect(action){
 
 /* ---- 大厅 ---- */
 function renderOnlineLobby(){
+  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   $app.innerHTML="";
   const w=html("div",{class:"wrap"});
   const card=html("div",{class:"card",style:"max-width:560px;margin:0 auto"});
@@ -1113,12 +1149,47 @@ function renderOnlineGuess(){
     <div class="qbar">第 ${__PW.round} 轮 · 出题人：${__PW.drawer.nickname||"？"} · <span id="pw-gtimer">--:--</span></div>
     <div class="guess-stage"><svg class="stage" id="pw-gstage"></svg></div>
     <div class="wall-big"><div class="wall-grid" id="pw-gwall"></div></div>
-    <div class="confirm-bar" id="pw-gbar"><span class="sub">作答尚未开放，先观察剪影…</span></div>`;
+    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中 +2 分，30 秒后开放选图</span></div>
+    <div class="word-row" id="pw-wordrow" style="display:flex;gap:8px;margin-top:10px">
+      <input id="pw-word" placeholder="猜它是什么，如：气球" maxlength="30" autocomplete="off" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
+      <button class="primary" id="pw-wordsend">猜！</button>
+    </div>`;
   w.appendChild(card);$app.appendChild(w);
   const svg=card.querySelector("#pw-gstage"), wallEl=card.querySelector("#pw-gwall"), bar=card.querySelector("#pw-gbar");
+  const wordRow=card.querySelector("#pw-wordrow"), wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
   renderArtwork(svg,__PW.canvas);
   let picked=null, locked=true, done=false;
   window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas); };
+  window.__pwWordRes=(m)=>{
+    if(m.correct){
+      if(m.repeat) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">你已文字命中 +2，等选图开放</span>';
+      else bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">🎯 文字命中 +2！等选图开放</span>';
+    }else{
+      if(locked && !done) bar.innerHTML='<span class="sub">不对哦，再猜猜（猜中 +2）</span>';
+    }
+  };
+  window.__pwWordHit=(m)=>{ toast(`${m.nickname} 猜中了！`); };
+  window.__pwGuessOk=(m)=>{
+    if(m.correct){
+      toast(m.first?"🎉 首答正确！+3（等揭晓）":"✅ 猜中！+1（等揭晓）");
+      done=true; bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
+    }else if(m.done){
+      toast("没猜中，机会用完，等待揭晓…");
+      done=true; bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
+    }else{
+      toast(`没猜中，还有 ${m.maxAttempts-m.attempts} 次机会`);
+      picked=null;
+      bar.innerHTML='<span class="sub" style="color:var(--bad)">没猜中，还有 1 次机会，再选一次</span>';
+      [...wallEl.children].forEach(x=>{ x.disabled=false; x.className="cell"; });
+    }
+  };
+  function sendWord(){
+    const val=wordEl.value.trim(); if(!val) return;
+    __PW.send({t:"word",text:val});
+    wordEl.value="";
+  }
+  sendBtn.onclick=sendWord;
+  wordEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); sendWord(); } });
   __PW.wall.forEach((g,i)=>{
     const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span>${g}`);
     c.onclick=()=>{
@@ -1128,9 +1199,8 @@ function renderOnlineGuess(){
       bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
       bar.querySelector("#pw-gok").onclick=()=>{
         if(done) return;
-        done=true; __PW.send({t:"guess",cell:picked});
-        [...wallEl.children].forEach(x=>{x.disabled=true;});
-        bar.innerHTML='<span class="sub">已提交，等待揭晓…</span>';
+        __PW.send({t:"guess",cell:picked});
+        bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
       };
     };
     wallEl.appendChild(c);
@@ -1142,14 +1212,13 @@ function renderOnlineGuess(){
     const el=card.querySelector("#pw-gtimer");
     if(el) el.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
     if(locked && Date.now()>=unlockAt()){
-      locked=false;
+      locked=false; wordRow.style.display="none";
       if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">作答开放！点选一张照片作答</span>';
     }
     if(left<=0) clearInterval(pwGtick);
   }
   const pwGtick=setInterval(tick,500); tick();
 }
-
 /* ---- 揭晓 / 终局 ---- */
 function renderOnlineReveal(){
   const rev=__PW.reveal, over=__PW.over;
@@ -1172,7 +1241,8 @@ function renderOnlineReveal(){
   const resEl=card.querySelector("#pw-results");
   (data.results||[]).forEach(r=>{
     const row=html("div",{class:"review-item"});
-    const label=r.role==="drawer"?`出题人 · 被猜中 ${r.hitCount||0} 次`:(r.guessed==null?"未作答":`猜 ${coordLabel(r.guessed)}${r.correct?" ✓":" ✗"}${r.first?" · 首答":""}`);
+    const wTag=r.wordHit?'文字命中 +2 · ':'';
+    const label=r.role==="drawer"?`出题人 · 被猜中 ${r.hitCount||0} 次`:(r.guessed==null?`${wTag}未作答`:r.correct?`${wTag}猜 ${coordLabel(r.guessed)} ✓${r.first?" · 首答":""}${r.attempts>1?" · 第"+r.attempts+"次":""}`:`${wTag}猜 ${coordLabel(r.guessed)} ✗${r.attempts>1?" · 第"+r.attempts+"次":""}`);
     row.innerHTML=`<div><b>${r.nickname}</b><div class="sub">${label}</div></div><span class="res" style="${r.points>0?"color:var(--ok)":"color:var(--bad)"};font-weight:700">${r.points>0?"+"+r.points:r.points} 分</span>`;
     resEl.appendChild(row);
   });
@@ -1201,7 +1271,7 @@ async function runOnlineTest(){
   try{
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",
-      players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null}],
+      players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false}],
       wall:WALL16, rules:{createSeconds:90,lockSeconds:30}});
     rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
     rec("房主可开始", !!document.querySelector("#pw-start"),"start 按钮");
@@ -1209,8 +1279,8 @@ async function runOnlineTest(){
 
     /* 2. 玩家加入 */
     __PW.handle({t:"player_joined",players:[
-      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null},
-      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null}]});
+      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false},
+      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false}]});
     rec("加入后列表 2 人", document.querySelector("#pw-players").children.length===2,"");
 
     /* 3. 开局 → 出题人视角 */
@@ -1233,44 +1303,76 @@ async function runOnlineTest(){
       deadline:Date.now()+90000,lockSeconds:30,createSeconds:90});
     await sleep(80);
     rec("猜题人墙 16 格", !!document.querySelector("#pw-gwall")&&document.querySelector("#pw-gwall").children.length===16,"");
-    rec("猜题人锁定提示", (document.querySelector("#pw-gbar").textContent||"").includes("作答尚未开放"),"");
+    rec("猜题人文字竞猜框", !!document.querySelector("#pw-word"),"");
+    rec("猜题人锁定提示", (document.querySelector("#pw-gbar").textContent||"").includes("文字竞猜中"),"");
 
-    /* 5. 画布实时同步 */
+    /* 5. 文字命中流程（模拟服务端判定） */
+    __PW.handle({t:"word_res",correct:true});
+    await sleep(40);
+    rec("文字命中提示+2", (document.querySelector("#pw-gbar").textContent||"").includes("文字命中 +2"),"");
+    __PW.handle({t:"word_res",correct:true,repeat:true});
+    await sleep(40);
+    rec("重复命中提示", (document.querySelector("#pw-gbar").textContent||"").includes("已文字命中"),"");
+    __PW.handle({t:"word_hit",pid:"pB",nickname:"小红"});
+
+    /* 6. 画布实时同步 */
     __PW.handle({t:"canvas",els:[{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"},{kind:"triangle",x:5,y:6,w:7,h:8,rot:0,color:"#000"}]});
     await sleep(60);
     rec("猜题人画布同步", document.querySelector("#pw-gstage").childNodes.length>=2,"");
 
-    /* 6. 解锁（deadline 提前） */
+    /* 7. 解锁 */
     __PW.deadline=Date.now()+500;
     await sleep(900);
-    rec("解锁后提示开放", (document.querySelector("#pw-gbar").textContent||"").includes("作答开放"),"");
+    rec("解锁后开放选图", (document.querySelector("#pw-gbar").textContent||"").includes("作答开放"),"");
+    rec("文字框解锁后隐藏", (document.querySelector("#pw-wordrow").style.display||"")==="none","");
 
-    /* 7. 猜题人提交（选中→确认，无 ws 时 send 安全忽略） */
+    /* 8. 第 1 次选错 → 还有 1 次；第 2 次选对 → 锁定 */
     document.querySelector("#pw-gwall").children[3].click();
     await sleep(60);
     rec("选中格高亮", !!document.querySelector("#pw-gwall .cell.picked"),"");
-    const ok=document.querySelector("#pw-gok");
-    rec("确认按钮出现", !!ok,"");
-    if(ok) ok.click();
+    const ok1=document.querySelector("#pw-gok");
+    rec("确认按钮出现", !!ok1,"");
+    if(ok1) ok1.click();
+    __PW.handle({t:"guess_ok",correct:false,done:false,attempts:1,maxAttempts:2});
     await sleep(60);
-    rec("提交后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("已提交"),"");
+    rec("第1次错提示还有机会", (document.querySelector("#pw-gbar").textContent||"").includes("还有 1 次机会"),"");
+    rec("墙重新可用", !document.querySelector("#pw-gwall").children[0].disabled,"");
+    document.querySelector("#pw-gwall").children[3].click();
+    await sleep(40);
+    const ok2=document.querySelector("#pw-gok");
+    if(ok2) ok2.click();
+    __PW.handle({t:"guess_ok",correct:true,first:true,done:true,attempts:2,maxAttempts:2});
+    await sleep(60);
+    rec("第2次对后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("等待揭晓"),"");
 
-    /* 8. 揭晓 */
+    /* 9. 揭晓 */
     __PW.handle({t:"reveal",state:"round_end",round:1,answer:3,answerLabel:"B1 🏠",
       drawer:{pid:"pA",nickname:"阿明"},
       results:[
-        {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,points:1,hitCount:1},
-        {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,points:3}],
-      scores:{pA:1,pB:3},isLast:false});
+        {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1},
+        {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,attempts:2,wordHit:true,points:5}],
+      scores:{pA:1,pB:5},isLast:false});
     rec("揭晓结果行 2 条", !!document.querySelector("#pw-results")&&document.querySelector("#pw-results").children.length===2,"");
     rec("揭晓答案显示", (document.querySelector("h1").textContent||"").includes("第 1 轮揭晓"),"");
+    rec("揭晓含文字命中标记", (document.querySelector("#pw-results").textContent||"").includes("文字命中"),"");
     rec("揭晓含下一轮按钮", !!document.querySelector("#pw-next"),"");
 
-    /* 9. 终局 */
-    __PW.handle({t:"game_over",scores:{pA:1,pB:3},winner:{pid:"pB",nickname:"小红",score:3}});
+    /* 10. 终局 */
+    __PW.handle({t:"game_over",scores:{pA:1,pB:5},winner:{pid:"pB",nickname:"小红",score:5}});
     rec("终局标题", (document.querySelector("h1").textContent||"").includes("对局结束"),"");
     rec("赢家显示", (document.querySelector(".score-big").textContent||"").includes("小红"),"");
     rec("终局含再来一局", !!document.querySelector("#pw-again"),"");
+
+    /* 11. 在线房间列表 */
+    renderOnline();
+    await sleep(60);
+    __PW.handle({t:"list",rooms:[{room_id:"AB12",host:"阿明",players:1,max:6},{room_id:"CD34",host:"小红",players:3,max:6}]});
+    await sleep(60);
+    rec("在线房间列表渲染", !!document.querySelector("#pw-rooms")&&document.querySelector("#pw-rooms").children.length===2,"");
+    rec("房间可点击加入", !!document.querySelector("#pw-join-AB12"),"");
+    __PW.handle({t:"list",rooms:[]});
+    await sleep(60);
+    rec("空列表提示", (document.querySelector("#pw-rooms").textContent||"").includes("暂无"),"");
   }catch(err){
     rec("联机自检异常", false, (err&&err.message)||String(err));
   }
@@ -1288,7 +1390,6 @@ async function runOnlineTest(){
     <div class="foot-actions"><button class="primary" onclick="location.hash='#/online'">去联机对战</button><button class="ghost" onclick="location.hash='#/'">回首页</button></div>`;
   w.appendChild(card);$app.appendChild(w);
 }
-
 function runRoute(){
   try{ route(); }
   catch(e){
