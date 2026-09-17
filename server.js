@@ -330,6 +330,7 @@ class RoomManager {
 /* ================= 网络层 ================= */
 function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   const app = express();
+  app.get("/health", (req, res) => res.type("text/plain").send("ok"));
   app.use(express.static(path.join(__dirname, ".")));
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: "/ws" });

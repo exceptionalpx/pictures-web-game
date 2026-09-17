@@ -8,7 +8,7 @@ services:
     region: singapore
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 20.18.0
