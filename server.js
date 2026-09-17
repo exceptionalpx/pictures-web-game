@@ -331,6 +331,7 @@ class RoomManager {
 function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   const app = express();
   app.get("/health", (req, res) => res.type("text/plain").send("ok"));
+  app.get("/", (req, res) => res.redirect(302, "/巧手猜图.html"));
   app.use(express.static(path.join(__dirname, ".")));
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: "/ws" });
