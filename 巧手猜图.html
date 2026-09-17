@@ -45,7 +45,7 @@ a{color:var(--brand-d)}
 .timer{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700;background:#F3EFE5;border-radius:10px;padding:6px 14px;min-width:84px;text-align:center}
 .timer.urgent{color:var(--bad);background:#FDE8E8}
 /* 创作布局 */
-.editor{display:grid;grid-template-columns:216px 1fr 250px;gap:14px;align-items:start}
+.editor{display:grid;grid-template-columns:240px 1fr 250px;gap:14px;align-items:start}
 .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
 .wall-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .cell{position:relative;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);background:#FCFBF8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;overflow:hidden}
@@ -59,8 +59,8 @@ a{color:var(--brand-d)}
 .cell.wrong{border-color:var(--bad);background:#FDE8E8}
 .cell .mark{position:absolute;right:4px;bottom:2px;font-size:12px;font-weight:800;color:#fff;background:rgba(232,168,34,.92);border-radius:6px;padding:0 6px;z-index:1}
 .cell .cross{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--bad);background:rgba(253,232,232,.72);z-index:1}
-.target-card{display:flex;gap:12px;align-items:center;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px;margin-bottom:12px}
-.target-card img{width:96px;height:96px;object-fit:cover;border-radius:10px;flex:none}
+.target-card{display:flex;flex-direction:column;gap:8px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px}
+.target-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
 .target-card .sub{margin-top:2px}
 .stage-wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
 .stage{width:100%;max-width:520px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
@@ -282,9 +282,6 @@ function renderEditor(){
     <div class="panel wall-panel">
       <h2>🎯 目标照片</h2>
       <div class="target-card" id="target-card"></div>
-      <h2>照片墙</h2>
-      <div class="sub" style="margin-bottom:8px">金色描边是你秘密抽到的目标，别让猜的人看到画面以外的提示</div>
-      <div class="wall-grid" id="wall"></div>
     </div>
     <div class="stage-wrap">
       <svg class="stage" id="stage"></svg>
@@ -315,7 +312,6 @@ function renderEditor(){
 
   const svg=wrap.querySelector("#stage");
   window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
-  const wallEl=wrap.querySelector("#wall");
   const tabsEl=wrap.querySelector("#tabs");
   const swEl=wrap.querySelector("#swatches");
   const bodyEl=wrap.querySelector("#toolbody");
@@ -328,12 +324,6 @@ function renderEditor(){
     targetCard.innerHTML=`<img src="${t.img}" alt="${t.zh}"><div><b>${t.zh}</b><div class="sub">把这张照片抽象成画，别照着描<br>类别：${t.category}</div></div>`;
   }
   if(__PW.deadline){ const l=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000)); timerEl.textContent=`${Math.floor(l/60)}:${String(l%60).padStart(2,"0")}`; }
-
-  /* 照片墙 */
-  wall.forEach((g,i)=>{
-    const c=html("button",{class:"cell"+(i===target?" target":"")},`<span class="coord">${coordLabel(i)}</span>${i===target?'<span class="mark">目标</span>':""}<img src="${g.img}" alt="${g.zh}">`);
-    wallEl.appendChild(c);
-  });
 
   /* 工具 tabs */
   TOOLS.forEach(t=>{
@@ -983,8 +973,7 @@ async function runOnlineTest(){
     rec("出题人编辑器挂载", !!(ed&&ed.svg),"renderEditor online");
     rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("1:"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
-    rec("目标金色描边", !!document.querySelector("#wall .cell.target"),"");
-    rec("照片墙真实图片", document.querySelectorAll("#wall .cell img").length===16,"16 张 img");
+    rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
     document.querySelector(".tabs").children[4].click();
     [...document.querySelectorAll("#toolbody button")].find(b=>b.textContent.includes("矩形积木")).click();
     rec("出题人添加元素", ed.state.els.length===1,"");
