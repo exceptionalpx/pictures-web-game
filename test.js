@@ -368,6 +368,7 @@ function wsClient(url){
   return {
     ws,
     ready,
+    queue,
     send(m){ ws.send(JSON.stringify(m)); },
     waitFor(pred, timeoutMs = 5000){
       const i = queue.findIndex(pred);
@@ -437,6 +438,22 @@ test("e2e：2 人完整对局（文字三级竞猜→无限次选图+冷却→�
   assert.equal("text" in wh, false, "word_hit 不含答案词");
   assert.equal("word" in wh, false);
 
+  // 出题人专属 word_view：命中含猜词内容、层级与分值（不给其他猜题人）
+  const wvHit = await a.waitFor(m => m.t === "word_view" && m.correct === true);
+  assert.equal(wvHit.nickname, "小红");
+  assert.ok(wvHit.word, "出题人看到猜词内容");
+  assert.equal(wvHit.level, "exact");
+  assert.equal(wvHit.pts, 5);
+
+  // 未命中词也实时给出题人
+  b.send({ t:"word", text:"完全猜不到的东西" });
+  const missRes = await b.waitFor(m => m.t === "word_res" && m.correct === false);
+  assert.equal(missRes.correct, false);
+  const wvMiss = await a.waitFor(m => m.t === "word_view" && m.correct === false);
+  assert.equal(wvMiss.nickname, "小红");
+  assert.ok(wvMiss.word.includes("完全猜不到"), "未命中词也实时给出题人");
+  assert.equal(b.queue.some(m => m.t === "word_view"), false, "word_view 只发给出题人");
+
   // 解锁后：B 选错 → 未锁定 + tried 记录；重复点已试格被拒；冷却中再选被拒
   await sleep(220);
   const wrong = (rsA.target + 1) % 16;
@@ -447,6 +464,11 @@ test("e2e：2 人完整对局（文字三级竞猜→无限次选图+冷却→�
   assert.ok(g1.tried.includes(wrong), "已试格返回给前端");
   const gstat0 = await a.waitFor(m => m.t === "guess_status" && m.answered === 0);
   assert.equal(gstat0.total, 1, "答错不算已锁定");
+  // 出题人专属 guess_view：选图对错实时可见
+  const gvWrong = await a.waitFor(m => m.t === "guess_view" && m.correct === false);
+  assert.equal(gvWrong.pid, joinedB.pid);
+  assert.equal(gvWrong.cell, wrong);
+  assert.equal(gvWrong.first, false);
 
   b.send({ t:"guess", cell: wrong });
   const triedErr = await b.waitFor(m => m.t === "error");
@@ -465,6 +487,11 @@ test("e2e：2 人完整对局（文字三级竞猜→无限次选图+冷却→�
   assert.equal(g2.tried.length, 1, "tried 保留已试格");
   const gstat1 = await a.waitFor(m => m.t === "guess_status" && m.answered === 1);
   assert.equal(gstat1.total, 1);
+  // 选图正确的 guess_view 只发给出题人
+  const gvRight = await a.waitFor(m => m.t === "guess_view" && m.correct === true);
+  assert.equal(gvRight.cell, rsA.target);
+  assert.equal(gvRight.first, true);
+  assert.equal(b.queue.some(m => m.t === "guess_view"), false, "guess_view 只发给出题人");
 
   const revA = await a.waitFor(m => m.t === "reveal");
   const revB = await b.waitFor(m => m.t === "reveal");

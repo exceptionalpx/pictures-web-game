@@ -62,6 +62,14 @@ a{color:var(--brand-d)}
 .target-card{display:flex;flex-direction:column;gap:8px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px}
 .target-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
 .target-card .sub{margin-top:2px}
+.feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px}
+.feed-panel h2{font-size:15px;margin-bottom:8px}
+.feed{display:flex;flex-direction:column;gap:4px;max-height:148px;overflow-y:auto}
+.feed .fitem{display:flex;gap:8px;align-items:center;font-size:14px;padding:4px 8px;border-radius:8px;background:#FAF7EF}
+.feed .fitem.ok{background:#E8F7EC}
+.feed .fitem.no{background:#FDF0EE}
+.feed .fitem .tag{font-weight:700;color:#1B7F3B}
+.feed .fitem.no .tag{color:#A83226}
 .stage-wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
 .stage{width:100%;max-width:520px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
 .stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
@@ -163,6 +171,7 @@ let toastTimer;
 function toast(msg){ $toast.textContent=msg; $toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$toast.classList.remove("show"),2200); }
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function coordLabel(i){return "ABCD"[Math.floor(i/RULES.gridW)] + ((i%RULES.gridW)+1);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function h(tag, attrs={}, ...kids){
   const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
   for(const k in attrs) el.setAttribute(k,attrs[k]);
@@ -305,6 +314,10 @@ function renderEditor(){
       <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       <div class="note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
     </div>
+  </div>
+  <div class="feed-panel">
+    <h2>作答动态</h2>
+    <div class="feed" id="feed"></div>
   </div>`;
   $app.appendChild(wrap);
   wrap.querySelector("#back").onclick=()=>{if(timerId)clearInterval(timerId);location.hash="#/";};
@@ -533,6 +546,29 @@ function renderEditor(){
     timerEl.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
     timerEl.classList.toggle("urgent",left<=15);
   },1000);
+  /* 作答动态：出题人实时看到每个猜词与选图对错（word_view/guess_view 仅发给出题人） */
+  function addFeed(inner, cls){
+    const feed=document.querySelector("#feed"); if(!feed) return;
+    const it=document.createElement("div");
+    it.className="fitem "+(cls||"");
+    it.innerHTML=inner;
+    feed.appendChild(it);
+    while(feed.children.length>8) feed.removeChild(feed.firstChild);
+    feed.scrollTop=feed.scrollHeight;
+  }
+  window.__pwDrawerWord=(m)=>{
+    if(m.correct){
+      const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)} +${m.pts}`;
+      addFeed(`<b>${esc(m.nickname)}</b><span class="tag">${tag}</span>`,"ok");
+    }else{
+      addFeed(`<b>${esc(m.nickname)}</b><span class="tag">猜「${esc(m.word)}」✗</span>`,"no");
+    }
+  };
+  window.__pwDrawerGuess=(m)=>{
+    const cell=coordLabel(m.cell);
+    if(m.correct) addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✓${m.first?" 首答":""}</span>`,"ok");
+    else addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✗</span>`,"no");
+  };
   syncUI();
   window.__pwEditor={state,svg,wrap,draw};
   function onlineTarget(){ return Number.isInteger(target) && target>=0 && wall[target]; }
@@ -612,7 +648,13 @@ const __PW = window.__pwOnline = {
         break;
       case "word_hit":
         if(window.__pwWordHit) window.__pwWordHit(m);
-        else toast(`${m.nickname} 猜中了${levelLabel(m.level)}`);
+        else if(!window.__pwDrawerWord) toast(`${m.nickname} 猜中了${levelLabel(m.level)}`);
+        break;
+      case "word_view":
+        if(window.__pwDrawerWord) window.__pwDrawerWord(m);
+        break;
+      case "guess_view":
+        if(window.__pwDrawerGuess) window.__pwDrawerGuess(m);
         break;
       case "list":
         if(window.__pwRooms) window.__pwRooms(m);
@@ -744,6 +786,7 @@ function renderOnlineRoom(){
 
 /* ---- 猜题人视图 ---- */
 function renderOnlineGuess(){
+  window.__pwDrawerWord=null; window.__pwDrawerGuess=null;
   $app.innerHTML="";
   const w=html("div",{class:"wrap"});
   const card=html("div",{class:"card"});
@@ -882,6 +925,7 @@ function renderOnlineGuess(){
 }
 /* ---- 揭晓 / 终局 ---- */
 function renderOnlineReveal(){
+  window.__pwDrawerWord=null; window.__pwDrawerGuess=null;
   const rev=__PW.reveal, over=__PW.over;
   const data=over||rev;
   if(!data){ if(__PW.roomId) renderOnlineLobby(); else renderOnline(); return; }
@@ -978,6 +1022,19 @@ async function runOnlineTest(){
     [...document.querySelectorAll("#toolbody button")].find(b=>b.textContent.includes("矩形积木")).click();
     rec("出题人添加元素", ed.state.els.length===1,"");
     rec("出题人按钮为等待揭晓", (document.querySelector("#submit").textContent||"").includes("等待揭晓"),"");
+    /* 作答动态：出题人实时看到猜词与选图对错 */
+    __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"汽车",correct:false});
+    await sleep(30);
+    rec("出题人见未命中词", (document.querySelector("#feed").textContent||"").includes("汽车")&&(document.querySelector("#feed").textContent||"").includes("✗"),"");
+    __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"大象",correct:true,level:"exact",pts:5});
+    await sleep(30);
+    rec("出题人见命中词+层级", (document.querySelector("#feed").textContent||"").includes("准确词")&&(document.querySelector("#feed").textContent||"").includes("+5"),"");
+    __PW.handle({t:"guess_view",pid:"pB",nickname:"小红",cell:3,correct:true,first:true});
+    await sleep(30);
+    rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
+    __PW.handle({t:"guess_view",pid:"pC",nickname:"小刚",cell:0,correct:false,first:false});
+    await sleep(30);
+    rec("出题人见选图未中", (document.querySelector("#feed").textContent||"").includes("A1")&&(document.querySelector("#feed").textContent||"").includes("✗"),"");
 
     /* 4. 猜题人视角：锁定阶段无照片墙 */
     __PW.pid="pB";

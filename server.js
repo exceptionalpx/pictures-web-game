@@ -346,6 +346,11 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         if(c.ctx && c.ctx.room === room && (!exceptPid || c.ctx.pid !== exceptPid)) c.send(JSON.stringify(obj));
       }
     };
+    const sendTo = (room, pid, obj) => {
+      for(const c of wss.clients){
+        if(c.ctx && c.ctx.room === room && c.ctx.pid === pid) c.send(JSON.stringify(obj));
+      }
+    };
 
     ws.on("message", (raw) => {
       let m; try{ m = JSON.parse(raw); }catch(e){ return; }
@@ -410,9 +415,14 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
       if(t === "word"){
         const r = room.submitWord(pid, m.text);
         if(r.err){ return send({ t:"error", err:r.err, msg:r.msg }); }
+        const drawerPid = room.drawer() && room.drawer().pid;
+        // 出题人实时看到每个猜词与命中结果（含未命中；命中只给出题人，不给其他猜题人）
+        if(drawerPid){
+          sendTo(room, drawerPid, { t:"word_view", pid, nickname: room.findPlayer(pid).nickname, word: String(m.text||"").trim(), correct: !!r.correct, level: r.level || "", pts: r.pts || 0, repeat: !!r.repeat });
+        }
         if(r.correct){
           if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true, level: r.level, pts: r.pts }); }
-          broadcast(room, { t:"word_hit", pid, nickname: room.findPlayer(pid).nickname, level: r.level }, pid);   // 广播"有人猜中"（含层级，不含词）
+          broadcast(room, { t:"word_hit", pid, nickname: room.findPlayer(pid).nickname, level: r.level }, pid);   // 猜题人之间只广播层级，不含词
           return send({ t:"word_res", correct: true, level: r.level, pts: r.pts, word: r.word });
         }
         return send({ t:"word_res", correct: false });
@@ -421,7 +431,11 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         const r = room.submitGuess(pid, m.cell);
         if(r.err){ return send({ t:"error", err:r.err, msg:r.msg, remain: r.remain }); }
         send({ t:"guess_ok", correct: r.correct, first: r.first, answered: r.answered, total: r.total, done: r.done, tried: r.tried||[] });
-        broadcast(room, { t:"guess_status", answered: r.answered, total: r.total }, pid);   // 提示"有人已锁定作答"，不含对错
+        broadcast(room, { t:"guess_status", answered: r.answered, total: r.total }, pid);   // 猜题人之间仅匿名人数，不含对错
+        const drawerPid2 = room.drawer() && room.drawer().pid;
+        if(drawerPid2){
+          sendTo(room, drawerPid2, { t:"guess_view", pid, nickname: room.findPlayer(pid).nickname, cell: m.cell, correct: !!r.correct, first: !!r.first });
+        }
         if(room.allAnswered()) room.reveal();   // 自动揭晓（onReveal 广播）
         return;
       }
