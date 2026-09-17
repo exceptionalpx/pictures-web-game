@@ -1025,7 +1025,9 @@ const __PW = window.__pwOnline = {
       case "game_over":
         this.over=m; this.status="game_over"; renderOnlineReveal(); break;
       case "error":
-        toast(m.msg||"操作失败"); break;
+        if(m.err==="cooldown" && window.__pwCooldownMsg) window.__pwCooldownMsg(m.remain);
+        else if(m.err==="tried") toast(m.msg||"这张照片试过了");
+        else toast(m.msg||"操作失败"); break;
     }
   }
 };
@@ -1050,7 +1052,7 @@ function renderOnline(){
   const card=html("div",{class:"card",style:"max-width:520px;margin:0 auto"});
   card.innerHTML=`
     <h1>联机对战</h1>
-    <div class="sub">2–6 人同房：一人拼剪影，其他人实时观看；前 30 秒可无限次文字竞猜（猜中 +2），之后点选照片作答（最多 2 次，首答 +3 / 猜中 +1），出题人被猜中 +1，轮流出题。</div>
+    <div class="sub">2–6 人同房：一人拼剪影，其他人实时观看。前 30 秒隐藏照片墙，凭画布无限次文字竞猜（猜中 +2）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），出题人被猜中 +1，轮流出题。</div>
     <h3>你的昵称</h3>
     <input id="pw-nick" placeholder="随便填，如：阿明" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
     <h3>创建新房间</h3>
@@ -1094,7 +1096,11 @@ function renderOnline(){
       };
     });
   };
-  if(__PW.ws&&__PW.ws.readyState===1) loadRooms();
+  if(__PW.ws&&__PW.ws.readyState===1){ loadRooms(); }
+  else if(!window.__pwNoAutoConnect){ // 游客自动连接，解锁在线房间列表
+    window.__pwRooms=(m)=>{ const box=document.querySelector("#pw-rooms"); if(box && m.rooms){ if(!m.rooms.length){ box.innerHTML='<div class="note">暂无等待中的房间，创建一个吧</div>'; } else { box.innerHTML=""; m.rooms.forEach(rm=>{ const row=html("div",{class:"review-item"}); row.innerHTML=`<div><b>${rm.host||"匿名"}</b><div class="sub">房间码 ${rm.room_id} · ${rm.players}/${rm.max} 人</div></div><button class="primary" id="pw-join-${rm.room_id}">加入</button>`; box.appendChild(row); row.querySelector(`#pw-join-${rm.room_id}`).onclick=()=>{ __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100)); pwConnect(()=>__PW.send({t:"join",room_id:rm.room_id,nickname:__PW.nickname})); }; }); } } };
+    pwConnect(()=>{ if(window.__pwRooms) window.__pwRooms({rooms:[]}); loadRooms(); });
+  }
   window.listTimer=setInterval(loadRooms,3000);
 }
 function pwConnect(action){
@@ -1117,7 +1123,7 @@ function renderOnlineLobby(){
     <h3>玩家列表</h3>
     <div id="pw-players"></div>
     ${isHost?'<button class="accent" id="pw-start" style="width:100%;margin-top:14px">开始游戏</button>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
-    <div class="note">规则：每轮一人出题 90 秒；前 30 秒作答锁定（只能看）；每人每轮 1 次作答，提交即锁定；首答对 +3、其余 +1、出题人被猜中 +1；轮流出题，总分最高者胜。</div>
+    <div class="note">规则：每轮一人出题 90 秒；前 30 秒照片墙隐藏，凭画布无限次文字竞猜（猜中 +2）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1、出题人被猜中 +1；轮流出题，总分最高者胜。</div>
     <div class="foot-actions"><button class="ghost" onclick="pwLeave()">离开房间</button></div>`;
   w.appendChild(card);$app.appendChild(w);
   const pl=card.querySelector("#pw-players");
@@ -1148,63 +1154,119 @@ function renderOnlineGuess(){
     <h1>${__PW.drawer.nickname||"对方"} 正在拼图…</h1>
     <div class="qbar">第 ${__PW.round} 轮 · 出题人：${__PW.drawer.nickname||"？"} · <span id="pw-gtimer">--:--</span></div>
     <div class="guess-stage"><svg class="stage" id="pw-gstage"></svg></div>
-    <div class="wall-big"><div class="wall-grid" id="pw-gwall"></div></div>
-    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中 +2 分，30 秒后开放选图</span></div>
     <div class="word-row" id="pw-wordrow" style="display:flex;gap:8px;margin-top:10px">
       <input id="pw-word" placeholder="猜它是什么，如：气球" maxlength="30" autocomplete="off" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
       <button class="primary" id="pw-wordsend">猜！</button>
-    </div>`;
+    </div>
+    <div id="pw-records" style="margin-top:8px"></div>
+    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中 +2 分，照片墙 30 秒后开放</span></div>
+    <div id="pw-photo-holder"></div>`;
   w.appendChild(card);$app.appendChild(w);
-  const svg=card.querySelector("#pw-gstage"), wallEl=card.querySelector("#pw-gwall"), bar=card.querySelector("#pw-gbar");
-  const wordRow=card.querySelector("#pw-wordrow"), wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
+  const svg=card.querySelector("#pw-gstage"), wallHolder=card.querySelector("#pw-photo-holder"),
+    bar=card.querySelector("#pw-gbar"), recEl=card.querySelector("#pw-records");
+  const wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
   renderArtwork(svg,__PW.canvas);
-  let picked=null, locked=true, done=false;
+  let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="";
+  const triedSet=new Set(__PW.myTried||[]);
+  window.__pwCooldownMs = window.__pwCooldownMs || 10000;
   window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas); };
+
+  function addRecord(text, mode){
+    const row=html("div",{class:"guess-record "+mode});
+    const sp=html("span"); sp.textContent=text;
+    const b=html("b");
+    if(mode==="hit") b.textContent="✓ +2";
+    else if(mode==="miss") b.textContent="✗";
+    else { b.textContent="…"; b.style.color="#B45309"; }
+    row.appendChild(sp); row.appendChild(b);
+    recEl.insertBefore(row, recEl.firstChild);
+    while(recEl.children.length>5) recEl.lastChild.remove();
+    return row;
+  }
+  function pendingRow(){
+    let r=recEl.querySelector(".guess-record.pending");
+    if(!r){ r=addRecord(pendingWord||"…","pending"); }
+    return r;
+  }
   window.__pwWordRes=(m)=>{
+    const r=pendingRow();
     if(m.correct){
-      if(m.repeat) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">你已文字命中 +2，等选图开放</span>';
-      else bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">🎯 文字命中 +2！等选图开放</span>';
+      if(m.repeat){ r.classList.remove("pending"); r.classList.add("hit"); r.querySelector("b").textContent="✓ +2（已命中）"; }
+      else { r.classList.remove("pending"); r.classList.add("hit"); r.querySelector("b").textContent="✓ +2"; }
+      bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">🎯 文字命中 +2！可继续猜，或等照片墙开放后选图确认</span>';
     }else{
-      if(locked && !done) bar.innerHTML='<span class="sub">不对哦，再猜猜（猜中 +2）</span>';
+      r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
+      bar.innerHTML='<span class="sub">不对哦，再猜猜（猜中 +2）</span>';
     }
   };
   window.__pwWordHit=(m)=>{ toast(`${m.nickname} 猜中了！`); };
+  function lockWall(lock){
+    if(!wallEl) return;
+    [...wallEl.children].forEach((x,i)=>{ if(triedSet.has(i)) return; x.disabled=lock; });
+  }
+  function startCooldown(ms){
+    cooldownUntil=Date.now()+ms;
+    bar.innerHTML=`<span class="sub" style="color:var(--bad)">没猜中！该照片已标记 ✗ · 冷却中 <b id="pw-cd">${Math.ceil(ms/1000)}</b> 秒（可继续文字竞猜）</span>`;
+    lockWall(true);
+    const iv=setInterval(()=>{
+      const left=Math.ceil((cooldownUntil-Date.now())/1000);
+      const el=document.querySelector("#pw-cd");
+      if(el) el.textContent=Math.max(0,left);
+      if(cooldownUntil<=Date.now()){
+        clearInterval(iv);
+        lockWall(false);
+        if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">冷却结束，再选一张照片（猜对即锁定）</span>';
+      }
+    },100);
+  }
+  window.__pwCooldownMsg=(remain)=>{
+    if(remain>0) startCooldown(remain);
+    else toast("选图冷却中，稍后再试");
+  };
   window.__pwGuessOk=(m)=>{
     if(m.correct){
       toast(m.first?"🎉 首答正确！+3（等揭晓）":"✅ 猜中！+1（等揭晓）");
-      done=true; bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
-    }else if(m.done){
-      toast("没猜中，机会用完，等待揭晓…");
-      done=true; bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
+      done=true; lockWall(true); bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
     }else{
-      toast(`没猜中，还有 ${m.maxAttempts-m.attempts} 次机会`);
+      triedSet.add(picked); __PW.myTried=(__PW.myTried||[]).concat(picked);
+      const ch=wallEl&&wallEl.children[picked];
+      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(picked)}</span>✗`; }
       picked=null;
-      bar.innerHTML='<span class="sub" style="color:var(--bad)">没猜中，还有 1 次机会，再选一次</span>';
-      [...wallEl.children].forEach(x=>{ x.disabled=false; x.className="cell"; });
+      startCooldown(window.__pwCooldownMs);
     }
   };
   function sendWord(){
     const val=wordEl.value.trim(); if(!val) return;
+    pendingWord=val;
+    addRecord(val,"pending");
     __PW.send({t:"word",text:val});
     wordEl.value="";
   }
   sendBtn.onclick=sendWord;
   wordEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); sendWord(); } });
-  __PW.wall.forEach((g,i)=>{
-    const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span>${g}`);
-    c.onclick=()=>{
-      if(locked||done) return;
-      picked=i;
-      [...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
-      bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
-      bar.querySelector("#pw-gok").onclick=()=>{
-        if(done) return;
-        __PW.send({t:"guess",cell:picked});
-        bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
+  function buildWall(){
+    wallEl=html("div",{class:"wall-grid"});
+    __PW.wall.forEach((g,i)=>{
+      const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span>${g}`);
+      c.onclick=()=>{
+        if(locked||done||cooldownUntil>Date.now()) return;
+        picked=i;
+        [...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
+        bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
+        bar.querySelector("#pw-gok").onclick=()=>{
+          if(done||cooldownUntil>Date.now()) return;
+          __PW.send({t:"guess",cell:picked});
+          bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
+        };
       };
-    };
-    wallEl.appendChild(c);
-  });
+      wallEl.appendChild(c);
+    });
+    triedSet.forEach(i=>{
+      const ch=wallEl.children[i];
+      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(i)}</span>✗`; }
+    });
+    wallHolder.appendChild(wallEl);
+  }
   const unlockAt=()=>__PW.deadline-(__PW.createSeconds-__PW.lockSeconds)*1000;
   function tick(){
     const left=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000));
@@ -1212,8 +1274,10 @@ function renderOnlineGuess(){
     const el=card.querySelector("#pw-gtimer");
     if(el) el.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
     if(locked && Date.now()>=unlockAt()){
-      locked=false; wordRow.style.display="none";
-      if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">作答开放！点选一张照片作答</span>';
+      locked=false;
+      wallHolder.innerHTML='<h3 style="margin:10px 0 6px">照片墙 · 点击选图</h3>';
+      buildWall();
+      if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">照片墙开放！点选一张照片作答（猜错该格 ✗ + 10s 冷却）</span>';
     }
     if(left<=0) clearInterval(pwGtick);
   }
@@ -1268,10 +1332,12 @@ async function runOnlineTest(){
   const rec=(name,ok,detail)=>{results.push({name,ok,detail});};
   const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
   const WALL16=["🎈","🏠","🐟","🌵","☂️","🚲","⛵","🍕","🎸","🌋","🎪","🚀","🐘","🌮","🗼","🌻"];
+  window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
+  window.__pwCooldownMs=60;           // 自检内冷却缩短
   try{
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",
-      players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false}],
+      players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
       wall:WALL16, rules:{createSeconds:90,lockSeconds:30}});
     rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
     rec("房主可开始", !!document.querySelector("#pw-start"),"start 按钮");
@@ -1279,8 +1345,8 @@ async function runOnlineTest(){
 
     /* 2. 玩家加入 */
     __PW.handle({t:"player_joined",players:[
-      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false},
-      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false}]});
+      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
+      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
     rec("加入后列表 2 人", document.querySelector("#pw-players").children.length===2,"");
 
     /* 3. 开局 → 出题人视角 */
@@ -1297,53 +1363,70 @@ async function runOnlineTest(){
     rec("出题人添加元素", ed.state.els.length===1,"");
     rec("出题人按钮为等待揭晓", (document.querySelector("#submit").textContent||"").includes("等待揭晓"),"");
 
-    /* 4. 猜题人视角 */
+    /* 4. 猜题人视角：锁定阶段无照片墙 */
     __PW.pid="pB";
     __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
       deadline:Date.now()+90000,lockSeconds:30,createSeconds:90});
     await sleep(80);
-    rec("猜题人墙 16 格", !!document.querySelector("#pw-gwall")&&document.querySelector("#pw-gwall").children.length===16,"");
     rec("猜题人文字竞猜框", !!document.querySelector("#pw-word"),"");
-    rec("猜题人锁定提示", (document.querySelector("#pw-gbar").textContent||"").includes("文字竞猜中"),"");
+    rec("锁定期无照片墙", !document.querySelector("#pw-photo-holder .wall-grid"),"");
+    rec("锁定期提示", (document.querySelector("#pw-gbar").textContent||"").includes("文字竞猜中"),"");
 
-    /* 5. 文字命中流程（模拟服务端判定） */
+    /* 5. 文字竞猜 + 猜测记录 */
+    const winput=document.querySelector("#pw-word");
+    winput.value="气球";
+    document.querySelector("#pw-wordsend").click();
+    await sleep(40);
+    rec("猜测记录待定行", !!document.querySelector("#pw-records .guess-record.pending"),"");
     __PW.handle({t:"word_res",correct:true});
     await sleep(40);
-    rec("文字命中提示+2", (document.querySelector("#pw-gbar").textContent||"").includes("文字命中 +2"),"");
-    __PW.handle({t:"word_res",correct:true,repeat:true});
+    rec("猜测记录命中行", !!document.querySelector("#pw-records .guess-record.hit"),"");
+    rec("记录显示+2", (document.querySelector("#pw-records").textContent||"").includes("+2"),"");
+    rec("文字命中提示", (document.querySelector("#pw-gbar").textContent||"").includes("文字命中 +2"),"");
+    // 未命中记录
+    winput.value="汽车";
+    document.querySelector("#pw-wordsend").click();
     await sleep(40);
-    rec("重复命中提示", (document.querySelector("#pw-gbar").textContent||"").includes("已文字命中"),"");
-    __PW.handle({t:"word_hit",pid:"pB",nickname:"小红"});
+    __PW.handle({t:"word_res",correct:false});
+    await sleep(40);
+    rec("未命中记录✗", !!document.querySelector("#pw-records .guess-record.miss"),"");
 
     /* 6. 画布实时同步 */
     __PW.handle({t:"canvas",els:[{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"},{kind:"triangle",x:5,y:6,w:7,h:8,rot:0,color:"#000"}]});
     await sleep(60);
     rec("猜题人画布同步", document.querySelector("#pw-gstage").childNodes.length>=2,"");
 
-    /* 7. 解锁 */
+    /* 7. 解锁：照片墙出现在文字框下方 */
     __PW.deadline=Date.now()+500;
     await sleep(900);
-    rec("解锁后开放选图", (document.querySelector("#pw-gbar").textContent||"").includes("作答开放"),"");
-    rec("文字框解锁后隐藏", (document.querySelector("#pw-wordrow").style.display||"")==="none","");
+    rec("解锁后照片墙出现", !!document.querySelector("#pw-photo-holder .wall-grid")&&document.querySelector("#pw-photo-holder .wall-grid").children.length===16,"");
+    rec("解锁提示", (document.querySelector("#pw-gbar").textContent||"").includes("照片墙开放"),"");
+    rec("文字框仍可用", !!document.querySelector("#pw-word"),"");
 
-    /* 8. 第 1 次选错 → 还有 1 次；第 2 次选对 → 锁定 */
-    document.querySelector("#pw-gwall").children[3].click();
-    await sleep(60);
-    rec("选中格高亮", !!document.querySelector("#pw-gwall .cell.picked"),"");
+    /* 8. 无限次选图 + 冷却 */
+    document.querySelector("#pw-photo-holder .wall-grid").children[3].click();
+    await sleep(40);
+    rec("选中格高亮", !!document.querySelector("#pw-photo-holder .wall-grid .cell.picked"),"");
     const ok1=document.querySelector("#pw-gok");
     rec("确认按钮出现", !!ok1,"");
     if(ok1) ok1.click();
-    __PW.handle({t:"guess_ok",correct:false,done:false,attempts:1,maxAttempts:2});
-    await sleep(60);
-    rec("第1次错提示还有机会", (document.querySelector("#pw-gbar").textContent||"").includes("还有 1 次机会"),"");
-    rec("墙重新可用", !document.querySelector("#pw-gwall").children[0].disabled,"");
-    document.querySelector("#pw-gwall").children[3].click();
+    __PW.handle({t:"guess_ok",correct:false,done:false,tried:[3]});
+    await sleep(40);
+    rec("猜错该格标记✗", !!document.querySelector("#pw-photo-holder .wall-grid .cell.tried"),"");
+    rec("冷却倒计时显示", !!document.querySelector("#pw-cd"),"");
+    const nonTried=()=>document.querySelector("#pw-photo-holder .wall-grid .cell:not(.tried)");
+    rec("冷却中墙锁定", !!nonTried()&&nonTried().disabled,"");
+    await sleep(450);
+    rec("冷却结束墙解锁", !!nonTried()&&!nonTried().disabled,"");
+    rec("已试格仍禁用", document.querySelector("#pw-photo-holder .wall-grid .cell.tried").disabled,"");
+    // 第 2 次选对 → 锁定
+    nonTried().click();
     await sleep(40);
     const ok2=document.querySelector("#pw-gok");
     if(ok2) ok2.click();
-    __PW.handle({t:"guess_ok",correct:true,first:true,done:true,attempts:2,maxAttempts:2});
+    __PW.handle({t:"guess_ok",correct:true,first:true,done:true,tried:[3]});
     await sleep(60);
-    rec("第2次对后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("等待揭晓"),"");
+    rec("猜对后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("等待揭晓"),"");
 
     /* 9. 揭晓 */
     __PW.handle({t:"reveal",state:"round_end",round:1,answer:3,answerLabel:"B1 🏠",
@@ -1363,7 +1446,7 @@ async function runOnlineTest(){
     rec("赢家显示", (document.querySelector(".score-big").textContent||"").includes("小红"),"");
     rec("终局含再来一局", !!document.querySelector("#pw-again"),"");
 
-    /* 11. 在线房间列表 */
+    /* 11. 在线房间列表（自检内不真实连接，模拟 list 消息） */
     renderOnline();
     await sleep(60);
     __PW.handle({t:"list",rooms:[{room_id:"AB12",host:"阿明",players:1,max:6},{room_id:"CD34",host:"小红",players:3,max:6}]});
@@ -1376,6 +1459,8 @@ async function runOnlineTest(){
   }catch(err){
     rec("联机自检异常", false, (err&&err.message)||String(err));
   }
+  window.__pwNoAutoConnect=false;
+  window.__pwCooldownMs=10000;
   /* 报告 */
   const passed=results.filter(r=>r.ok).length;
   pwReset();

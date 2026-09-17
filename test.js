@@ -1,8 +1,8 @@
 "use strict";
 /**
  * 巧手猜图联机服务端测试（node --test test.js）
- * 覆盖：房间生命周期 / 作答锁定 / 文字竞猜 / 最多 2 次选图 / 计分结算 / 提前揭晓 /
- *       出题轮换 / 终局 / 目标保密 / 重连恢复 / 房间列表 / 网络 e2e 全流程
+ * 覆盖：房间生命周期 / 作答锁定 / 文字竞猜（整轮开放）/ 选图不限次（错格✗+冷却）/
+ *       计分结算 / 提前揭晓 / 出题轮换 / 终局 / 目标保密 / 重连恢复 / 房间列表 / 网络 e2e 全流程
  */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -30,7 +30,7 @@ test("房间：创建 / 加入 / 超员 / 开局后拒绝加入", () => {
   assert.ok(pid);
 });
 
-test("作答锁定窗口：前 30 秒拒绝，解锁后放行", () => {
+test("作答锁定窗口：前 30 秒拒绝选图，解锁后放行", () => {
   const room = new Room("T1", { lockMs: 50, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
@@ -44,8 +44,8 @@ test("作答锁定窗口：前 30 秒拒绝，解锁后放行", () => {
   });
 });
 
-test("文字竞猜：词表命中 / 未命中 / 错图不命中 / 重复命中不重复加分 / 窗口外拒绝", async () => {
-  const room = new Room("TW1", { lockMs: 3000, createMs: 100000 });
+test("文字竞猜：整轮开放 / 词表命中 / 未命中 / 错图不命中 / 重复命中不重复加分 / 解锁后仍可猜", async () => {
+  const room = new Room("TW1", { lockMs: 50, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 2; room.startRound();
   const b = room.players[1].pid, c = room.players[2].pid;
@@ -65,83 +65,102 @@ test("文字竞猜：词表命中 / 未命中 / 错图不命中 / 重复命中�
   assert.equal(wrongEmoji.correct, false, "词对但图错 → 不命中");
   room.submitWord(c, "自行车");
   assert.equal(room.players[2].wordHit, true, "正确图命中");
-  return sleep(3200).then(() => {
-    const late = room.submitWord(b, "房子");
-    assert.equal(late.err, "word_closed", "锁定窗口结束拒绝文字竞猜");
+  // 锁定窗口结束后（解锁后）文字竞猜仍开放
+  return sleep(80).then(() => {
+    const late = room.submitWord(b, "自行车");
+    assert.equal(late.err, undefined, "解锁后文字竞猜仍开放");
+    assert.equal(late.correct, true, "解锁后命中仍有效");
   });
 });
 
-test("最多 2 次选图：第 1 次错可再试 / 第 2 次锁定 / 答对即锁定", () => {
-  const room = new Room("T2", { lockMs: 0, createMs: 100000 });
+test("选图不限次数：多次试错不锁定 / 已试格拒绝 / 答对即锁定", () => {
+  const room = new Room("T2", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
   const b = room.players[1].pid;
-  const wrong = (room.target+1)%16;
-  const g1 = room.submitGuess(b, wrong);
-  assert.equal(g1.correct, false);
-  assert.equal(g1.done, false, "第 1 次错未锁定，还有 1 次");
-  assert.equal(g1.attempts, 1);
-  const g2 = room.submitGuess(b, room.target);
-  assert.equal(g2.correct, true);
-  assert.equal(g2.done, true, "第 2 次锁定");
-  assert.equal(g2.attempts, 2);
-  const g3 = room.submitGuess(b, wrong);
-  assert.equal(g3.err, "already_guessed", "锁定后拒绝");
-
-  // 第 1 次答对直接锁定
-  const room2 = new Room("T2b", { lockMs: 0, createMs: 100000 });
-  room2.addPlayer("A"); room2.addPlayer("B");
-  room2.maxRounds = 2; room2.startRound();
-  const b2 = room2.players[1].pid;
-  const ok = room2.submitGuess(b2, room2.target);
-  assert.equal(ok.done, true, "答对即 final");
-  assert.equal(ok.attempts, 1);
+  const wrongs = [(room.target+1)%16, (room.target+2)%16, (room.target+3)%16];
+  for(const w of wrongs){
+    const g = room.submitGuess(b, w);
+    assert.equal(g.correct, false);
+    assert.equal(g.done, false, "错误不锁定，可继续尝试");
+    assert.ok(g.tried.includes(w), "已试格被记录");
+  }
+  const rep = room.submitGuess(b, wrongs[0]);
+  assert.equal(rep.err, "tried", "已试格拒绝重复点选");
+  const ok = room.submitGuess(b, room.target);
+  assert.equal(ok.correct, true);
+  assert.equal(ok.done, true, "答对即锁定");
+  assert.equal(ok.tried.length, 3, "锁定前已试 3 格");
+  const after = room.submitGuess(b, wrongs[1]);
+  assert.equal(after.err, "already_guessed", "锁定后拒绝");
 });
 
-test("计分结算 v2：首答对 +3 / 后答对 +1 / 第 2 次对 +1 / 文字命中 +2 叠加 / 出题人按猜中人数去重 +1", async () => {
-  const room = new Room("T3", { lockMs: 100000, createMs: 100000 });
+test("选图冷却：猜错后进入冷却，冷却内拒绝，冷却后放行", async () => {
+  const room = new Room("T2c", { lockMs: 0, createMs: 100000, cooldownMs: 300 });
+  room.addPlayer("A"); room.addPlayer("B");
+  room.maxRounds = 2; room.startRound();
+  const b = room.players[1].pid;
+  const w1 = (room.target+1)%16, w2 = (room.target+2)%16;
+  room.submitGuess(b, w1);                       // 猜错 → 进入 300ms 冷却
+  const cd = room.submitGuess(b, w2);
+  assert.equal(cd.err, "cooldown", "冷却中拒绝再选");
+  assert.ok(cd.remain > 0 && cd.remain <= 300, "返回剩余冷却");
+  return sleep(360).then(() => {
+    const again = room.submitGuess(b, w2);
+    assert.ok(!again.err, "冷却结束可再选");
+    assert.equal(again.correct, false, "仍可选错继续尝试");
+    return sleep(360).then(() => {   // 第二次错误又进入冷却，等冷却过再选目标
+      const ok = room.submitGuess(b, room.target);
+      assert.equal(ok.correct, true);
+    });
+  });
+});
+
+test("计分结算 v3：首答对 +3 / 后答对 +1 / 多次试错后对仍 +1 / 文字命中 +2 叠加 / 出题人按猜中人数去重 +1", async () => {
+  const room = new Room("T3", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 3; room.startRound();           // R1 drawer = A
   const b = room.players[1].pid, c = room.players[2].pid;
   room.wall[room.target] = "🎈";                    // 目标图 = 🎈
   room.submitWord(b, "气球");                       // B 文字命中
-  room.opts.lockMs = 0;                             // 文字窗口结束，开放选图
   room.submitGuess(b, room.target);                 // B 首答选图对
   await sleep(2);                                   // 时间戳防同毫秒竞争
   room.submitGuess(c, (room.target+1)%16);          // C 第 1 次错
   await sleep(2);
-  room.submitGuess(c, room.target);                 // C 第 2 次对
+  room.submitGuess(c, (room.target+2)%16);          // C 第 2 次错
+  await sleep(2);
+  room.submitGuess(c, room.target);                 // C 第 3 次对
   const rev = room.reveal();
   const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
   assert.equal(by.B.points, 5, "文字 +2 与首答选图 +3 叠加");
   assert.equal(by.B.wordHit, true);
   assert.equal(by.B.first, true);
-  assert.equal(by.C.points, 1, "第 2 次选图对 +1");
-  assert.equal(by.C.attempts, 2);
+  assert.equal(by.C.points, 1, "多次试错后选图对仍 +1");
+  assert.equal(by.C.attempts, 3, "尝试次数 = 2 次错误 + 1 次正确");
   assert.equal(by.C.wordHit, false);
   assert.equal(by.A.points, 2, "出题人：B、C 各算 1 人猜中（B 文字+选图双中只算 1 人）");
   assert.equal(by.A.hitCount, 2);
   assert.equal(rev.scores[room.players[0].pid], 2);
 });
 
-test("文字命中但选图答错：仍计 +2，出题人仍算被猜中", () => {
-  const room = new Room("T3b", { lockMs: 100000, createMs: 100000 });
+test("文字命中但选图全错：仍计 +2，出题人仍算被猜中，不锁定不扣分", () => {
+  const room = new Room("T3b", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
   const b = room.players[1].pid;
   room.wall[room.target] = "🎈";
   room.submitWord(b, "气球");
-  room.opts.lockMs = 0;
   room.submitGuess(b, 5);                            // 选图答错
   const rev = room.reveal();
   const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
-  assert.equal(by.B.points, 2, "文字命中 +2，选图错不再加");
-  assert.equal(by.B.correct, false);
+  assert.equal(by.B.points, 2, "文字命中 +2，选图错不加不减");
+  assert.equal(by.B.guessed, null, "答错未锁定，无最终答案");
+  assert.equal(by.B.attempts, 1);
   assert.equal(by.A.points, 1, "文字命中也算被猜中");
 });
 
-test("首答判定：先答错者不占抢先奖励；第 2 次尝试最早答对仍可获首答", () => {
-  const room = new Room("T4", { lockMs: 0, createMs: 100000 });
+test("首答判定：先答错者不占抢先奖励；多次尝试后最早答对仍可获首答", () => {
+  const room = new Room("T4", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 3; room.startRound();
   const b = room.players[1].pid, c = room.players[2].pid;
@@ -151,14 +170,14 @@ test("首答判定：先答错者不占抢先奖励；第 2 次尝试最早答�
   const rev = room.reveal();
   const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
   assert.equal(by.B.points, 0, "答错 0 分");
-  assert.equal(by.B.guessed, wrong);
+  assert.equal(by.B.guessed, null, "答错未锁定");
   assert.equal(by.B.attempts, 1);
   assert.equal(by.C.first, true, "先答错的不能占抢先奖励");
   assert.equal(by.C.points, 3);
   assert.equal(by.A.points, 1, "仅 1 人猜中");
 
   // 所有人都第 1 次答错后，B 第 2 次最早答对 → B 首答
-  const room2 = new Room("T4b", { lockMs: 0, createMs: 100000 });
+  const room2 = new Room("T4b", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room2.addPlayer("A"); room2.addPlayer("B"); room2.addPlayer("C");
   room2.maxRounds = 3; room2.startRound();
   const b2 = room2.players[1].pid, c2 = room2.players[2].pid;
@@ -170,23 +189,23 @@ test("首答判定：先答错者不占抢先奖励；第 2 次尝试最早答�
   assert.equal(g.done, true);
 });
 
-test("全部最终锁定可提前揭晓；答错 1 次未锁定不算答完", () => {
-  const room = new Room("T5", { lockMs: 0, createMs: 100000 });
+test("全部最终锁定可提前揭晓；答错未锁定不算答完", () => {
+  const room = new Room("T5", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 3; room.startRound();
   const b = room.players[1].pid, c = room.players[2].pid;
-  room.submitGuess(b, room.target);                  // B 答对 → final
-  assert.equal(room.allAnswered(), false, "C 未 final");
-  room.submitGuess(c, (room.target+1)%16);           // C 第 1 次错 → 未 final
+  room.submitGuess(b, room.target);                  // B 答对 → 锁定
+  assert.equal(room.allAnswered(), false, "C 未锁定");
+  room.submitGuess(c, (room.target+1)%16);           // C 第 1 次错 → 未锁定
   assert.equal(room.allAnswered(), false, "答错未锁定不算答完");
-  room.submitGuess(c, room.target);                  // C 第 2 次对 → final
-  assert.equal(room.allAnswered(), true, "全部 final");
+  room.submitGuess(c, room.target);                  // C 第 2 次对 → 锁定
+  assert.equal(room.allAnswered(), true, "全部锁定");
   const rev = room.reveal();
   assert.equal(rev.state, "round_end");
 });
 
 test("出题人轮换 + 终局结算", () => {
-  const room = new Room("T6", { lockMs: 0, createMs: 100000 });
+  const room = new Room("T6", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
   assert.equal(room.drawer().nickname, "A", "R1 A 出题");
@@ -214,14 +233,16 @@ test("目标保密：snapshotFor 只给出题人带 target", () => {
   assert.equal(sb.target, undefined, "猜题人快照不含 target 字段");
 });
 
-test("重连恢复：rejoin 找回玩家、状态与文字命中标记", () => {
-  const mgr = new RoomManager({ lockMs: 100000, createMs: 100000 });
+test("重连恢复：rejoin 找回玩家、状态、文字命中标记与已试格", () => {
+  const mgr = new RoomManager({ lockMs: 0, createMs: 100000, cooldownMs: 0 });
   const { room, pid: a } = mgr.create("A");
   const b = mgr.join(room.id, "B").pid;
   room.maxRounds = 2; room.startRound();
   room.setCanvas(a, [{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"}]);
   room.wall[room.target] = "🎈";
   room.submitWord(b, "气球");
+  const wrong = (room.target+1)%16;
+  room.submitGuess(b, wrong);                        // B 选图错 → tried 记录
   room.removePlayer(b);
   const r = mgr.rejoin(room.id, b);
   assert.ok(!r.err, "重连成功");
@@ -230,7 +251,10 @@ test("重连恢复：rejoin 找回玩家、状态与文字命中标记", () => {
   assert.equal(snap.canvas.els.length, 1, "画布保留");
   assert.equal(snap.round, 1);
   assert.equal(snap.target, undefined);
-  assert.equal(snap.players.find(p=>p.pid===b).wordHit, true, "文字命中状态保留");
+  const pb = snap.players.find(p=>p.pid===b);
+  assert.equal(pb.wordHit, true, "文字命中状态保留");
+  assert.equal(pb.tried.length, 1, "已试格保留");
+  assert.equal(pb.tried[0], wrong);
 });
 
 test("画布权限：非出题人更新被拒", () => {
@@ -293,8 +317,8 @@ function wsClient(url){
   };
 }
 
-test("e2e：2 人完整对局（文字竞猜→2 次选图→揭晓→轮换→终局）", async () => {
-  const { server, manager, ready, wss } = startServer(0, { lockMs: 150, createMs: 3000 });
+test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓→轮换→终局）", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 150, createMs: 3000, cooldownMs: 60 });
   await ready;
   const port = server.address().port;
   const base = `ws://127.0.0.1:${port}/ws`;
@@ -329,36 +353,45 @@ test("e2e：2 人完整对局（文字竞猜→2 次选图→揭晓→轮换→�
   const cv = await b.waitFor(m => m.t === "canvas");
   assert.equal(cv.els.length, 1);
 
-  // 锁定窗口内：文字竞猜（猜题人 B）；选图被拒
+  // 锁定窗口内：选图被拒；文字竞猜命中
   b.send({ t:"guess", cell: rsA.target });
   const lockedErr = await b.waitFor(m => m.t === "error");
   assert.equal(lockedErr.err, "locked");
-  // 全词表文本必含目标图答案词 → 命中（词表判定本身由纯逻辑测试覆盖）
   const allWords = WORD_BANK.flat().join("  ");
   b.send({ t:"word", text:`这是${allWords}里的一个` });
   const wres = await b.waitFor(m => m.t === "word_res");
   assert.equal(wres.correct, true, "词表覆盖 32 图，全词表文本必命中");
-  // 出题人 A 收到"有人文字命中"广播（不含词）
   const wh = await a.waitFor(m => m.t === "word_hit");
   assert.equal(wh.pid, joinedB.pid);
   assert.equal("text" in wh, false, "word_hit 不含答案词");
   assert.equal("word" in wh, false);
 
-  // 解锁后：B 第 1 次选错 → 未锁定；第 2 次选对 → 首答锁定 → 自动揭晓
+  // 解锁后：B 选错 → 未锁定 + tried 记录；重复点已试格被拒；冷却中再选被拒
   await sleep(220);
-  b.send({ t:"guess", cell: (rsA.target + 1) % 16 });
-  const g1 = await b.waitFor(m => m.t === "guess_ok" && m.attempts === 1);
+  const wrong = (rsA.target + 1) % 16;
+  b.send({ t:"guess", cell: wrong });
+  const g1 = await b.waitFor(m => m.t === "guess_ok");
   assert.equal(g1.correct, false);
-  assert.equal(g1.done, false, "第 1 次错未锁定");
-  assert.equal(g1.maxAttempts, 2);
+  assert.equal(g1.done, false, "选错未锁定，可继续");
+  assert.ok(g1.tried.includes(wrong), "已试格返回给前端");
   const gstat0 = await a.waitFor(m => m.t === "guess_status" && m.answered === 0);
-  assert.equal(gstat0.total, 1);
+  assert.equal(gstat0.total, 1, "答错不算已锁定");
 
+  b.send({ t:"guess", cell: wrong });
+  const triedErr = await b.waitFor(m => m.t === "error");
+  assert.equal(triedErr.err, "tried", "已试格拒绝");
+  b.send({ t:"guess", cell: (rsA.target + 2) % 16 });
+  const cdErr = await b.waitFor(m => m.t === "error");
+  assert.equal(cdErr.err, "cooldown", "冷却中拒绝再选");
+  assert.ok(cdErr.remain > 0, "返回剩余冷却");
+
+  // 冷却结束后选对 → 首答锁定 → 自动揭晓
+  await sleep(120);   // cooldownMs 60 已过
   b.send({ t:"guess", cell: rsA.target });
-  const g2 = await b.waitFor(m => m.t === "guess_ok" && m.attempts === 2);
-  assert.equal(g2.correct, true);
+  const g2 = await b.waitFor(m => m.t === "guess_ok" && m.correct === true);
   assert.equal(g2.first, true, "B 是第一个选图正确者");
   assert.equal(g2.done, true);
+  assert.equal(g2.tried.length, 1, "tried 保留已试格");
   const gstat1 = await a.waitFor(m => m.t === "guess_status" && m.answered === 1);
   assert.equal(gstat1.total, 1);
 
@@ -370,6 +403,7 @@ test("e2e：2 人完整对局（文字竞猜→2 次选图→揭晓→轮换→�
   assert.equal(aRes.points, 1, "出题人被猜中 +1（文字+选图双中只算 1 人）");
   const bRes = revA.results.find(r => r.role === "guesser");
   assert.equal(bRes.points, bRes.wordHit ? 5 : 3, "B 得分 = 文字 +2 与首答选图 +3 叠加");
+  assert.equal(bRes.attempts, 2, "尝试次数 = 1 次错误 + 1 次正确");
 
   // 下一轮 → 角色交换
   b.send({ t:"next" });   // 非房主也可推进
@@ -379,7 +413,7 @@ test("e2e：2 人完整对局（文字竞猜→2 次选图→揭晓→轮换→�
   assert.equal("target" in rs2A, false, "R2 猜题人 A 无 target");
   assert.ok(Number.isInteger(rs2B.target), "R2 出题人 B 有 target");
 
-  // R2：A 文字猜不中 → 第 1 次选对 → 揭晓 → game_over
+  // R2：A 文字猜不中 → 解锁后选对 → 揭晓 → game_over
   b.send({ t:"canvas", els:[] });
   await a.waitFor(m => m.t === "canvas");
   a.send({ t:"word", text:"随便猜猜" });
@@ -423,8 +457,8 @@ test("e2e：倒计时结束自动揭晓（无人作答）", async () => {
   await new Promise(res => server.close(res));
 });
 
-test("e2e：断线重连恢复画布与身份", async () => {
-  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
+test("e2e：断线重连恢复画布、身份与已试格", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000, cooldownMs: 0 });
   await ready;
   const port = server.address().port;
   const base = `ws://127.0.0.1:${port}/ws`;
@@ -438,6 +472,8 @@ test("e2e：断线重连恢复画布与身份", async () => {
   const rsA = await a.waitFor(m => m.t === "round_start");
   a.send({ t:"canvas", els:[{kind:"icon",glyph:"⭐",x:1,y:2,w:3,h:4,rot:0,color:"#000"}] });
   await b.waitFor(m => m.t === "canvas");
+  b.send({ t:"guess", cell: (rsA.target+1)%16 });    // B 选错 → tried
+  await b.waitFor(m => m.t === "guess_ok");
 
   // B 断线后重连
   b.ws.close();
@@ -448,6 +484,7 @@ test("e2e：断线重连恢复画布与身份", async () => {
   assert.equal(rejoined.round, 1, "回合保留");
   assert.equal(rejoined.canvas.els[0].glyph, "⭐", "画布保留");
   assert.equal("target" in rejoined, false, "重连仍无 target");
+  assert.equal(rejoined.players.find(p=>p.pid===joinedB.pid).tried.length, 1, "已试格保留");
   const statusMsg = await a.waitFor(m => m.t === "player_joined" && m.pid === joinedB.pid);
   assert.equal(statusMsg.players.find(p=>p.pid===joinedB.pid).connected, true);
   manager.disposeAll(); a.ws.close(); b2.ws.close(); wss.close();

@@ -29,7 +29,7 @@ const ONLINE = {
   baseCorrect: 1,             // 猜对基础分
   firstBonus: 2,              // 首个选图正确额外奖励
   wordBonus: 2,               // 锁定窗口内文字命中奖励（可与选图分叠加）
-  maxAttempts: 2              // 选图机会上限（第 1 次对则结束，错可再试 1 次）
+  cooldownMs: 10000           // 选图猜错后的冷却时长（冷却内不能再选图，可继续文字竞猜）
 };
 
 const PHOTO_POOL = ["🎈","🏠","🐟","🌵","☂️","🚲","⛵","🍕","🎸","🌋","🎪","🚀","🐘","🌮","🗼","🌻","🍎","🚗","⚽","🎂","🌈","⌛","🔔","🎃","🎁","📷","✂️","🔑","🧸","🦋","🐧","🍦"];
@@ -95,7 +95,8 @@ class Room {
     this.id = roomId;
     this.opts = {
       lockMs: opts.lockMs ?? ONLINE.lockSeconds*1000,
-      createMs: opts.createMs ?? ONLINE.createSeconds*1000
+      createMs: opts.createMs ?? ONLINE.createSeconds*1000,
+      cooldownMs: opts.cooldownMs ?? ONLINE.cooldownMs
     };
     this.status = "lobby";            // lobby | playing | round_end | game_over
     this.round = 0;
@@ -120,7 +121,7 @@ class Room {
     if(this.players.length >= ONLINE.maxPlayers) return { err: "room_full", msg: "房间已满" };
     nickname = (nickname||"").toString().trim().slice(0,12) || ("玩家" + (this.players.length+1));
     const pid = genId();
-    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false });
+    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, tried: [], lastWrongAt: 0 });
     this.touch();
     return { pid };
   }
@@ -137,7 +138,7 @@ class Room {
   drawer(){ return this.players[this.drawerIdx] || null; }
   guessers(){ return this.players.filter((_,i) => i !== this.drawerIdx); }
   /** 已"最终锁定"的猜题人：选图答对，或 2 次机会用完 */
-  answeredCount(){ return this.guessers().filter(p => p.guessed && p.guessed.final).length; }
+  answeredCount(){ return this.guessers().filter(p => p.guessed && p.guessed.done).length; }
   allAnswered(){ return this.guessers().length > 0 && this.answeredCount() === this.guessers().length; }
 
   canStart(){ return this.status === "lobby" && this.players.length >= ONLINE.minPlayers; }
@@ -148,7 +149,7 @@ class Room {
     this.drawerIdx = (this.round - 1) % this.players.length;
     this.target = Math.floor(Math.random()*16);
     this.canvas = { els: [], ver: 0 };
-    this.players.forEach(p => { p.guessed = null; p.wordHit = false; });
+    this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.tried = []; p.lastWrongAt = 0; });
     this.roundStart = Date.now();
     this.deadline = this.roundStart + this.opts.createMs;
     this.status = "playing";
@@ -169,14 +170,13 @@ class Room {
     return { ok: true, ver: this.canvas.ver };
   }
 
-  /** 锁定窗口内的文字竞猜：不限次数，命中 +wordBonus（可与选图叠加）；只在 lockMs 内开放 */
+  /** 文字竞猜：整轮开放、不限次数，命中 +wordBonus（可与选图叠加） */
   submitWord(pid, text){
     if(this.status !== "playing") return { err: "not_playing" };
     const d = this.drawer();
     if(!d || d.pid === pid) return { err: "not_guesser", msg: "你是出题人，不用猜" };
     const p = this.findPlayer(pid);
     if(!p) return { err: "no_player" };
-    if(Date.now() >= this.roundStart + this.opts.lockMs) return { err: "word_closed", msg: "文字竞猜已结束，请直接选图" };
     // 命中判定：目标图（wall[target]）对应的答案词是否有任一条出现在玩家文本中
     const wallEmojiIdx = PHOTO_POOL.indexOf(this.wall[this.target]);
     const hit = wallEmojiIdx >= 0 && _WB[wallEmojiIdx].some(w => normalizeWord(text).includes(w));
@@ -188,9 +188,8 @@ class Room {
   }
 
   /**
-   * 选图作答：最多 maxAttempts 次。
-   *  第 1 次选对 → final（本轮结束）；选错 → 还有 1 次；
-   *  第 2 次无论对错 → final（提交即锁定）。
+   * 选图作答：不限次数。
+   *  正确 → 锁定（首答 +3 / 后答 +1）；错误 → 该格记入 tried 不可再点，进入 cooldownMs 冷却（不锁定、不扣分）。
    *  首答 = 全房第一个选图正确者（按正确时间顺序）。
    */
   submitGuess(pid, cell){
@@ -199,21 +198,27 @@ class Room {
     if(!d || d.pid === pid) return { err: "not_guesser", msg: "你是出题人，不能作答" };
     const p = this.findPlayer(pid);
     if(!p) return { err: "no_player" };
-    if(p.guessed && p.guessed.final) return { err: "already_guessed", msg: "本轮已锁定答案" };
+    if(p.guessed && p.guessed.done) return { err: "already_guessed", msg: "本轮已锁定答案" };
     if(Date.now() < this.roundStart + this.opts.lockMs) return { err: "locked", msg: `作答尚未解锁（前 ${ONLINE.lockSeconds} 秒只能看）` };
     if(!Number.isInteger(cell) || cell < 0 || cell > 15) return { err: "invalid" };
-    const attempts = (p.guessed ? p.guessed.attempts : 0) + 1;
+    if((p.tried||[]).includes(cell)) return { err: "tried", msg: "这张照片你已经试过了" };
+    const cd = this.opts.cooldownMs ?? ONLINE.cooldownMs;
+    if(p.lastWrongAt && Date.now() - p.lastWrongAt < cd){
+      return { err: "cooldown", msg: "选图冷却中，稍后再试", remain: cd - (Date.now() - p.lastWrongAt) };
+    }
     const correct = cell === this.target;
-    const final = correct || attempts >= ONLINE.maxAttempts;
-    p.guessed = { cell, correct, first: false, at: Date.now(), attempts, final };
     if(correct){
+      p.guessed = { cell, correct, first: false, at: Date.now(), done: true };
       p.guessed.first = !this.guessers().some(g => g.guessed && g.guessed.correct && g.guessed.at < p.guessed.at && g.pid !== pid);
+    }else{
+      p.tried = (p.tried||[]).concat(cell);
+      p.lastWrongAt = Date.now();
     }
     this.touch();
     return {
-      ok: true, correct, first: !!p.guessed.first,
+      ok: true, correct, first: !!(p.guessed && p.guessed.first),
       answered: this.answeredCount(), total: this.guessers().length,
-      attempts, maxAttempts: ONLINE.maxAttempts, done: final
+      done: !!(p.guessed && p.guessed.done), tried: p.tried || []
     };
   }
 
@@ -238,7 +243,7 @@ class Room {
         guessed: p.guessed ? p.guessed.cell : null,
         correct: p.guessed ? p.guessed.correct : null,
         first: p.guessed ? p.guessed.first : false,
-        attempts: p.guessed ? p.guessed.attempts : 0,
+        attempts: (p.tried||[]).length + (p.guessed ? 1 : 0),
         wordHit: !!p.wordHit,
         points: pts
       };
@@ -285,7 +290,7 @@ class Room {
       status: this.status,
       round: this.round,
       maxRounds: this.maxRounds,
-      players: this.players.map(p => ({ pid: p.pid, nickname: p.nickname, score: p.score, connected: p.connected, guessed: p.guessed, wordHit: p.wordHit })),
+      players: this.players.map(p => ({ pid: p.pid, nickname: p.nickname, score: p.score, connected: p.connected, guessed: p.guessed, wordHit: p.wordHit, tried: p.tried||[] })),
       drawerIdx: this.drawerIdx,
       wall: this.wall,
       canvas: this.canvas,
@@ -433,8 +438,8 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
       }
       if(t === "guess"){
         const r = room.submitGuess(pid, m.cell);
-        if(r.err){ return send({ t:"error", err:r.err, msg:r.msg }); }
-        send({ t:"guess_ok", correct: r.correct, first: r.first, answered: r.answered, total: r.total, attempts: r.attempts, maxAttempts: r.maxAttempts, done: r.done });
+        if(r.err){ return send({ t:"error", err:r.err, msg:r.msg, remain: r.remain }); }
+        send({ t:"guess_ok", correct: r.correct, first: r.first, answered: r.answered, total: r.total, done: r.done, tried: r.tried||[] });
         broadcast(room, { t:"guess_status", answered: r.answered, total: r.total }, pid);   // 提示"有人已锁定作答"，不含对错
         if(room.allAnswered()) room.reveal();   // 自动揭晓（onReveal 广播）
         return;
