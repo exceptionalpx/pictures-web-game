@@ -1,0 +1,14 @@
+# Render Blueprint：一键部署巧手猜图网页版（免费实例）
+# 用法：render.com → New → Blueprint → 选择本仓库 → Apply 即自动构建
+services:
+  - type: web
+    name: pictures-web-game
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
