@@ -1,12 +1,12 @@
 "use strict";
 /**
- * 巧手猜图 · 联机最小闭环服务端（规则集 pictures-web-online-v1）
+ * 巧手猜图 · 联机服务端（正式版初版 · 规则集 pictures-web-online-v1）
  *
  * 规则（服务端权威，与设计讨论定稿一致）：
- *  - 房间 2–6 人；房主开始后按加入顺序轮换出题
- *  - 出题人作画 90 秒；前 30 秒作答锁定（只能看画布）
- *  - 锁定 30 秒内：猜题人可无限次文字竞猜（猜中 +2，广播不含词，可与选图分叠加）
- *  - 解锁后选图：最多 2 次（第 1 次对 +3 首答/+1 后答，第 2 次对 +1，全错 0 分）
+ *  - 房间 2–6 人；房主开始后按加入顺序轮换出题；每轮从 64 张写实照片随机抽 16 张
+ *  - 出题人看目标照片（写实图）作画 90 秒；前 30 秒作答锁定（只能看画布）
+ *  - 文字竞猜全程开放、不限次数：准确词 +5 / 联想词 +2 / 类别词 +1（可与选图分叠加，先中最高层级）
+ *  - 解锁后选图：不限次数（猜错该格 ✗ + 10s 冷却，首答对 +3 / 后答对 +1，全错 0 分）
  *  - 出题人按"猜中人数"（文字命中 ∪ 选图对，去重）每人 +1
  *  - 揭晓：全部锁定作答完成则提前揭晓，否则倒计时结束揭晓
  *  - 目标保密：target 只在服务端→出题人连接上出现
@@ -14,6 +14,7 @@
  */
 const path = require("path");
 const http = require("http");
+const fs = require("fs");
 const express = require("express");
 const { WebSocketServer } = require("ws");
 
@@ -22,65 +23,39 @@ const ONLINE = {
   ruleset_id: "pictures-web-online-v1",
   createSeconds: 90,          // 每轮作画倒计时
   lockSeconds: 30,            // 作画开始后前 N 秒作答锁定
-  elementCap: 60,             // 画布元素上限（与 Demo 一致）
+  elementCap: 60,             // 画布元素上限
   minPlayers: 2,
   maxPlayers: 6,
   keepAliveMs: 60000,         // 断线保留房间时长
   baseCorrect: 1,             // 猜对基础分
   firstBonus: 2,              // 首个选图正确额外奖励
-  wordBonus: 2,               // 锁定窗口内文字命中奖励（可与选图分叠加）
+  wordScore: { category: 1, keyword: 2, exact: 5 },  // 文字竞猜三级计分：类别词 +1 / 联想词 +2 / 准确词 +5
   cooldownMs: 10000           // 选图猜错后的冷却时长（冷却内不能再选图，可继续文字竞猜）
 };
 
-const PHOTO_POOL = ["🎈","🏠","🐟","🌵","☂️","🚲","⛵","🍕","🎸","🌋","🎪","🚀","🐘","🌮","🗼","🌻","🍎","🚗","⚽","🎂","🌈","⌛","🔔","🎃","🎁","📷","✂️","🔑","🧸","🦋","🐧","🍦"];
 const STAGE = 480;
 
-/**
- * 文字竞猜答案词表（与 PHOTO_POOL 一一对应，32 图全覆盖）。
- * 规则：仅收录 2 字及以上词，避免单字（"家/船/伞/球"）误命中闲聊；
- * 判定 = 玩家输入归一化后包含任一答案词（如"红色气球"命中 🎈）。
- */
-const WORD_BANK = [
-  ["气球","热气球"],                                   // 🎈
-  ["房子","房屋","住宅"],                               // 🏠
-  ["鱼儿","小鱼","游鱼"],                               // 🐟
-  ["仙人掌","仙人球"],                                  // 🌵
-  ["雨伞","阳伞","打伞"],                               // ☂️
-  ["自行车","单车","脚踏车","骑车"],                     // 🚲
-  ["帆船","小船","游艇","轮船"],                         // ⛵
-  ["披萨","比萨","披萨饼"],                             // 🍕
-  ["吉他","电吉他"],                                    // 🎸
-  ["火山","火山喷发"],                                  // 🌋
-  ["马戏团","帐篷","马戏"],                             // 🎪
-  ["火箭","宇宙飞船","飞船","太空船"],                   // 🚀
-  ["大象","小象"],                                      // 🐘
-  ["卷饼","塔可","墨西哥卷"],                           // 🌮
-  ["铁塔","东京塔","高塔"],                             // 🗼
-  ["向日葵","太阳花"],                                  // 🌻
-  ["苹果","红苹果","苹果树"],                           // 🍎
-  ["汽车","轿车","小汽车","车子","车车"],                // 🚗
-  ["足球","皮球","踢球"],                               // ⚽
-  ["蛋糕","生日蛋糕","奶油蛋糕","甜品"],                 // 🎂
-  ["彩虹","七彩虹"],                                    // 🌈
-  ["沙漏","计时器","时间沙漏"],                         // ⌛
-  ["铃铛","门铃","摇铃"],                          // 🔔
-  ["南瓜","南瓜灯","万圣节"],                           // 🎃
-  ["礼物","礼盒","礼品","惊喜礼物"],                     // 🎁
-  ["相机","照相机","拍照","摄像机"],                     // 📷
-  ["剪刀","剪子","剪纸"],                               // ✂️
-  ["钥匙","门钥匙","开锁"],                             // 🔑
-  ["泰迪熊","玩具熊","毛绒熊","小熊"],                   // 🧸
-  ["蝴蝶","花蝴蝶","彩蝶"],                             // 🦋
-  ["企鹅","小企鹅","帝企鹅"],                           // 🐧
-  ["冰淇淋","冰激凌","雪糕","甜筒","冰棍"]              // 🍦
-];
-const _WB = WORD_BANK.map(list => list.map(w => w.toLowerCase().replace(/[\s\u3000.,!?，。！？、~～\-]/g,"")));
+/* ================= 64 图图库（v3-photo 写实照片版，词表来自 image-pack-64.json） ================= */
+const PACK = JSON.parse(fs.readFileSync(path.join(__dirname, "image-pack-64.json"), "utf8"));
+/** IMAGES: {id, category, category_word, zh, keywords[2], exact, en_prompt, img} */
+const IMAGES = PACK.images.map(g => ({ ...g, img: "/images/" + g.id + ".png" }));
+
 function normalizeWord(s){ return (s||"").toString().toLowerCase().replace(/[\s\u3000.,!?，。！？、~～\-]/g,""); }
-function matchWord(text){
+/**
+ * 文字竞猜三级命中判定（针对一张目标图）：
+ *  1. 准确词 exact 命中 → +5（最高优先级）
+ *  2. 联想词 keywords 任一命中 → +2
+ *  3. 类别词 category_word 命中 → +1
+ * 判定 = 玩家输入归一化后包含对应词条；先中最高层级，不叠加。
+ */
+function matchLevel(text, img){
   const t = normalizeWord(text);
-  if(!t) return { hit:false, idx:-1 };
-  for(let i=0;i<_WB.length;i++){ if(_WB[i].some(w => t.includes(w))) return { hit:true, idx:i }; }
-  return { hit:false, idx:-1 };
+  if(!t || !img) return { hit:false };
+  if(t.includes(img.exact)) return { hit:true, level:"exact", pts: ONLINE.wordScore.exact, word: img.exact };
+  const kw = (img.keywords||[]).find(k => t.includes(k));
+  if(kw) return { hit:true, level:"keyword", pts: ONLINE.wordScore.keyword, word: kw };
+  if(img.category_word && t.includes(img.category_word)) return { hit:true, level:"category", pts: ONLINE.wordScore.category, word: img.category_word };
+  return { hit:false };
 }
 
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -103,8 +78,8 @@ class Room {
     this.maxRounds = 0;               // 开局后 = 人数（每人出题一轮）
     this.players = [];                // {pid,nickname,score,connected,guessed}
     this.drawerIdx = -1;
-    this.wall = shuffle(PHOTO_POOL).slice(0,16);
-    this.target = -1;                 // 服务端权威秘密目标
+    this.wall = [];               // 每轮从 IMAGES 随机抽 16 张（对象）
+    this.target = -1;             // 服务端权威秘密目标（wall 内索引）
     this.canvas = { els: [], ver: 0 };
     this.roundStart = 0;
     this.deadline = 0;
@@ -121,7 +96,7 @@ class Room {
     if(this.players.length >= ONLINE.maxPlayers) return { err: "room_full", msg: "房间已满" };
     nickname = (nickname||"").toString().trim().slice(0,12) || ("玩家" + (this.players.length+1));
     const pid = genId();
-    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, tried: [], lastWrongAt: 0 });
+    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", tried: [], lastWrongAt: 0 });
     this.touch();
     return { pid };
   }
@@ -147,9 +122,10 @@ class Room {
     if(this.round >= this.maxRounds) return { err: "game_over" };
     this.round++;
     this.drawerIdx = (this.round - 1) % this.players.length;
+    this.wall = shuffle(IMAGES).slice(0,16);   // 每轮从 64 图池随机抽 16 张
     this.target = Math.floor(Math.random()*16);
     this.canvas = { els: [], ver: 0 };
-    this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.tried = []; p.lastWrongAt = 0; });
+    this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.tried = []; p.lastWrongAt = 0; });
     this.roundStart = Date.now();
     this.deadline = this.roundStart + this.opts.createMs;
     this.status = "playing";
@@ -170,21 +146,24 @@ class Room {
     return { ok: true, ver: this.canvas.ver };
   }
 
-  /** 文字竞猜：整轮开放、不限次数，命中 +wordBonus（可与选图叠加） */
+  /**
+   * 文字竞猜：整轮开放、不限次数。
+   * 三级命中：准确词 +5 / 联想词 +2 / 类别词 +1（先中最高层级，可与选图分叠加，重复命中不再加分）
+   */
   submitWord(pid, text){
     if(this.status !== "playing") return { err: "not_playing" };
     const d = this.drawer();
     if(!d || d.pid === pid) return { err: "not_guesser", msg: "你是出题人，不用猜" };
     const p = this.findPlayer(pid);
     if(!p) return { err: "no_player" };
-    // 命中判定：目标图（wall[target]）对应的答案词是否有任一条出现在玩家文本中
-    const wallEmojiIdx = PHOTO_POOL.indexOf(this.wall[this.target]);
-    const hit = wallEmojiIdx >= 0 && _WB[wallEmojiIdx].some(w => normalizeWord(text).includes(w));
-    if(!hit) return { ok: true, correct: false };
-    if(p.wordHit) return { ok: true, correct: true, repeat: true };   // 已命中，不重复加分
+    const m = matchLevel(text, this.wall[this.target]);
+    if(!m.hit) return { ok: true, correct: false };
+    if(p.wordHit) return { ok: true, correct: true, repeat: true, level: p.wordLevel, pts: p.wordPts };   // 已命中，不重复加分
     p.wordHit = true;
+    p.wordPts = m.pts;
+    p.wordLevel = m.level;
     this.touch();
-    return { ok: true, correct: true, idx: wallEmojiIdx };
+    return { ok: true, correct: true, level: m.level, pts: m.pts, word: m.word };
   }
 
   /**
@@ -222,7 +201,7 @@ class Room {
     };
   }
 
-  /** 结算本轮：选图对 +1（首答对再 +2）；文字命中 +2；出题人按"猜中人数"（文字命中 ∪ 选图对，去重）+1 */
+  /** 结算本轮：选图对 +1（首答对再 +2）；文字命中按层级 +5/+2/+1；出题人按"猜中人数"（文字命中 ∪ 选图对，去重）+1 */
   reveal(){
     if(this.status !== "playing") return null;
     clearTimeout(this._revealTimer);
@@ -235,7 +214,7 @@ class Room {
         return { pid: p.pid, nickname: p.nickname, role: "drawer", guessed: null, correct: null, wordHit: false, points: pts, hitCount };
       }
       let pts = 0;
-      if(p.wordHit) pts += ONLINE.wordBonus;
+      if(p.wordHit) pts += p.wordPts;
       if(p.guessed && p.guessed.correct){ pts += ONLINE.baseCorrect + (p.guessed.first ? ONLINE.firstBonus : 0); }
       p.score += pts;
       return {
@@ -245,6 +224,7 @@ class Room {
         first: p.guessed ? p.guessed.first : false,
         attempts: (p.tried||[]).length + (p.guessed ? 1 : 0),
         wordHit: !!p.wordHit,
+        wordPts: p.wordPts || 0,
         points: pts
       };
     });
@@ -256,7 +236,8 @@ class Room {
       state: this.status,
       round: this.round,
       answer: this.target,
-      answerLabel: coordLabel(this.target) + " " + this.wall[this.target],
+      answerLabel: coordLabel(this.target) + " " + this.wall[this.target].zh,
+      answerImg: this.wall[this.target].img,
       drawer: { pid: d.pid, nickname: d.nickname },
       results,
       scores,
@@ -416,7 +397,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
           if(c.ctx && c.ctx.room === room){
             const isDrawer = room.drawer().pid === c.ctx.pid;
             const snap = room.snapshotFor(c.ctx.pid);
-            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, target: snap.target }));
+            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target }));
           }
         }
         return;
@@ -430,9 +411,9 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         const r = room.submitWord(pid, m.text);
         if(r.err){ return send({ t:"error", err:r.err, msg:r.msg }); }
         if(r.correct){
-          if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true }); }
-          broadcast(room, { t:"word_hit", pid, nickname: room.findPlayer(pid).nickname }, pid);   // 广播"有人猜中"，不含词
-          return send({ t:"word_res", correct: true });
+          if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true, level: r.level, pts: r.pts }); }
+          broadcast(room, { t:"word_hit", pid, nickname: room.findPlayer(pid).nickname, level: r.level }, pid);   // 广播"有人猜中"（含层级，不含词）
+          return send({ t:"word_res", correct: true, level: r.level, pts: r.pts, word: r.word });
         }
         return send({ t:"word_res", correct: false });
       }
@@ -453,7 +434,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         for(const c of wss.clients){
           if(c.ctx && c.ctx.room === room){
             const snap = room.snapshotFor(c.ctx.pid);
-            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, target: snap.target }));
+            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target }));
           }
         }
         return;
@@ -483,12 +464,12 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
     resolveReady();
     if(require.main === module){
       console.log(`[pictures-web] 服务已启动: http://localhost:${port}  (ws://localhost:${port}/ws)`);
-      console.log(`[pictures-web] 前端入口: http://localhost:${port}/巧手猜图-Demo.html`);
+      console.log(`[pictures-web] 前端入口: http://localhost:${port}/巧手猜图.html`);
     }
   });
   return { app, server, wss, manager, ready };
 }
 
-module.exports = { ONLINE, PHOTO_POOL, WORD_BANK, normalizeWord, matchWord, STAGE, Room, RoomManager, startServer };
+module.exports = { ONLINE, IMAGES, PACK, normalizeWord, matchLevel, STAGE, Room, RoomManager, startServer };
 
 if(require.main === module){ startServer(); }

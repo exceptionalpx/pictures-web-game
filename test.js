@@ -1,13 +1,13 @@
 "use strict";
 /**
  * 巧手猜图联机服务端测试（node --test test.js）
- * 覆盖：房间生命周期 / 作答锁定 / 文字竞猜（整轮开放）/ 选图不限次（错格✗+冷却）/
- *       计分结算 / 提前揭晓 / 出题轮换 / 终局 / 目标保密 / 重连恢复 / 房间列表 / 网络 e2e 全流程
+ * 覆盖：房间生命周期 / 作答锁定 / 文字竞猜三级命中（准确+5/联想+2/类别+1）/ 选图不限次（错格✗+冷却）/
+ *       计分结算 / 提前揭晓 / 出题轮换 / 终局 / 目标保密 / 重连恢复 / 房间列表 / 词表完整性 / 网络 e2e 全流程
  */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { WebSocket } = require("ws");
-const { Room, RoomManager, startServer, PHOTO_POOL, WORD_BANK, matchWord, normalizeWord } = require("./server.js");
+const { Room, RoomManager, startServer, IMAGES, PACK, matchLevel, normalizeWord } = require("./server.js");
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -44,33 +44,54 @@ test("作答锁定窗口：前 30 秒拒绝选图，解锁后放行", () => {
   });
 });
 
-test("文字竞猜：整轮开放 / 词表命中 / 未命中 / 错图不命中 / 重复命中不重复加分 / 解锁后仍可猜", async () => {
+test("文字竞猜：整轮开放 / 三级命中 / 未命中 / 错图不命中 / 重复命中不重复加分 / 解锁后仍可猜", async () => {
   const room = new Room("TW1", { lockMs: 50, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 2; room.startRound();
   const b = room.players[1].pid, c = room.players[2].pid;
   const miss = room.submitWord(b, "随便猜猜是什么");
   assert.equal(miss.correct, false, "未命中");
-  // 命中：wall[target] 置为 🎈，猜"气球"命中；再发一次 → repeat
-  room.wall[room.target] = "🎈";
-  const hit = room.submitWord(b, "我猜是红色气球！");
-  assert.equal(hit.correct, true, "包含答案词即命中");
-  assert.equal(room.players[1].wordHit, true);
-  const rep = room.submitWord(b, "气球");
+  // 目标图置为 IMAGES[0]（大象：exact=大象，keywords=[非洲,长鼻]，category_word=动物）
+  room.wall[room.target] = IMAGES[0];
+  const ex = room.submitWord(b, "我猜是非洲大象！");
+  assert.equal(ex.correct, true, "包含准确词即命中");
+  assert.equal(ex.level, "exact", "先中最高层级");
+  assert.equal(ex.pts, 5, "准确词 +5");
+  const rep = room.submitWord(b, "大象");
   assert.equal(rep.correct, true);
   assert.equal(rep.repeat, true, "重复命中标记 repeat，不再加分");
-  // 换目标为 🚲：B 发"气球" → 词对但图错 → 不命中；C 发"自行车" → 命中
-  room.wall[room.target] = "🚲";
-  const wrongEmoji = room.submitWord(b, "气球");
+  // 换目标为自行车图：B 发"大象" → 词对但图错 → 不命中；C 发联想词 → keyword 命中
+  const bike = IMAGES.find(g => g.exact === "自行车");
+  assert.ok(bike, "64 图含自行车");
+  room.wall[room.target] = bike;
+  const wrongEmoji = room.submitWord(b, "大象");
   assert.equal(wrongEmoji.correct, false, "词对但图错 → 不命中");
-  room.submitWord(c, "自行车");
-  assert.equal(room.players[2].wordHit, true, "正确图命中");
+  const kw = room.submitWord(c, "我去骑行锻炼");
+  assert.equal(kw.correct, true, "联想词命中");
+  assert.equal(kw.level, "keyword");
+  assert.equal(kw.pts, 2, "联想词 +2");
+  // 类别词命中（repeat，不重复加分）
+  const cat = room.submitWord(c, "交通工具真多");
+  assert.equal(cat.correct, true);
+  assert.equal(cat.repeat, true, "已命中后类别词不重复加分");
   // 锁定窗口结束后（解锁后）文字竞猜仍开放
   return sleep(80).then(() => {
     const late = room.submitWord(b, "自行车");
     assert.equal(late.err, undefined, "解锁后文字竞猜仍开放");
     assert.equal(late.correct, true, "解锁后命中仍有效");
+    assert.equal(late.level, "exact");
   });
+});
+
+test("文字竞猜优先级：输入含准确词按 +5 而非联想/类别；输入含联想词按 +2 而非类别", () => {
+  const e = IMAGES[0];   // 大象
+  assert.equal(matchLevel("非洲", e).level, "keyword");
+  assert.equal(matchLevel("动物", e).level, "category");
+  assert.equal(matchLevel("非洲大象", e).level, "exact", "准确词优先于联想词");
+  assert.equal(matchLevel("动物大象", e).level, "exact", "准确词优先于类别词");
+  assert.equal(matchLevel("动物世界", e).level, "category");
+  assert.equal(matchLevel("长颈鹿", e).hit, false, "他图准确词不命中");
+  assert.equal(matchLevel("", e).hit, false);
 });
 
 test("选图不限次数：多次试错不锁定 / 已试格拒绝 / 答对即锁定", () => {
@@ -116,13 +137,13 @@ test("选图冷却：猜错后进入冷却，冷却内拒绝，冷却后放行",
   });
 });
 
-test("计分结算 v3：首答对 +3 / 后答对 +1 / 多次试错后对仍 +1 / 文字命中 +2 叠加 / 出题人按猜中人数去重 +1", async () => {
+test("计分结算：首答对 +3 / 后答对 +1 / 多次试错后对仍 +1 / 文字准确词 +5 叠加 / 出题人按猜中人数去重 +1", async () => {
   const room = new Room("T3", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 3; room.startRound();           // R1 drawer = A
   const b = room.players[1].pid, c = room.players[2].pid;
-  room.wall[room.target] = "🎈";                    // 目标图 = 🎈
-  room.submitWord(b, "气球");                       // B 文字命中
+  room.wall[room.target] = IMAGES[0];               // 目标图 = 大象（准确词 +5）
+  room.submitWord(b, "大象");                       // B 文字命中（exact +5）
   room.submitGuess(b, room.target);                 // B 首答选图对
   await sleep(2);                                   // 时间戳防同毫秒竞争
   room.submitGuess(c, (room.target+1)%16);          // C 第 1 次错
@@ -132,7 +153,8 @@ test("计分结算 v3：首答对 +3 / 后答对 +1 / 多次试错后对仍 +1 /
   room.submitGuess(c, room.target);                 // C 第 3 次对
   const rev = room.reveal();
   const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
-  assert.equal(by.B.points, 5, "文字 +2 与首答选图 +3 叠加");
+  assert.equal(by.B.points, 8, "文字准确词 +5 与首答选图 +3 叠加");
+  assert.equal(by.B.wordPts, 5, "文字分按层级 5 记录");
   assert.equal(by.B.wordHit, true);
   assert.equal(by.B.first, true);
   assert.equal(by.C.points, 1, "多次试错后选图对仍 +1");
@@ -143,17 +165,34 @@ test("计分结算 v3：首答对 +3 / 后答对 +1 / 多次试错后对仍 +1 /
   assert.equal(rev.scores[room.players[0].pid], 2);
 });
 
-test("文字命中但选图全错：仍计 +2，出题人仍算被猜中，不锁定不扣分", () => {
+test("文字命中按层级计分：联想 +2 / 类别 +1 分别叠加选图分", async () => {
+  const room = new Room("T3k", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
+  room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
+  room.maxRounds = 3; room.startRound();
+  const b = room.players[1].pid, c = room.players[2].pid;
+  room.wall[room.target] = IMAGES[0];               // 大象：keywords=[非洲,长鼻] / category=动物
+  room.submitWord(b, "非洲草原");                   // B 联想词 +2
+  room.submitWord(c, "动物世界");                   // C 类别词 +1
+  room.submitGuess(b, room.target);                 // B 首答选图对
+  const rev = room.reveal();
+  const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
+  assert.equal(by.B.points, 5, "联想 +2 与首答选图 +3 叠加");
+  assert.equal(by.B.wordPts, 2);
+  assert.equal(by.C.points, 1, "类别 +1，选图未对不加不减");
+  assert.equal(by.C.wordPts, 1);
+});
+
+test("文字命中但选图全错：仍计层级分，出题人仍算被猜中，不锁定不扣分", () => {
   const room = new Room("T3b", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
   const b = room.players[1].pid;
-  room.wall[room.target] = "🎈";
-  room.submitWord(b, "气球");
+  room.wall[room.target] = IMAGES[0];
+  room.submitWord(b, "大象");
   room.submitGuess(b, 5);                            // 选图答错
   const rev = room.reveal();
   const by = Object.fromEntries(rev.results.map(r => [r.nickname, r]));
-  assert.equal(by.B.points, 2, "文字命中 +2，选图错不加不减");
+  assert.equal(by.B.points, 5, "文字准确词 +5，选图错不加不减");
   assert.equal(by.B.guessed, null, "答错未锁定，无最终答案");
   assert.equal(by.B.attempts, 1);
   assert.equal(by.A.points, 1, "文字命中也算被猜中");
@@ -231,6 +270,10 @@ test("目标保密：snapshotFor 只给出题人带 target", () => {
   const sa = room.snapshotFor(a), sb = room.snapshotFor(b);
   assert.equal(sa.target, room.target, "出题人可见目标");
   assert.equal(sb.target, undefined, "猜题人快照不含 target 字段");
+  assert.ok(room.wall.every(g => g && g.id && g.img && g.exact), "wall 为 64 图对象");
+  assert.equal(room.wall.length, 16, "每轮抽 16 张");
+  const ids = room.wall.map(g => g.id);
+  assert.equal(new Set(ids).size, 16, "16 张不重复");
 });
 
 test("重连恢复：rejoin 找回玩家、状态、文字命中标记与已试格", () => {
@@ -239,8 +282,8 @@ test("重连恢复：rejoin 找回玩家、状态、文字命中标记与已试�
   const b = mgr.join(room.id, "B").pid;
   room.maxRounds = 2; room.startRound();
   room.setCanvas(a, [{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"}]);
-  room.wall[room.target] = "🎈";
-  room.submitWord(b, "气球");
+  room.wall[room.target] = IMAGES[0];
+  room.submitWord(b, "大象");
   const wrong = (room.target+1)%16;
   room.submitGuess(b, wrong);                        // B 选图错 → tried 记录
   room.removePlayer(b);
@@ -268,25 +311,45 @@ test("画布权限：非出题人更新被拒", () => {
   assert.ok(ok.ok);
 });
 
-test("词表完整性：32 图全覆盖 / 无单字词 / 无跨图重复 / 归一化判定", () => {
-  assert.equal(WORD_BANK.length, PHOTO_POOL.length, "词表与图片池一一对应（32）");
-  const all = [];
-  for(const list of WORD_BANK){
-    assert.ok(list.length >= 2, `每图至少 2 个同义词（当前 ${list.length}）`);
-    for(const w of list){
-      assert.ok(w.length >= 2, `不收单字词：${w}`);
-      assert.ok(!/[\s，。！？]/.test(w), `词条不含空白与标点：${w}`);
-      all.push(normalizeWord(w));
+test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {
+  assert.equal(IMAGES.length, 64, "64 张图");
+  assert.equal(PACK.scoring.category_word, 1, "类别词 1 分");
+  assert.equal(PACK.scoring.keyword, 2, "联想词 2 分");
+  assert.equal(PACK.scoring.exact, 5, "准确词 5 分");
+  const cats = new Set(IMAGES.map(g => g.category));
+  assert.equal(cats.size, 8, "8 个类别");
+  for(const g of IMAGES){
+    assert.ok(g.exact && g.exact.length >= 2, `准确词≥2字：${g.id}`);
+    assert.equal(g.keywords.length, 2, `每图 2 个联想词：${g.id}`);
+    for(const k of g.keywords){
+      assert.ok(k.length >= 2, `联想词≥2字：${k}`);
+      assert.ok(!/[\s\u3000，。！？]/.test(k), `联想词无空白标点：${k}`);
+    }
+    assert.ok(g.category_word.length >= 2, `类别词≥2字：${g.id}`);
+    assert.ok(g.img && g.img.startsWith("/images/"), `图片路径：${g.id}`);
+    assert.ok(!g.keywords.includes(g.exact), `exact 不在自身联想词：${g.exact}`);
+    assert.ok(g.category_word !== g.exact, `exact 不等于自身类别词：${g.exact}`);
+  }
+  // 全库唯一：exact、联想词各自不跨图重复
+  const allExact = IMAGES.map(g => normalizeWord(g.exact));
+  assert.equal(new Set(allExact).size, 64, "准确词全库唯一");
+  const allKw = IMAGES.flatMap(g => g.keywords.map(normalizeWord));
+  assert.equal(new Set(allKw).size, allKw.length, "联想词全库唯一");
+  // exact 不得与他图联想词/类别词重叠（保证命中优先级无歧义）
+  for(const g of IMAGES){
+    for(const other of IMAGES){
+      if(other.id === g.id) continue;
+      assert.ok(!other.keywords.includes(g.exact), `exact「${g.exact}」不得出现在他图联想词`);
+      assert.ok(other.category_word !== g.exact, `exact「${g.exact}」不得等于他图类别词`);
     }
   }
-  assert.equal(new Set(all).size, all.length, "词条不跨图重复");
   // 判定：包含即命中；单字闲聊不误判
-  assert.equal(matchWord("红色气球").hit, true);
-  assert.equal(matchWord("我猜是房子吧").hit, true);
-  assert.equal(matchWord("大家加油").hit, false, "单字「家」不在词表，不误判");
-  assert.equal(matchWord("随便说说").hit, false);
-  assert.equal(matchWord("").hit, false);
-  assert.equal(normalizeWord("  气球 ！"), "气球");
+  const e = IMAGES.find(g => g.exact === "大象");
+  assert.equal(matchLevel("红色气球", e).hit, false, "图不对不命中");
+  assert.equal(matchLevel("大家加油", e).hit, false, "单字「家」不在词表，不误判");
+  assert.equal(matchLevel("随便说说", e).hit, false);
+  assert.equal(matchLevel("", e).hit, false);
+  assert.equal(normalizeWord("  大象 ！"), "大象");
 });
 
 /* ================= e2e 网络测试 ================= */
@@ -317,7 +380,7 @@ function wsClient(url){
   };
 }
 
-test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓→轮换→终局）", async () => {
+test("e2e：2 人完整对局（文字三级竞猜→无限次选图+冷却→揭晓→轮换→终局）", async () => {
   const { server, manager, ready, wss } = startServer(0, { lockMs: 150, createMs: 3000, cooldownMs: 60 });
   await ready;
   const port = server.address().port;
@@ -331,6 +394,7 @@ test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓�
   const created = await a.waitFor(m => m.t === "created");
   assert.ok(created.room_id);
   const roomId = created.room_id;
+  assert.equal(created.wall.length, 0, "开局前 wall 为空（开局时从 64 图抽 16 张）");
 
   // 加入
   b.send({ t:"join", room_id: roomId, nickname:"小红" });
@@ -344,25 +408,32 @@ test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓�
   a.send({ t:"start" });
   const rsA = await a.waitFor(m => m.t === "round_start");
   const rsB = await b.waitFor(m => m.t === "round_start");
-  assert.ok(Number.isInteger(rsA.target), "出题人收到秘密目标");
+  assert.ok(Number.isInteger(rsA.target), "出题人收到秘密目标索引");
   assert.equal("target" in rsB, false, "猜题人 round_start 无 target");
   assert.equal(rsB.drawer.nickname, "阿明");
+  assert.equal(rsA.wall.length, 16, "开局抽 16 张");
+  assert.ok(rsA.wall[0].img && rsA.wall[0].zh, "round_start 带照片墙对象");
+  assert.equal(new Set(rsA.wall.map(g => g.id)).size, 16, "16 张不重复");
 
   // 出题人画布 → 猜题人实时收到
   a.send({ t:"canvas", els:[{kind:"rect",x:10,y:20,w:30,h:40,rot:0,color:"#000"}] });
   const cv = await b.waitFor(m => m.t === "canvas");
   assert.equal(cv.els.length, 1);
 
-  // 锁定窗口内：选图被拒；文字竞猜命中
+  // 锁定窗口内：选图被拒；文字竞猜命中（全词表文本必中 exact 层级）
   b.send({ t:"guess", cell: rsA.target });
   const lockedErr = await b.waitFor(m => m.t === "error");
   assert.equal(lockedErr.err, "locked");
-  const allWords = WORD_BANK.flat().join("  ");
+  const allWords = IMAGES.flatMap(g => [g.exact, ...g.keywords, g.category_word]).join("  ");
   b.send({ t:"word", text:`这是${allWords}里的一个` });
   const wres = await b.waitFor(m => m.t === "word_res");
-  assert.equal(wres.correct, true, "词表覆盖 32 图，全词表文本必命中");
+  assert.equal(wres.correct, true, "64 图全词表文本必命中");
+  assert.equal(wres.level, "exact", "文本含准确词 → 最高层级");
+  assert.equal(wres.pts, 5);
+  assert.ok(wres.word, "返回命中的词给提交者本人");
   const wh = await a.waitFor(m => m.t === "word_hit");
   assert.equal(wh.pid, joinedB.pid);
+  assert.equal(wh.level, "exact", "广播含层级，不含词");
   assert.equal("text" in wh, false, "word_hit 不含答案词");
   assert.equal("word" in wh, false);
 
@@ -398,11 +469,14 @@ test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓�
   const revA = await a.waitFor(m => m.t === "reveal");
   const revB = await b.waitFor(m => m.t === "reveal");
   assert.equal(revA.state, "round_end");
-  assert.equal(revA.answer, rsA.target, "揭晓答案");
+  assert.equal(revA.answer, rsA.target, "揭晓答案索引");
+  assert.ok(revA.answerLabel.includes(" "), "揭晓含坐标与中文主题");
+  assert.ok(revA.answerImg && revA.answerImg.startsWith("/images/"), "揭晓含答案图片");
   const aRes = revA.results.find(r => r.role === "drawer");
   assert.equal(aRes.points, 1, "出题人被猜中 +1（文字+选图双中只算 1 人）");
   const bRes = revA.results.find(r => r.role === "guesser");
-  assert.equal(bRes.points, bRes.wordHit ? 5 : 3, "B 得分 = 文字 +2 与首答选图 +3 叠加");
+  assert.equal(bRes.wordPts, 5, "B 文字命中层级分 5");
+  assert.equal(bRes.points, bRes.wordPts + 3, "B 得分 = 文字层级分 + 首答选图 +3");
   assert.equal(bRes.attempts, 2, "尝试次数 = 1 次错误 + 1 次正确");
 
   // 下一轮 → 角色交换
@@ -428,8 +502,8 @@ test("e2e：2 人完整对局（文字竞猜→无限次选图+冷却→揭晓�
   assert.equal(rev2.state, "game_over");
   b.send({ t:"next" });
   const over = await a.waitFor(m => m.t === "game_over");
-  assert.equal(over.winner.pid, joinedB.pid, "赢家是 R1 双中 5 分的小红");
-  assert.equal(over.scores[over.winner.pid], 6, "B 总分 = R1(2+3) + R2 出题(1)");
+  assert.equal(over.winner.pid, joinedB.pid, "赢家是 R1 双中的小红");
+  assert.equal(over.scores[over.winner.pid], 9, "B 总分 = R1(准确词5+首答3) + R2 出题(1)");
 
   manager.disposeAll(); a.ws.close(); b.ws.close(); wss.close();
   await new Promise(res => server.close(res));

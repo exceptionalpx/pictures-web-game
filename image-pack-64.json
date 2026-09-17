@@ -1,0 +1,781 @@
+{
+  "pack": "pictures-web-64-v3-photo",
+  "version": 3,
+  "scoring": {
+    "category_word": 1,
+    "keyword": 2,
+    "exact": 5
+  },
+  "note": "巧手猜图网页版 64 图词表 v3：每图 = 1 类别词(+1，同类共用) + 2 联想词(+2，全库唯一) + 1 准确词(+5)。词条全部 2 字以上、联想词/准确词跨图唯一、无空白标点。",
+  "style_template": "realistic photograph of {SUBJECT}, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+  "images": [
+    {
+      "id": "ani-elephant",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "大象",
+      "keywords": [
+        "非洲",
+        "长鼻"
+      ],
+      "exact": "大象",
+      "en_prompt": "realistic photograph of a standing elephant with big ears and long trunk, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-giraffe",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "长颈鹿",
+      "keywords": [
+        "草原",
+        "长脖子"
+      ],
+      "exact": "长颈鹿",
+      "en_prompt": "realistic photograph of a giraffe with very long neck and spotted body, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-penguin",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "企鹅",
+      "keywords": [
+        "南极",
+        "黑白"
+      ],
+      "exact": "企鹅",
+      "en_prompt": "realistic photograph of a penguin standing with black back and white belly, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-shark",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "鲨鱼",
+      "keywords": [
+        "海洋",
+        "尖牙"
+      ],
+      "exact": "鲨鱼",
+      "en_prompt": "realistic photograph of a shark with dorsal fin and sharp teeth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-butterfly",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "蝴蝶",
+      "keywords": [
+        "花朵",
+        "翅膀"
+      ],
+      "exact": "蝴蝶",
+      "en_prompt": "realistic photograph of a butterfly with two large patterned wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-owl",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "猫头鹰",
+      "keywords": [
+        "夜间",
+        "圆眼"
+      ],
+      "exact": "猫头鹰",
+      "en_prompt": "realistic photograph of an owl with big round eyes and pointed ears, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-turtle",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "乌龟",
+      "keywords": [
+        "慢吞吞",
+        "龟壳"
+      ],
+      "exact": "乌龟",
+      "en_prompt": "realistic photograph of a turtle with domed shell and small head, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "ani-bee",
+      "category": "动物",
+      "category_word": "动物",
+      "zh": "蜜蜂",
+      "keywords": [
+        "蜂蜜",
+        "采蜜"
+      ],
+      "exact": "蜜蜂",
+      "en_prompt": "realistic photograph of a striped bee with wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-pizza",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "披萨",
+      "keywords": [
+        "奶酪",
+        "拉丝"
+      ],
+      "exact": "披萨",
+      "en_prompt": "realistic photograph of a round pizza slice with cheese topping, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-burger",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "汉堡",
+      "keywords": [
+        "快餐",
+        "面包"
+      ],
+      "exact": "汉堡",
+      "en_prompt": "realistic photograph of a hamburger with bun, meat patty and layers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-sushi",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "寿司",
+      "keywords": [
+        "日料",
+        "海苔"
+      ],
+      "exact": "寿司",
+      "en_prompt": "realistic photograph of a sushi roll wrapped in nori seaweed, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-icecream",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "冰淇淋",
+      "keywords": [
+        "甜品",
+        "蛋筒"
+      ],
+      "exact": "冰淇淋",
+      "en_prompt": "realistic photograph of an ice cream cone with two scoops, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-coffee",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "咖啡",
+      "keywords": [
+        "饮品",
+        "提神"
+      ],
+      "exact": "咖啡",
+      "en_prompt": "realistic photograph of a coffee cup with saucer and steam, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-hotpot",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "火锅",
+      "keywords": [
+        "川味",
+        "涮肉"
+      ],
+      "exact": "火锅",
+      "en_prompt": "realistic photograph of a steaming hot pot with divided broth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-mooncake",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "月饼",
+      "keywords": [
+        "中秋",
+        "馅料"
+      ],
+      "exact": "月饼",
+      "en_prompt": "realistic photograph of a round mooncake with patterned top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "food-banana",
+      "category": "食物",
+      "category_word": "食物",
+      "zh": "香蕉",
+      "keywords": [
+        "水果",
+        "黄色"
+      ],
+      "exact": "香蕉",
+      "en_prompt": "realistic photograph of a curved banana bunch, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-sailboat",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "帆船",
+      "keywords": [
+        "船只",
+        "大海"
+      ],
+      "exact": "帆船",
+      "en_prompt": "realistic photograph of a sailboat with white triangular sails on a mast, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-balloon",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "热气球",
+      "keywords": [
+        "吊篮",
+        "升空"
+      ],
+      "exact": "热气球",
+      "en_prompt": "realistic photograph of a hot air balloon with striped envelope and basket, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-rocket",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "火箭",
+      "keywords": [
+        "发射",
+        "火焰"
+      ],
+      "exact": "火箭",
+      "en_prompt": "realistic photograph of a rocket with fins and exhaust flame, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-train",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "火车",
+      "keywords": [
+        "铁轨",
+        "车厢"
+      ],
+      "exact": "火车",
+      "en_prompt": "realistic photograph of a locomotive train with windows and wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-helicopter",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "直升机",
+      "keywords": [
+        "螺旋桨",
+        "空中"
+      ],
+      "exact": "直升机",
+      "en_prompt": "realistic photograph of a helicopter with top rotor and tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-bicycle",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "自行车",
+      "keywords": [
+        "骑行",
+        "车轮"
+      ],
+      "exact": "自行车",
+      "en_prompt": "realistic photograph of a bicycle with two wheels and handlebar, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-motorcycle",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "摩托车",
+      "keywords": [
+        "飞驰",
+        "引擎"
+      ],
+      "exact": "摩托车",
+      "en_prompt": "realistic photograph of a motorcycle with large wheels and seat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "veh-ship",
+      "category": "交通工具",
+      "category_word": "交通工具",
+      "zh": "轮船",
+      "keywords": [
+        "甲板",
+        "航行"
+      ],
+      "exact": "轮船",
+      "en_prompt": "realistic photograph of a cruise ship with decks and funnel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-eiffel",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "埃菲尔铁塔",
+      "keywords": [
+        "巴黎",
+        "风景"
+      ],
+      "exact": "埃菲尔铁塔",
+      "en_prompt": "realistic photograph of the Eiffel Tower with lattice structure, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-pyramid",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "金字塔",
+      "keywords": [
+        "埃及",
+        "古迹"
+      ],
+      "exact": "金字塔",
+      "en_prompt": "realistic photograph of a pyramid with triangular faces, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-lighthouse",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "灯塔",
+      "keywords": [
+        "海岸",
+        "灯光"
+      ],
+      "exact": "灯塔",
+      "en_prompt": "realistic photograph of a lighthouse with light beam on a rock, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-windmill",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "风车",
+      "keywords": [
+        "田园",
+        "叶片"
+      ],
+      "exact": "风车",
+      "en_prompt": "realistic photograph of a windmill with four turning blades, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-castle",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "城堡",
+      "keywords": [
+        "欧洲",
+        "塔楼"
+      ],
+      "exact": "城堡",
+      "en_prompt": "realistic photograph of a castle with towers and battlements, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-greatwall",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "长城",
+      "keywords": [
+        "中国",
+        "蜿蜒"
+      ],
+      "exact": "长城",
+      "en_prompt": "realistic photograph of the Great Wall winding on mountains with watchtowers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-pearl",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "东方明珠",
+      "keywords": [
+        "上海",
+        "电视塔"
+      ],
+      "exact": "东方明珠",
+      "en_prompt": "realistic photograph of the Oriental Pearl Tower with spheres and spire, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "land-colosseum",
+      "category": "地标建筑",
+      "category_word": "建筑",
+      "zh": "斗兽场",
+      "keywords": [
+        "罗马",
+        "竞技"
+      ],
+      "exact": "斗兽场",
+      "en_prompt": "realistic photograph of the Roman Colosseum with arched tiers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-astronaut",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "宇航员",
+      "keywords": [
+        "航天",
+        "登月"
+      ],
+      "exact": "宇航员",
+      "en_prompt": "realistic photograph of an astronaut in spacesuit with helmet, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-firefighter",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "消防员",
+      "keywords": [
+        "灭火",
+        "消防车"
+      ],
+      "exact": "消防员",
+      "en_prompt": "realistic photograph of a firefighter with helmet and axe, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-chef",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "厨师",
+      "keywords": [
+        "烹饪",
+        "高帽"
+      ],
+      "exact": "厨师",
+      "en_prompt": "realistic photograph of a chef with tall white hat and apron, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-doctor",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "医生",
+      "keywords": [
+        "治病",
+        "白大褂"
+      ],
+      "exact": "医生",
+      "en_prompt": "realistic photograph of a doctor with stethoscope and white coat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-fisherman",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "渔民",
+      "keywords": [
+        "捕鱼",
+        "渔船"
+      ],
+      "exact": "渔民",
+      "en_prompt": "realistic photograph of a fisherman casting a fishing net, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-police",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "警察",
+      "keywords": [
+        "治安",
+        "制服"
+      ],
+      "exact": "警察",
+      "en_prompt": "realistic photograph of a police officer in uniform with cap and badge, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-teacher",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "教师",
+      "keywords": [
+        "教学",
+        "黑板"
+      ],
+      "exact": "教师",
+      "en_prompt": "realistic photograph of a teacher pointing at a blackboard, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "job-painter",
+      "category": "职业",
+      "category_word": "职业",
+      "zh": "画家",
+      "keywords": [
+        "创作",
+        "调色盘"
+      ],
+      "exact": "画家",
+      "en_prompt": "realistic photograph of a painter holding a palette and brush, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-rainbow",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "彩虹",
+      "keywords": [
+        "雨后",
+        "七色"
+      ],
+      "exact": "彩虹",
+      "en_prompt": "realistic photograph of a rainbow arch with seven color bands, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-lightning",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "闪电",
+      "keywords": [
+        "乌云",
+        "电光"
+      ],
+      "exact": "闪电",
+      "en_prompt": "realistic photograph of a lightning bolt zigzag shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-shootingstar",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "流星",
+      "keywords": [
+        "夜空",
+        "许愿"
+      ],
+      "exact": "流星",
+      "en_prompt": "realistic photograph of a shooting star with long glowing tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-snowmountain",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "雪山",
+      "keywords": [
+        "山峰",
+        "积雪"
+      ],
+      "exact": "雪山",
+      "en_prompt": "realistic photograph of a snowy mountain peak, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-volcano",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "火山",
+      "keywords": [
+        "爆发",
+        "岩浆"
+      ],
+      "exact": "火山",
+      "en_prompt": "realistic photograph of a volcano with cone shape and crater, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-snowflake",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "雪花",
+      "keywords": [
+        "六角",
+        "飘落"
+      ],
+      "exact": "雪花",
+      "en_prompt": "realistic photograph of a six-pointed snowflake, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-sunrise",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "日出",
+      "keywords": [
+        "朝阳",
+        "地平线"
+      ],
+      "exact": "日出",
+      "en_prompt": "realistic photograph of a sunrise with half sun above horizon line, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "nat-starrysky",
+      "category": "自然现象",
+      "category_word": "自然",
+      "zh": "星空",
+      "keywords": [
+        "繁星",
+        "银河"
+      ],
+      "exact": "星空",
+      "en_prompt": "realistic photograph of a starry night sky with moon and many stars, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-lantern",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "灯笼",
+      "keywords": [
+        "红红",
+        "挂饰"
+      ],
+      "exact": "灯笼",
+      "en_prompt": "realistic photograph of a red Chinese lantern with tassel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-dragonboat",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "龙舟",
+      "keywords": [
+        "端午",
+        "划船"
+      ],
+      "exact": "龙舟",
+      "en_prompt": "realistic photograph of a dragon boat with dragon head and paddles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-liondance",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "舞狮",
+      "keywords": [
+        "狮头",
+        "喜庆"
+      ],
+      "exact": "舞狮",
+      "en_prompt": "realistic photograph of a lion dance mask with mane and open mouth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-christmastree",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "圣诞树",
+      "keywords": [
+        "礼物",
+        "彩灯"
+      ],
+      "exact": "圣诞树",
+      "en_prompt": "realistic photograph of a christmas tree with star on top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-pumpkin",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "南瓜灯",
+      "keywords": [
+        "鬼脸",
+        "雕刻"
+      ],
+      "exact": "南瓜灯",
+      "en_prompt": "realistic photograph of a jack-o-lantern carved pumpkin with scary face, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-kite",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "风筝",
+      "keywords": [
+        "放飞",
+        "长线"
+      ],
+      "exact": "风筝",
+      "en_prompt": "realistic photograph of a diamond kite with tail and string, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-redenvelope",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "红包",
+      "keywords": [
+        "压岁",
+        "拜年"
+      ],
+      "exact": "红包",
+      "en_prompt": "realistic photograph of a red envelope with gold seal, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "cul-foldingfan",
+      "category": "节日文化",
+      "category_word": "节日",
+      "zh": "折扇",
+      "keywords": [
+        "扇面",
+        "凉风"
+      ],
+      "exact": "折扇",
+      "en_prompt": "realistic photograph of an open folding fan with pleated shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-football",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "足球",
+      "keywords": [
+        "绿茵场",
+        "射门"
+      ],
+      "exact": "足球",
+      "en_prompt": "realistic photograph of a soccer ball with black and white pentagon patches, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-tennis",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "网球",
+      "keywords": [
+        "球场",
+        "对打"
+      ],
+      "exact": "网球",
+      "en_prompt": "realistic photograph of a tennis racket with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-archery",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "射箭",
+      "keywords": [
+        "靶心",
+        "拉弓"
+      ],
+      "exact": "射箭",
+      "en_prompt": "realistic photograph of a bow with arrow and target, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-golf",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "高尔夫",
+      "keywords": [
+        "球杆",
+        "草地"
+      ],
+      "exact": "高尔夫",
+      "en_prompt": "realistic photograph of a golf club with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-skiing",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "滑雪",
+      "keywords": [
+        "雪道",
+        "疾驰"
+      ],
+      "exact": "滑雪",
+      "en_prompt": "realistic photograph of a pair of skis with poles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-surfing",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "冲浪",
+      "keywords": [
+        "冲浪板",
+        "平衡"
+      ],
+      "exact": "冲浪",
+      "en_prompt": "realistic photograph of a surfboard riding a wave, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-baseball",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "棒球",
+      "keywords": [
+        "球棒",
+        "赛场"
+      ],
+      "exact": "棒球",
+      "en_prompt": "realistic photograph of a baseball bat with a ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    },
+    {
+      "id": "spt-skateboard",
+      "category": "运动",
+      "category_word": "运动",
+      "zh": "滑板",
+      "keywords": [
+        "跳跃",
+        "滑行"
+      ],
+      "exact": "滑板",
+      "en_prompt": "realistic photograph of a skateboard with four wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+    }
+  ]
+}
