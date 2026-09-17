@@ -1,0 +1,1266 @@
+{
+  "schema_version": "6.0",
+  "task": {
+    "title": "巧手猜图网页化设计方案",
+    "source_text": "用户：你知道巧手猜图这个桌游吗？如果把它转换成网页游戏，你觉得怎么样；出一份网页化设计方案。补充：我希望这个游戏如果联机的话，最少两个人就能玩；如果本地就一个玩家的话，他可以先拼图然后生成图片分享给其他人猜。讨论一下这个改进合理吗？你可以优化我的建议然后加进设计方案里。",
+    "readiness_target": "prototype",
+    "flags": {
+      "capacity": false,
+      "handoff": true,
+      "html": true,
+      "lifecycle": true,
+      "numbers": true,
+      "persistence": false,
+      "probability": true,
+      "production": true,
+      "resources": false,
+      "scope_constraints": true
+    }
+  },
+  "authority": {
+    "allowed_changes": [
+      {
+        "id": "ALLOW-WEB",
+        "category": "platform",
+        "description": "将巧手猜图桌游转换为网页游戏",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "platform.conversion"
+        ]
+      },
+      {
+        "id": "ALLOW-DOC",
+        "category": "document",
+        "description": "产出网页化设计方案文档",
+        "source_quote": "出一份网页化设计方案",
+        "fields": [
+          "document.design_plan"
+        ]
+      },
+      {
+        "id": "ALLOW-ROOM",
+        "category": "rule",
+        "description": "网页化的在线房间与联机组织",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "networking.online_room"
+        ]
+      },
+      {
+        "id": "ALLOW-TOOLS",
+        "category": "rule",
+        "description": "五套实体组件数字化为画布创作工具",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "toolkit.digital"
+        ]
+      },
+      {
+        "id": "ALLOW-TIMER",
+        "category": "rule",
+        "description": "创作与猜测阶段引入统一限时",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "rule.timer"
+        ]
+      },
+      {
+        "id": "ALLOW-POOL",
+        "category": "content",
+        "description": "建立可扩充且版权合规的照片池",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "content.photo_pool"
+        ]
+      },
+      {
+        "id": "ALLOW-RECONNECT",
+        "category": "state",
+        "description": "断线重连与阶段恢复机制",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "networking.reconnect"
+        ]
+      },
+      {
+        "id": "ALLOW-CORE-BOARD",
+        "category": "rule",
+        "description": "保留 4x4 照片墙与坐标体系",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "core.board_grid"
+        ]
+      },
+      {
+        "id": "ALLOW-CORE-DEAL",
+        "category": "rule",
+        "description": "保留秘密抽题规则",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "core.secret_deal"
+        ]
+      },
+      {
+        "id": "ALLOW-CORE-TOOLKIT",
+        "category": "rule",
+        "description": "保留组件抽象创作的核心表达",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "core.toolkit_abstraction"
+        ]
+      },
+      {
+        "id": "ALLOW-CORE-SCORE",
+        "category": "rule",
+        "description": "保留猜中与被猜中各得 1 分的计分",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "core.scoring_1"
+        ]
+      },
+      {
+        "id": "ALLOW-CORE-ROTATION",
+        "category": "rule",
+        "description": "保留工具轮换与多轮结构",
+        "source_quote": "把它转换成网页游戏",
+        "fields": [
+          "core.tool_rotation"
+        ]
+      },
+      {
+        "id": "ALLOW-MIN-2",
+        "category": "rule",
+        "description": "联机人数下限降到 2 人",
+        "source_quote": "联机的话，最少两个人就能玩",
+        "fields": [
+          "networking.min_players"
+        ]
+      },
+      {
+        "id": "ALLOW-SOLO",
+        "category": "rule",
+        "description": "新增单人出题并生成图片/链接分享给他人猜的模式",
+        "source_quote": "本地就一个玩家的话，他可以先拼图然后生成图片分享给其他人猜",
+        "fields": [
+          "gameplay.solo_mode"
+        ]
+      }
+    ],
+    "forbidden_changes": [],
+    "proposed_changes": [
+      {
+        "id": "CHG-ONLINE-ROOM",
+        "category": "rule",
+        "description": "在线房间制联机：房主建房、房间码邀请、每人一台设备",
+        "problem": "原版是实体桌面所有玩家同时创作，网页化需要跨设备同步与房间组织",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-ROOM"
+        ],
+        "fields": [
+          "networking.online_room"
+        ],
+        "responsibilities": [
+          "program",
+          "qa"
+        ],
+        "tradeoff": "相对本地同屏方案增加服务端成本；相对原版失去实体组件触感",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-DIGITAL-TOOLKIT",
+        "category": "rule",
+        "description": "五套组件映射为数字创作工具并支持拖拽旋转缩放图层",
+        "problem": "实体组件无法在网页端使用，需映射为可操作的数字创作工具",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-TOOLS"
+        ],
+        "fields": [
+          "toolkit.digital"
+        ],
+        "responsibilities": [
+          "program",
+          "ui",
+          "qa"
+        ],
+        "tradeoff": "数字工具替代实体组件，操作方式由拼摆变为拖拽旋转缩放",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-TIMER",
+        "category": "rule",
+        "description": "创作阶段统一限时 150 秒、猜测阶段 60 秒",
+        "problem": "原版以玩家完成速度自然推进，网页端需要统一阶段同步",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-TIMER"
+        ],
+        "fields": [
+          "rule.timer"
+        ],
+        "responsibilities": [
+          "program"
+        ],
+        "tradeoff": "引入统一限时，牺牲完成速度竞争，换取阶段同步确定性",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-PHOTO-POOL",
+        "category": "content",
+        "description": "照片池 P0 内置 60 张，来源限 CC0、自摄或自生成",
+        "problem": "原版自带固定照片集，网页版需要可扩充且版权合规的照片内容",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-POOL"
+        ],
+        "fields": [
+          "content.photo_pool"
+        ],
+        "responsibilities": [
+          "content",
+          "data"
+        ],
+        "tradeoff": "需要内容生产与版权管理责任，换取照片池可再生",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-RECONNECT",
+        "category": "state",
+        "description": "断线重连返回当前阶段快照，超时按掉线处理",
+        "problem": "联机环境的断线会中断创作与猜测，需要恢复路径",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-RECONNECT"
+        ],
+        "fields": [
+          "networking.reconnect"
+        ],
+        "responsibilities": [
+          "program",
+          "qa"
+        ],
+        "tradeoff": "新增会话恢复机制，换取断线玩家可回到当前阶段",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-MIN-2",
+        "category": "rule",
+        "description": "联机人数下限从 3 改为 2，2 人可开局",
+        "problem": "原版支持 2 人，3 人下限提高了凑局门槛",
+        "scope_effect": "modify",
+        "authority_ids": [
+          "ALLOW-MIN-2"
+        ],
+        "fields": [
+          "networking.min_players"
+        ],
+        "responsibilities": [
+          "program",
+          "qa"
+        ],
+        "tradeoff": "2 人局博弈薄，正文标注为可玩但不推荐",
+        "priority": "P0"
+      },
+      {
+        "id": "CHG-SOLO",
+        "category": "rule",
+        "description": "新增单人出题模式：1 人创作后分享链接，他人免注册开猜",
+        "problem": "凑不齐人同时在线时无法开局，缺少冷启动与传播路径",
+        "scope_effect": "add",
+        "authority_ids": [
+          "ALLOW-SOLO"
+        ],
+        "fields": [
+          "gameplay.solo_mode"
+        ],
+        "responsibilities": [
+          "program",
+          "ui",
+          "content"
+        ],
+        "tradeoff": "新增分享链接与公开猜图页；不替代实时局",
+        "priority": "P0"
+      }
+    ]
+  },
+  "assumptions": [
+    {
+      "id": "ASM-DEVICES",
+      "statement": "每名玩家一台设备（手机或电脑），同房或远程均可加入同一房间",
+      "impact": "high",
+      "status": "confirmed",
+      "validation": "在线房间制同时覆盖同房聚会与远程联机两个场景"
+    },
+    {
+      "id": "ASM-GUESS-RATE",
+      "statement": "猜中率落在 [25%, 70%] 说明抽象表达既可推断又不直白",
+      "impact": "high",
+      "status": "test_value",
+      "validation": "P0 真人试玩统计每轮猜中率，偏离区间时调整照片特征与工具限制"
+    },
+    {
+      "id": "ASM-TOOLKIT-COUNT",
+      "statement": "五套工具对应原版五套组件，5 轮内每人用满每套一次",
+      "impact": "high",
+      "status": "confirmed",
+      "validation": "原版五套组件：鞋带、彩色立方体、图标卡、棍棒和石头、积木"
+    }
+  ],
+  "rules": [
+    {
+      "id": "RULE-BOARD",
+      "title": "照片墙与坐标",
+      "definition": "每轮从照片池无放回抽取 16 张，排成 4x4 方阵；行标 A-D、列标 1-4，坐标形如 B3。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-PHOTO-COUNT"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-BOARD"
+      ],
+      "fields": [
+        "core.board_grid"
+      ]
+    },
+    {
+      "id": "RULE-DEAL",
+      "title": "秘密抽题",
+      "definition": "每位玩家从 16 个坐标无放回秘密抽取 1 个，锁定自己的目标照片；目标在猜测揭晓前对他人保密。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-PHOTO-COUNT"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-DEAL"
+      ],
+      "fields": [
+        "core.secret_deal"
+      ]
+    },
+    {
+      "id": "RULE-TOOLKIT",
+      "title": "工具分配与轮换",
+      "definition": "5 套工具按固定序列 [曲线、方块、图标、棒石、积木] 轮换；每轮每位玩家使用 1 套；N 小于 5 时当轮按序列取 N 套，下轮平移一位。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-TOOLKIT-COUNT"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-ROTATION"
+      ],
+      "fields": [
+        "core.tool_rotation"
+      ]
+    },
+    {
+      "id": "RULE-CREATE",
+      "title": "创作阶段",
+      "definition": "创作阶段限时（默认 150 秒），玩家用所持工具在私有画布拼出目标照片的抽象表达；禁止导入图片与自由绘画（鞋带套除外）；单作品元素上限 60。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-CREATE-SECONDS",
+        "PAR-ELEMENT-CAP"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-TIMER",
+        "ALLOW-CORE-TOOLKIT"
+      ],
+      "fields": [
+        "rule.timer",
+        "core.toolkit_abstraction"
+      ]
+    },
+    {
+      "id": "RULE-SUBMIT",
+      "title": "提交与锁定",
+      "definition": "时间到自动锁定并提交；玩家也可提前提交；已提交作品不可修改。",
+      "priority": "P0",
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-TIMER"
+      ],
+      "fields": [
+        "rule.timer"
+      ]
+    },
+    {
+      "id": "RULE-GUESS",
+      "title": "猜测阶段",
+      "definition": "猜测阶段（默认 60 秒）每位玩家为每个他人作品选 1 个坐标，可跳过；提交后不可修改。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-GUESS-SECONDS"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-SCORE"
+      ],
+      "fields": [
+        "core.scoring_1"
+      ]
+    },
+    {
+      "id": "RULE-SCORE",
+      "title": "计分",
+      "definition": "猜中他人作品 +1；自己作品每被猜中 1 次 +1；跳过或猜错 0 分且不扣分。",
+      "priority": "P0",
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-SCORE"
+      ],
+      "fields": [
+        "core.scoring_1"
+      ]
+    },
+    {
+      "id": "RULE-ROUNDS",
+      "title": "轮次与胜负",
+      "definition": "默认 5 轮，房主可配置 3-5 轮；终局总分最高者胜，平局并列。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-ROUNDS"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-CORE-ROTATION"
+      ],
+      "fields": [
+        "core.tool_rotation"
+      ]
+    },
+    {
+      "id": "RULE-RECONNECT",
+      "title": "断线恢复",
+      "definition": "玩家断线后保留会话与当前阶段快照；创作阶段保留本地草稿，猜测阶段保留已投记录；2 分钟内重连返回当前阶段，超时按掉线处理，本轮按跳过结算、下一轮不参与发题。",
+      "priority": "P0",
+      "authority_ids": [
+        "ALLOW-RECONNECT"
+      ],
+      "fields": [
+        "networking.reconnect"
+      ]
+    },
+    {
+      "id": "RULE-MIN-PLAYERS",
+      "title": "联机人数下限",
+      "definition": "实时局房主开始的门槛为在线人数 ≥ 2，2 人即可开局；推荐 3-6 人。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-PLAYERS"
+      ],
+      "state_machine_ids": [
+        "SM-ROOM"
+      ],
+      "authority_ids": [
+        "ALLOW-MIN-2"
+      ],
+      "fields": [
+        "networking.min_players"
+      ]
+    },
+    {
+      "id": "RULE-SOLO",
+      "title": "单人出题模式",
+      "definition": "单人玩家进创作流：系统配 16 张照片墙并秘密抽 1 个坐标、随机分一套工具；创作提交后生成分享链接（默认）与作品图导出（可选）；任何人点开链接免注册即可看作品与照片墙并选 1 个坐标猜，提交前不见他人答案，猜完揭晓对错；作者累计被猜中次数。",
+      "priority": "P0",
+      "parameter_ids": [
+        "PAR-PHOTO-COUNT"
+      ],
+      "authority_ids": [
+        "ALLOW-SOLO"
+      ],
+      "fields": [
+        "gameplay.solo_mode"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "id": "PAR-PHOTO-COUNT",
+      "name": "photo_count",
+      "value": 16,
+      "unit": "张",
+      "source": "external",
+      "source_ref": "url:https://www.gcores.com/talks/638161",
+      "min": 16,
+      "max": 16,
+      "authority_ids": [
+        "ALLOW-CORE-BOARD"
+      ],
+      "fields": [
+        "core.board_grid"
+      ]
+    },
+    {
+      "id": "PAR-TOOLKIT-COUNT",
+      "name": "toolkit_count",
+      "value": 5,
+      "unit": "套",
+      "source": "external",
+      "source_ref": "url:https://www.gcores.com/talks/638161",
+      "min": 5,
+      "max": 5,
+      "authority_ids": [
+        "ALLOW-CORE-ROTATION"
+      ],
+      "fields": [
+        "core.tool_rotation"
+      ]
+    },
+    {
+      "id": "PAR-PLAYERS",
+      "name": "players",
+      "value": 4,
+      "unit": "人",
+      "source": "design_initial",
+      "min": 2,
+      "max": 6,
+      "authority_ids": [
+        "ALLOW-MIN-2"
+      ],
+      "fields": [
+        "networking.min_players"
+      ]
+    },
+    {
+      "id": "PAR-ROUNDS",
+      "name": "rounds",
+      "value": 5,
+      "unit": "轮",
+      "source": "design_initial",
+      "min": 3,
+      "max": 5,
+      "authority_ids": [
+        "ALLOW-CORE-ROTATION"
+      ],
+      "fields": [
+        "core.tool_rotation"
+      ]
+    },
+    {
+      "id": "PAR-CREATE-SECONDS",
+      "name": "create_seconds",
+      "value": 150,
+      "unit": "秒",
+      "source": "design_initial",
+      "min": 90,
+      "max": 240,
+      "authority_ids": [
+        "ALLOW-TIMER"
+      ],
+      "fields": [
+        "rule.timer"
+      ]
+    },
+    {
+      "id": "PAR-GUESS-SECONDS",
+      "name": "guess_seconds",
+      "value": 60,
+      "unit": "秒",
+      "source": "design_initial",
+      "min": 30,
+      "max": 120,
+      "authority_ids": [
+        "ALLOW-TIMER"
+      ],
+      "fields": [
+        "rule.timer"
+      ]
+    },
+    {
+      "id": "PAR-REVEAL-SECONDS",
+      "name": "reveal_seconds",
+      "value": 30,
+      "unit": "秒",
+      "source": "design_initial",
+      "min": 15,
+      "max": 60,
+      "authority_ids": [
+        "ALLOW-TIMER"
+      ],
+      "fields": [
+        "rule.timer"
+      ]
+    },
+    {
+      "id": "PAR-ELEMENT-CAP",
+      "name": "element_cap",
+      "value": 60,
+      "unit": "个",
+      "source": "design_initial",
+      "min": 30,
+      "max": 100,
+      "authority_ids": [
+        "ALLOW-TOOLS"
+      ],
+      "fields": [
+        "toolkit.digital"
+      ]
+    },
+    {
+      "id": "PAR-PHOTO-POOL-SIZE",
+      "name": "photo_pool_size",
+      "value": 60,
+      "unit": "张",
+      "source": "design_initial",
+      "min": 40,
+      "max": 200,
+      "authority_ids": [
+        "ALLOW-POOL"
+      ],
+      "fields": [
+        "content.photo_pool"
+      ]
+    },
+    {
+      "id": "PAR-GUESS-RANDOM",
+      "name": "guess_random_baseline",
+      "value": 0.0625,
+      "unit": "比率",
+      "source": "calculated",
+      "min": 0,
+      "max": 1,
+      "authority_ids": [
+        "ALLOW-CORE-SCORE"
+      ],
+      "fields": [
+        "core.scoring_1"
+      ]
+    },
+    {
+      "id": "PAR-GUESS-TARGET-MIN",
+      "name": "guess_target_min",
+      "value": 0.25,
+      "unit": "比率",
+      "source": "design_initial",
+      "min": 0.1,
+      "max": 0.5,
+      "authority_ids": [
+        "ALLOW-CORE-SCORE"
+      ],
+      "fields": [
+        "core.scoring_1"
+      ]
+    },
+    {
+      "id": "PAR-GUESS-TARGET-MAX",
+      "name": "guess_target_max",
+      "value": 0.7,
+      "unit": "比率",
+      "source": "design_initial",
+      "min": 0.5,
+      "max": 0.9,
+      "authority_ids": [
+        "ALLOW-CORE-SCORE"
+      ],
+      "fields": [
+        "core.scoring_1"
+      ]
+    },
+    {
+      "id": "PAR-ONBOARD-SECONDS",
+      "name": "onboard_seconds",
+      "value": 120,
+      "unit": "秒",
+      "source": "design_initial",
+      "min": 60,
+      "max": 180,
+      "authority_ids": [
+        "ALLOW-TIMER"
+      ],
+      "fields": [
+        "rule.timer"
+      ]
+    }
+  ],
+  "numeric_requirements": [
+    {
+      "id": "NUMREQ-SCORE-MAX",
+      "statement": "一局得分上限可复算，单轮满分 = 2 x (N-1)，整局满分 = 2 x (N-1) x 轮数",
+      "source": "design_goal",
+      "assertion_ids": [
+        "ASSERT-MAX-SCORE-4P"
+      ]
+    },
+    {
+      "id": "NUMREQ-GUESS-RATE",
+      "statement": "猜测正确率目标区间 [25%, 70%] 显著高于随机基线 1/16",
+      "source": "design_goal",
+      "assertion_ids": [
+        "ASSERT-RANDOM-BELOW-TARGET"
+      ]
+    },
+    {
+      "id": "NUMREQ-ROUND-TIME",
+      "statement": "单轮节奏默认约 4 分钟，整局默认 20-25 分钟",
+      "source": "design_goal",
+      "assertion_ids": [
+        "ASSERT-ROUND-TIME",
+        "ASSERT-GAME-TIME"
+      ]
+    },
+    {
+      "id": "NUMREQ-TOOL-COVERAGE",
+      "statement": "5 轮内每位玩家用满 5 套工具各一次",
+      "source": "design_goal",
+      "assertion_ids": [
+        "ASSERT-TOOL-COVERAGE"
+      ]
+    }
+  ],
+  "numerical_assertions": [
+    {
+      "id": "ASSERT-MAX-SCORE-4P",
+      "scenario": "normal",
+      "expression": "2*(players-1)*rounds",
+      "inputs": {
+        "players": "PAR-PLAYERS",
+        "rounds": "PAR-ROUNDS"
+      },
+      "declared_value": 30,
+      "unit": "分",
+      "tolerance": 0,
+      "acceptance": {
+        "operator": "==",
+        "value": 30
+      }
+    },
+    {
+      "id": "ASSERT-RANDOM-BELOW-TARGET",
+      "scenario": "normal",
+      "expression": "target_min - random_base",
+      "inputs": {
+        "target_min": "PAR-GUESS-TARGET-MIN",
+        "random_base": "PAR-GUESS-RANDOM"
+      },
+      "declared_value": 0.1875,
+      "unit": "比率",
+      "tolerance": 0.0001,
+      "acceptance": {
+        "operator": ">",
+        "value": 0
+      }
+    },
+    {
+      "id": "ASSERT-ROUND-TIME",
+      "scenario": "normal",
+      "expression": "create + guess + reveal",
+      "inputs": {
+        "create": "PAR-CREATE-SECONDS",
+        "guess": "PAR-GUESS-SECONDS",
+        "reveal": "PAR-REVEAL-SECONDS"
+      },
+      "declared_value": 240,
+      "unit": "秒",
+      "tolerance": 0,
+      "acceptance": {
+        "operator": "==",
+        "value": 240
+      }
+    },
+    {
+      "id": "ASSERT-GAME-TIME",
+      "scenario": "boundary",
+      "expression": "create*rounds + guess*rounds + reveal*rounds + onboard",
+      "inputs": {
+        "create": "PAR-CREATE-SECONDS",
+        "guess": "PAR-GUESS-SECONDS",
+        "reveal": "PAR-REVEAL-SECONDS",
+        "rounds": "PAR-ROUNDS",
+        "onboard": "PAR-ONBOARD-SECONDS"
+      },
+      "declared_value": 1320,
+      "unit": "秒",
+      "tolerance": 0,
+      "acceptance": {
+        "operator": "<=",
+        "value": 1500
+      }
+    },
+    {
+      "id": "ASSERT-TOOL-COVERAGE",
+      "scenario": "boundary",
+      "expression": "rounds - toolkits",
+      "inputs": {
+        "rounds": "PAR-ROUNDS",
+        "toolkits": "PAR-TOOLKIT-COUNT"
+      },
+      "declared_value": 0,
+      "unit": "轮",
+      "tolerance": 0,
+      "acceptance": {
+        "operator": "==",
+        "value": 0
+      }
+    }
+  ],
+  "state_machines": [
+    {
+      "id": "SM-ROOM",
+      "initial_state": "LOBBY",
+      "states": [
+        {
+          "id": "LOBBY",
+          "entry": "房主建房，他人经房间码加入",
+          "exit": "房主开始且人数达标"
+        },
+        {
+          "id": "DEAL",
+          "entry": "洗照片墙、秘密发坐标、分配工具",
+          "exit": "全员确认收到题目"
+        },
+        {
+          "id": "CREATE",
+          "entry": "开启创作计时 150 秒",
+          "exit": "全员提交或时间到"
+        },
+        {
+          "id": "GUESS",
+          "entry": "展示照片墙与全部作品，开启猜测计时 60 秒",
+          "exit": "全员投票或时间到"
+        },
+        {
+          "id": "REVEAL",
+          "entry": "逐个揭晓作者目标与猜测并计分",
+          "exit": "揭晓完成"
+        },
+        {
+          "id": "FINAL",
+          "entry": "总榜结算",
+          "exit": "回到 LOBBY 再来一局"
+        }
+      ],
+      "event_order": [
+        "start",
+        "deal_ack",
+        "create_timeout",
+        "all_submitted",
+        "guess_timeout",
+        "all_voted",
+        "reveal_done",
+        "next_round",
+        "finish"
+      ],
+      "transitions": [
+        {
+          "id": "START",
+          "from": "LOBBY",
+          "event": "房主开始且在线人数 >= 2",
+          "to": "DEAL",
+          "effect": "随机生成照片墙与坐标，分配当轮工具",
+          "repeat_policy": "同一房间只开始一次",
+          "cleanup": "清空上一局成绩"
+        },
+        {
+          "id": "DEAL-ACK",
+          "from": "DEAL",
+          "event": "全员确认收到题目",
+          "to": "CREATE",
+          "effect": "开启创作计时 150 秒",
+          "repeat_policy": "同一轮只进入创作一次",
+          "cleanup": "记录已确认玩家列表"
+        },
+        {
+          "id": "CREATE-END",
+          "from": "CREATE",
+          "event": "全员提交或创作时间到",
+          "to": "GUESS",
+          "effect": "锁定全部作品（未提交者按当前画布自动提交），广播作品集",
+          "repeat_policy": "超时事件同一阶段只触发一次；提交事件按玩家+阶段唯一",
+          "cleanup": "清空创作提交记录"
+        },
+        {
+          "id": "GUESS-END",
+          "from": "GUESS",
+          "event": "全员投票或猜测时间到",
+          "to": "REVEAL",
+          "effect": "按 RULE-SCORE 结算计分",
+          "repeat_policy": "超时事件同一阶段只触发一次；投票按玩家+作品唯一",
+          "cleanup": "清空投票记录"
+        },
+        {
+          "id": "NEXT-ROUND",
+          "from": "REVEAL",
+          "event": "揭晓完成且轮数未达上限",
+          "to": "DEAL",
+          "effect": "轮数 +1，工具序列平移一位，重新洗照片墙",
+          "repeat_policy": "每次揭晓只推进一轮",
+          "cleanup": "重置当轮临时数据"
+        },
+        {
+          "id": "FINISH",
+          "from": "REVEAL",
+          "event": "揭晓完成且轮数达上限",
+          "to": "FINAL",
+          "effect": "总榜结算，平局并列",
+          "repeat_policy": "一次",
+          "cleanup": "汇总各轮得分"
+        }
+      ]
+    }
+  ],
+  "ledgers": {
+    "probability_pools": [
+      {
+        "id": "POOL-COORD",
+        "expected_total": 16,
+        "tolerance": 0,
+        "entries": [
+          {
+            "id": "COORD-1",
+            "value": 1
+          },
+          {
+            "id": "COORD-2",
+            "value": 1
+          },
+          {
+            "id": "COORD-3",
+            "value": 1
+          },
+          {
+            "id": "COORD-4",
+            "value": 1
+          },
+          {
+            "id": "COORD-5",
+            "value": 1
+          },
+          {
+            "id": "COORD-6",
+            "value": 1
+          },
+          {
+            "id": "COORD-7",
+            "value": 1
+          },
+          {
+            "id": "COORD-8",
+            "value": 1
+          },
+          {
+            "id": "COORD-9",
+            "value": 1
+          },
+          {
+            "id": "COORD-10",
+            "value": 1
+          },
+          {
+            "id": "COORD-11",
+            "value": 1
+          },
+          {
+            "id": "COORD-12",
+            "value": 1
+          },
+          {
+            "id": "COORD-13",
+            "value": 1
+          },
+          {
+            "id": "COORD-14",
+            "value": 1
+          },
+          {
+            "id": "COORD-15",
+            "value": 1
+          },
+          {
+            "id": "COORD-16",
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "resources": [],
+    "capacity": []
+  },
+  "tests": [
+    {
+      "id": "TEST-TIMEOUT-CREATE",
+      "type": "boundary",
+      "rule_ids": [
+        "RULE-SUBMIT"
+      ],
+      "precondition": "创作时间到仍有玩家未提交",
+      "action": "触发超时事件",
+      "expected": "未提交玩家按当前画布自动锁定提交，房间进入 GUESS",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-DISCONNECT",
+      "type": "recovery",
+      "rule_ids": [
+        "RULE-RECONNECT"
+      ],
+      "precondition": "创作阶段玩家断线",
+      "action": "断线后 1 分钟重连",
+      "expected": "恢复本地草稿与剩余时间，可继续创作并提交",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-SCORE-4P",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-SCORE"
+      ],
+      "precondition": "4 人局一轮，玩家甲作品被 2 人猜中且猜中 1 个他人作品",
+      "action": "按 RULE-SCORE 计分",
+      "expected": "甲本轮 +3；单轮满分 6 复算一致",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-VOTE-ONCE",
+      "type": "abuse",
+      "rule_ids": [
+        "RULE-GUESS"
+      ],
+      "precondition": "同玩家对同一作品重复提交投票",
+      "action": "重复触发投票事件",
+      "expected": "同一玩家+作品只结算一次，其余事件被去重",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-CREATE-BASIC",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-CREATE"
+      ],
+      "precondition": "玩家进入创作阶段并持有曲线工具",
+      "action": "绘制曲线并尝试导入图片",
+      "expected": "曲线元素可编辑；导入图片被拒绝；元素超过 60 时拒绝新增",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-BOARD-DEAL",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-BOARD",
+        "RULE-DEAL"
+      ],
+      "precondition": "4 人局第 1 轮发题",
+      "action": "生成照片墙并分配坐标",
+      "expected": "16 张照片 4x4 无重复，4 人各得唯一坐标且坐标在照片墙范围内",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-ROTATION-4P",
+      "type": "boundary",
+      "rule_ids": [
+        "RULE-TOOLKIT"
+      ],
+      "precondition": "4 人局连续 5 轮",
+      "action": "观察每轮工具分配",
+      "expected": "每人每轮工具不同，5 轮内用到 4 套不同工具（每轮空 1 套）",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-ROUNDS-FINAL",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-ROUNDS"
+      ],
+      "precondition": "5 轮全部完成",
+      "action": "触发终局结算",
+      "expected": "进入 FINAL，总分 = 各轮得分之和，最高分获胜",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-2P-START",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-MIN-PLAYERS"
+      ],
+      "precondition": "房间在线 2 人",
+      "action": "房主点击开始",
+      "expected": "正常进入发题；2 人局单轮满分 2、5 轮满分 10",
+      "status": "planned"
+    },
+    {
+      "id": "TEST-SOLO-SHARE",
+      "type": "normal",
+      "rule_ids": [
+        "RULE-SOLO"
+      ],
+      "precondition": "单人玩家提交作品",
+      "action": "打开分享链接并查看",
+      "expected": "链接只显示照片墙与匿名作品，不含目标坐标；猜完提交后才揭晓",
+      "status": "planned"
+    }
+  ],
+  "production_risks": [
+    {
+      "id": "RISK-CANVAS-PERF",
+      "surface": "performance",
+      "trigger": "画布元素上限 60、低端移动端重绘、多人在线同屏",
+      "impact": "拖拽卡顿、绘制延迟",
+      "detection": "元素数 60 时的帧率与拖拽延迟基准",
+      "mitigation": "元素上限 60；脏矩形按需重绘；静态预览降级",
+      "fallback": "作品渲染降级为预渲染位图",
+      "owner": "program"
+    },
+    {
+      "id": "RISK-CONCURRENCY",
+      "surface": "network_concurrency",
+      "trigger": "多人同时提交创作与投票、超时与提交同帧、断线重连",
+      "impact": "结算重复、状态漂移、作品丢失",
+      "detection": "同帧并发与断线恢复回归集",
+      "mitigation": "服务端权威状态机；事件按玩家+阶段幂等去重",
+      "fallback": "房间重建并从最后快照恢复",
+      "owner": "program and qa"
+    },
+    {
+      "id": "RISK-CONTENT",
+      "surface": "content_pipeline",
+      "trigger": "照片池 60 张上线、版权合规、可抽象性参差",
+      "impact": "版权风险、部分照片无法表达或过于直白",
+      "detection": "每张照片人工过筛并标注主特征",
+      "mitigation": "仅用 CC0/自摄/自生成素材；特征标签随照片入库",
+      "fallback": "不合格照片从池中下架",
+      "owner": "content"
+    },
+    {
+      "id": "RISK-UI-TOUCH",
+      "surface": "ui_input",
+      "trigger": "移动端拖拽旋转缩放手势、猜测阶段误触",
+      "impact": "误操作、猜错提交",
+      "detection": "手机真机走查创作与猜测完整路径",
+      "mitigation": "单指拖拽、双指旋缩；投票提交前二次确认",
+      "fallback": "猜测提交 3 秒内可撤回",
+      "owner": "program and qa"
+    }
+  ],
+  "prototype": {
+    "required": true,
+    "path": "/home/user/Doubao/chats/38442003431003650/巧手猜图-Demo.html",
+    "ruleset_id": "pictures-web-demo-v1",
+    "config_source": "单文件 HTML 内唯一常量对象 RULES（createSeconds=150、guessSeconds=60、elementCap=60、gridW=4、gridH=4、iconCount=24、randomBaseline=1/16、roundsDemo=1）；STAGE=480；创作页、猜题页、揭晓页与 #/selftest 共用同一配置，无第二处复制数值。",
+    "checks": {
+      "load": "passed",
+      "input": "passed",
+      "main_loop": "passed",
+      "outcome": "passed",
+      "restart": "passed"
+    },
+    "journeys": [
+      {
+        "id": "J-STD-SOLO",
+        "name": "单人出题异步分享闭环",
+        "type": "standard",
+        "steps": [
+          "首页选择「单人出题」进入 #/create?mode=solo，读取随机 16 张照片墙与金色描边秘密目标",
+          "用积木工具添加矩形、换色、加三角，元素计数同步为 N/60",
+          "点完成创作进入 #/share/<code>，复制分享链接、导出作品 PNG、或以朋友视角打开",
+          "朋友视角 #/g/<code> 只见匿名作品与 4x4 照片墙，点选一格出现二次确认条，Enter 或点确认提交",
+          "揭晓：正确格加绿框、其余禁用，显示「猜中了 +1 分」，出现「我也来出题/回首页」",
+          "点「我也来出题」回流到全新 solo 创作页（新墙、新目标、元素 0/60、计时重置）"
+        ],
+        "expected": "创作→分享→免注册猜题→对错揭晓→出题人回流完整闭环；猜题页提交前不泄露目标坐标；PNG 真实下载",
+        "evidence": "2026-09-17 Chromium file:// 离线真实走查，1920x1080；PNG 导出实测下载 26729 字节；揭晓 D3 绿框与 +1 分提示截图；回流后新墙新目标元素 0/60 截图",
+        "status": "passed"
+      },
+      {
+        "id": "J-STD-PLAY",
+        "name": "本地试玩一局闭环",
+        "type": "standard",
+        "steps": [
+          "首页选择「本地试玩一局」进入 #/create?mode=play，固定 PLAY_WALL 照片墙与随机秘密目标",
+          "添加 1 个积木元素后完成创作，进入 #/playguess",
+          "依次猜 3 幅手工预设作品（棒石热气球=A1、积木房子=B2、棒石小鱼=C3），每幅点选后 Enter 确认",
+          "第 3 幅确认后进入 #/playreveal，显示总分、随机期望 0.19 分、逐幅回顾小 SVG 与你猜/正确对比",
+          "揭晓页展示玩家自己作品，并可点「把我的作品发给朋友猜」跳到该作品分享页"
+        ],
+        "expected": "3 幅全部猜中显示 3/3 分；逐幅回顾三幅缩略图与工具名正确；随机基线期望=3×1/16=0.1875 显示 0.19；局后可分享自己作品或再来一局",
+        "evidence": "2026-09-17 Chromium 真实走查；揭晓页 3/3 分、三幅回顾全绿、0.19 期望分截图；局后「把我的作品发给朋友猜」实测跳入分享页",
+        "status": "passed"
+      },
+      {
+        "id": "J-FAIL-EMPTY",
+        "name": "空作品与元素上限拦截",
+        "type": "failure",
+        "steps": [
+          "solo 创作页不放置任何元素直接点完成创作",
+          "连续添加元素直到达到 60 个上限后再尝试新增"
+        ],
+        "expected": "空作品弹 toast「至少放一个元素再提交」并留在创作页；达到 60 元素后新增被拦截并提示，不产生空作品或超限作品",
+        "evidence": "空作品拦截 2026-09-17 GUI 实测 toast 截图；60 上限由 #/selftest 合成事件断言 els=60 时新增被拒（14/14 PASS 之一）",
+        "status": "passed"
+      },
+      {
+        "id": "J-RECOVER-UNDO",
+        "name": "误删后撤销重做恢复",
+        "type": "recovery",
+        "steps": [
+          "选中元素点删除，元素从画布消失且计数减一",
+          "点撤销（或 Ctrl+Z）恢复该元素",
+          "点重做再次应用删除"
+        ],
+        "expected": "删除可被撤销恢复、重做再次删除，历史栈顺序正确，画布状态与计数一致",
+        "evidence": "#/selftest 断言序列：删除 1→0、撤销恢复→1、重做再删→0，2026-09-17 浏览器真实执行 PASS",
+        "status": "passed"
+      },
+      {
+        "id": "J-BOUND-HANDLES",
+        "name": "高风险指针操作：旋转/等比缩放/拖动/手绘",
+        "type": "boundary",
+        "steps": [
+          "添加矩形后拖动顶部旋转手柄约 90°",
+          "拖动角点手柄放大，拖动单边手柄改单维",
+          "拖动元素本体移动位置",
+          "曲线工具在画布上按下拖动释放生成手绘 path"
+        ],
+        "expected": "旋转吸附到绝对角度（实测 rot=90）；角点等比缩放（120→390）；本体拖动到位（x=310,y=290）；手绘归一化为 path 元素；编码 enc/dec 往返与计分公式同步断言",
+        "evidence": "#/selftest 合成 PointerEvent 经 elementFromPoint 命中真实手柄并走真实监听，14 项断言 2026-09-17 全部 PASS；含命中区、旋转、缩放、移动、删除撤销、曲线、60 上限、编码往返、计分 2p=2/4p=6",
+        "status": "passed"
+      }
+    ]
+  },
+  "claims": [
+    {
+      "id": "CLAIM-SCORE",
+      "text": "4 人局 5 轮总分上限 30 分，单轮满分 6 分。",
+      "strength": "calculated",
+      "evidence_ids": [
+        "ASSERT-MAX-SCORE-4P"
+      ]
+    },
+    {
+      "id": "CLAIM-TIME",
+      "text": "默认参数下单局约 22 分钟（含 2 分钟开局）。",
+      "strength": "calculated",
+      "evidence_ids": [
+        "ASSERT-GAME-TIME"
+      ]
+    },
+    {
+      "id": "CLAIM-GUESS",
+      "text": "猜中率目标区间 [25%, 70%]，显著高于随机基线 6.25%。",
+      "strength": "hypothesis",
+      "evidence_ids": [
+        "ASSERT-RANDOM-BELOW-TARGET"
+      ]
+    }
+  ]
+}

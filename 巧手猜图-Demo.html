@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>巧手猜图 · 网页玩法验证 Demo</title>
+<style>
+:root{
+  --bg:#F6F3EC; --ink:#26303A; --muted:#6B7280; --line:#E3DDD0;
+  --card:#FFFFFF; --brand:#3B5BDB; --brand-d:#2C4BB8; --accent:#F59F00;
+  --ok:#2F9E44; --bad:#E03131; --gold:#E8A822; --stage:#FBFAF6;
+  --radius:16px; --shadow:0 6px 24px rgba(38,48,58,.08);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55}
+button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:10px;background:#EFEBE0;color:var(--ink);padding:9px 14px;transition:.12s}
+button:hover{background:#E6E1D3}
+button.primary{background:var(--brand);color:#fff;font-weight:600}
+button.primary:hover{background:var(--brand-d)}
+button.accent{background:var(--accent);color:#fff;font-weight:600}
+button.ghost{background:transparent;border:1.5px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.wrap{max-width:1080px;margin:0 auto;padding:18px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:14px 0 6px;color:var(--muted);font-weight:600}
+.sub{color:var(--muted);font-size:13px}
+.tag{display:inline-block;font-size:12px;color:var(--brand-d);background:#E7EDFF;border-radius:999px;padding:2px 10px;margin-right:6px}
+a{color:var(--brand-d)}
+/* 首页 */
+.hero{text-align:center;padding:34px 20px 10px}
+.hero .ruleset{margin-top:8px;font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.mode-card{cursor:pointer;text-align:left;padding:24px;display:flex;flex-direction:column;gap:10px}
+.mode-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(38,48,58,.12)}
+.mode-card .big{font-size:34px}
+.mode-card h2{margin:0}
+.mode-card .go{margin-top:auto;color:var(--brand);font-weight:600}
+details{margin-top:10px;background:var(--card);border-radius:12px;padding:12px 18px;box-shadow:var(--shadow)}
+summary{cursor:pointer;font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+th{background:#F3EFE5}
+/* 顶栏 */
+.topbar{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 16px;margin-bottom:14px;flex-wrap:wrap}
+.topbar .title{font-weight:700}
+.topbar .spacer{flex:1}
+.timer{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700;background:#F3EFE5;border-radius:10px;padding:6px 14px;min-width:84px;text-align:center}
+.timer.urgent{color:var(--bad);background:#FDE8E8}
+/* 创作布局 */
+.editor{display:grid;grid-template-columns:216px 1fr 250px;gap:14px;align-items:start}
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.wall-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.cell{position:relative;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);background:#FCFBF8;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;padding:0}
+.cell .coord{position:absolute;left:3px;top:1px;font-size:9px;color:var(--muted);font-family:ui-monospace,monospace}
+.cell.target{border-color:var(--gold);background:#FFF8E6;box-shadow:0 0 0 2px rgba(232,168,34,.25)}
+.cell.target .coord{color:#B07900;font-weight:700}
+.cell.picked{border-color:var(--brand);background:#E7EDFF}
+.cell.correct{border-color:var(--ok);background:#E8F7EC}
+.cell.wrong{border-color:var(--bad);background:#FDE8E8}
+.cell .mark{position:absolute;right:2px;bottom:0;font-size:11px;font-weight:700}
+.stage-wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
+.stage{width:100%;max-width:520px;aspect-ratio:1;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line);touch-action:none;display:block}
+.stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
+.hint{font-size:13px;color:var(--muted);text-align:center;min-height:20px}
+/* 工具箱 */
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px}
+.tabs button{padding:7px 2px;font-size:12px;line-height:1.2}
+.tabs button.on{background:var(--brand);color:#fff;font-weight:600}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
+.swatch{aspect-ratio:1;border-radius:50%;padding:0;border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--line)}
+.swatch.on{box-shadow:0 0 0 2.5px var(--ink)}
+.add-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
+.add-grid button{padding:0;aspect-ratio:1;font-size:20px;line-height:1}
+.add-grid button.dual{font-size:12px;display:flex;align-items:center;justify-content:center;text-align:center}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.row button{flex:1;white-space:nowrap}
+.counter{font-size:12px;color:var(--muted);text-align:right;margin-top:6px}
+.counter b{color:var(--ink)}
+label.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:8px;cursor:pointer}
+/* 猜题 */
+.guess-stage{max-width:460px;margin:0 auto}
+.qbar{text-align:center;margin:6px 0 14px;font-weight:600}
+.wall-big{max-width:520px;margin:14px auto 0}
+.wall-big .cell{font-size:40px;aspect-ratio:1}
+.wall-big .cell .coord{font-size:11px}
+.confirm-bar{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:16px;min-height:46px}
+.verdict{text-align:center;border-radius:14px;padding:18px;margin-top:14px;font-size:17px;font-weight:600}
+.verdict.ok{background:#E8F7EC;color:var(--ok)}
+.verdict.bad{background:#FDE8E8;color:var(--bad)}
+/* 分享页 */
+.share-box{max-width:640px;margin:0 auto}
+.link-row{display:flex;gap:8px;margin:12px 0}
+.link-row input{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;font-family:ui-monospace,monospace;background:#FCFBF8;color:var(--ink)}
+.foot-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.score-big{font-size:40px;font-weight:800;color:var(--brand);text-align:center;margin:6px 0}
+.review-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:#FCFBF8;margin-bottom:8px;border:1px solid var(--line)}
+.review-item svg{width:64px;height:64px;flex:none;border-radius:8px;background:#fff;border:1px solid var(--line)}
+.review-item .res{margin-left:auto;font-weight:700;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#26303A;color:#fff;padding:10px 20px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.note{font-size:12px;color:var(--muted);background:#F3EFE5;border-radius:10px;padding:8px 12px;margin-top:10px}
+@media(max-width:860px){
+  .editor{grid-template-columns:1fr}
+  .panel.wall-panel{order:1}
+  .stage-wrap{order:2}
+  .panel.tool-panel{order:3}
+  .wall-grid{grid-template-columns:repeat(8,1fr)}
+  .mode-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* ================= 共享配置源（与设计契约同一 ruleset） ================= */
+const RULESET_ID = "pictures-web-demo-v1";
+const RULES = {
+  createSeconds: 150,      // PAR-CREATE-SECONDS
+  guessSeconds: 60,        // PAR-GUESS-SECONDS
+  elementCap: 60,          // PAR-ELEMENT-CAP
+  gridW: 4, gridH: 4,      // 16 张照片墙
+  iconCount: 24,           // 图标库
+  randomBaseline: 1/16,    // PAR-GUESS-RANDOM
+  roundsDemo: 1            // Demo 只跑 1 轮
+};
+const STAGE = 480;                 // 画布逻辑尺寸
+const PHOTO_POOL = ["🎈","🏠","🐟","🌵","☂️","🚲","⛵","🍕","🎸","🌋","🎪","🚀","🐘","🌮","🗼","🌻","🍎","🚗","⚽","🎂","🌈","⌛","🔔","🎃","🎁","📷","✂️","🔑","🧸","🦋","🐧","🍦"];
+const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
+const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
+const TOOLS = [
+  {id:"curve", name:"曲线", hint:"在画布上按住拖动即可绘制曲线"},
+  {id:"block", name:"方块", hint:"点“添加方块”，再拖动、旋转、改色"},
+  {id:"icon",  name:"图标", hint:"点下方任意图标放到画布上"},
+  {id:"stick", name:"棒石", hint:"木棒搭骨架，石头做圆点"},
+  {id:"brick", name:"积木", hint:"矩形和三角，堆叠出剪影"}
+];
+
+/* 本地试玩固定照片墙（保证 3 个示范作品的目标在墙内） */
+const PLAY_WALL = ["🎈","🌻","☂️","🚲","🍎","🏠","🌈","⛵","🎸","🍕","🐟","🚀","🐘","🦋","🎂","🗼"];
+/* 示范作品：A1 气球(0) / B2 房子(5) / C3 鱼(10)，坐标基于 480 画布 */
+const PRESET_WORKS = [
+  { name:"作品一", tool:"棒石", target:0, els:[
+    {kind:"ellipse",x:240,y:172,w:122,h:146,rot:0,color:"#E03131"},
+    {kind:"rect",x:221,y:266,w:5,h:56,rot:-12,color:"#8D6E63"},
+    {kind:"rect",x:259,y:266,w:5,h:56,rot:12,color:"#8D6E63"},
+    {kind:"rect",x:240,y:312,w:46,h:34,rot:0,color:"#A0522D"}
+  ]},
+  { name:"作品二", tool:"积木", target:5, els:[
+    {kind:"triangle",x:240,y:158,w:268,h:118,rot:0,color:"#E03131"},
+    {kind:"rect",x:240,y:296,w:206,h:150,rot:0,color:"#F5E9D0"},
+    {kind:"rect",x:240,y:358,w:58,h:88,rot:0,color:"#2980B9"}
+  ]},
+  { name:"作品三", tool:"棒石", target:10, els:[
+    {kind:"ellipse",x:212,y:240,w:176,h:104,rot:0,color:"#2980B9"},
+    {kind:"triangle",x:336,y:240,w:86,h:96,rot:90,color:"#F59F00"},
+    {kind:"ellipse",x:156,y:218,w:15,h:15,rot:0,color:"#26303A"}
+  ]}
+];
+
+/* ================= 工具函数 ================= */
+const $app = document.getElementById("app");
+const $toast = document.getElementById("toast");
+let toastTimer;
+function toast(msg){ $toast.textContent=msg; $toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$toast.classList.remove("show"),2200); }
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function coordLabel(i){return "ABCD"[Math.floor(i/RULES.gridW)] + ((i%RULES.gridW)+1);}
+function enc(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o))));}
+function dec(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){return null;}}
+function h(tag, attrs={}, ...kids){
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const k in attrs) el.setAttribute(k,attrs[k]);
+  for(const kid of kids){ if(kid==null) continue; el.appendChild(typeof kid==="string"?document.createTextNode(kid):kid); }
+  return el;
+}
+function html(tag, attrs={}, htmlStr){
+  const e=document.createElement(tag);
+  for(const k in attrs){ if(k==="class")e.className=attrs[k]; else if(k.startsWith("on")) e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); }
+  if(htmlStr!=null) e.innerHTML=htmlStr;
+  return e;
+}
+
+/* ================= 作品渲染（创作页/猜题页/揭晓共用） ================= */
+function shapeFor(e){
+  const g = h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`,"data-kind":e.kind});
+  if(e.kind==="rect") g.appendChild(h("rect",{x:-e.w/2,y:-e.h/2,width:e.w,height:e.h,rx:6,fill:e.color}));
+  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:e.w/2,ry:e.h/2,fill:e.color}));
+  else if(e.kind==="triangle"){
+    g.appendChild(h("polygon",{points:`0,${-e.h/2} ${-e.w/2},${e.h/2} ${e.w/2},${e.h/2}`,fill:e.color}));
+  } else if(e.kind==="icon"){
+    const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":e.h});
+    t.textContent=e.glyph; g.appendChild(t);
+  } else if(e.kind==="path"){
+    g.appendChild(h("path",{d:e.d,fill:"none",stroke:e.color,"stroke-width":e.width,"stroke-linecap":"round","stroke-linejoin":"round"}));
+  }
+  return g;
+}
+function renderArtwork(svg, els, opts={}){
+  svg.innerHTML="";
+  svg.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);
+  svg.appendChild(h("rect",{x:0,y:0,width:STAGE,height:STAGE,fill:opts.bg||"#FBFAF6"}));
+  els.forEach(e=>svg.appendChild(shapeFor(e)));
+}
+
+/* ================= 路由 ================= */
+function route(){
+  const hash=location.hash||"#/";
+  const [path,query=""]=hash.slice(1).split("?");
+  const params=Object.fromEntries(new URLSearchParams(query));
+  if(path==="/"||path==="/home") renderHome();
+  else if(path==="/create") renderEditor(params.mode==="solo"?"solo":"play");
+  else if(path.startsWith("/g/")) renderGuess(path.slice(3));
+  else if(path.startsWith("/share/")) renderShare(path.slice(7));
+  else if(path==="/playguess") renderPlayGuess();
+  else if(path==="/playreveal") renderPlayReveal();
+  else if(path==="/selftest") runSelfTest();
+  else renderHome();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+
+/* ================= 首页 ================= */
+function renderHome(){
+  $app.innerHTML="";
+  const w=html("div",{class:"wrap"});
+  w.innerHTML=`
+  <div class="hero">
+    <h1>巧手猜图 · 网页玩法验证 Demo</h1>
+    <div class="sub">用一套“不够像”的材料抓住照片特征，再让别人猜你拼的是哪一张</div>
+    <div class="ruleset">ruleset_id: ${RULESET_ID} · 单文件离线原型 · 照片以 emoji 占位</div>
+    <div style="margin-top:10px"><a href="#/selftest" style="font-size:12px;color:var(--muted);text-decoration:none;border:1.5px solid var(--line);border-radius:999px;padding:5px 14px">运行内置自检（QA）</a></div>
+  </div>
+  <div class="mode-grid">
+    <button class="card mode-card" id="m-solo">
+      <span class="big">✏️</span>
+      <h2>单人出题（推荐先玩）</h2>
+      <span>一个人限时创作一幅抽象作品，生成分享链接发给朋友；对方打开链接、免注册猜图，猜完还能自己再出一题。</span>
+      <span class="go">创作 → 分享 → 异步猜 → 我也出题</span>
+    </button>
+    <button class="card mode-card" id="m-play">
+      <span class="big">🎲</span>
+      <span class="tag">无需朋友在场</span>
+      <h2>本地试玩一局</h2>
+      <span>先自己创作，再猜 3 幅示范作品，体验完整的“创作—猜测—揭晓—计分”循环。</span>
+      <span class="go">创作 → 猜 3 幅作品 → 揭晓计分 → 再来一局</span>
+    </button>
+  </div>
+  <details><summary>玩法说明（30 秒）</summary>
+    <ol>
+      <li>每局系统摆出 16 张照片（4×4），你会秘密抽到其中 1 张作为目标。</li>
+      <li>用分到的一套工具（曲线 / 方块 / 图标 / 棒石 / 积木）把目标<b>抽象地</b>拼出来——不能上传图片、不能临摹，乐趣就在“用不完美的材料抓特征”。</li>
+      <li>创作限时 ${RULES.createSeconds} 秒；猜测限时 ${RULES.guessSeconds} 秒。猜中别人作品 +1，自己作品每被猜中 1 次 +1，猜错不扣分。</li>
+    </ol>
+    <div class="note">正式版每轮每人固定分到一套工具、5 轮轮换；Demo 开放全部 5 套工具，便于一次性验证创作手感。</div>
+  </details>
+  <details><summary>本 Demo 要验证的假设与观察信号</summary>
+    <table>
+      <tr><th>假设</th><th>通过阈值（对应设计文档）</th><th>你可以观察什么</th></tr>
+      <tr><td>H1 数字工具保留创作手感</td><td>作品完成率 ≥ 90%，“没法表达”反馈 ≤ 20%</td><td>你能否在 ${RULES.createSeconds} 秒内拼出“自己觉得别人能猜”的作品</td></tr>
+      <tr><td>H2 抽象猜图乐趣成立</td><td>猜中率落在 25%–70%（随机乱猜仅 6.25%）</td><td>猜 3 幅示范作品，你是靠特征推断还是只能蒙</td></tr>
+      <tr><td>H5 分享闭环带来回流</td><td>分享 → 猜题转化 ≥ 30%</td><td>生成链接后，你是否愿意真的发给朋友</td></tr>
+    </table>
+  </details>
+  <details><summary>关键参数（与设计文档同一版本）</summary>
+    <table>
+      <tr><th>参数</th><th>值</th></tr>
+      <tr><td>创作限时 / 猜测限时</td><td>${RULES.createSeconds} 秒 / ${RULES.guessSeconds} 秒</td></tr>
+      <tr><td>单作品元素上限</td><td>${RULES.elementCap} 个</td></tr>
+      <tr><td>图标库数量</td><td>${RULES.iconCount} 个</td></tr>
+      <tr><td>照片墙 / 随机猜中基线</td><td>16 张 / ${(RULES.randomBaseline*100).toFixed(2)}%</td></tr>
+    </table>
+  </details>
+  <details><summary>本切片明确不覆盖的范围</summary>
+    <ul>
+      <li>不包含真实联机（WebSocket 房间、多人同时在线）：本地试玩用示范作品代替真人对手；分享模式的答案随链接携带仅为离线演示，正式版由服务端保存，分享链接不含答案。</li>
+      <li>照片池用 emoji 占位，正式版为 60 张 CC0 / 自摄 / 自生成照片。</li>
+      <li>不含账号、战绩、排行榜、商业化、5 轮完整轮换（Demo 为 1 轮切片）。</li>
+    </ul>
+  </details>
+  <div style="text-align:center;margin-top:18px"></div>`;
+  w.querySelector("#m-solo").addEventListener("click",()=>location.hash="#/create?mode=solo");
+  w.querySelector("#m-play").addEventListener("click",()=>location.hash="#/create?mode=play");
+  $app.appendChild(w);
+}
+
+/* ================= 创作编辑器 ================= */
+function renderEditor(mode){
+  // 局面：照片墙 + 秘密目标
+  let wall, target;
+  if(mode==="play"){
+    wall=PLAY_WALL.slice();
+    const others=PRESET_WORKS.map(w=>w.target);
+    target=shuffle(wall.map((_,i)=>i).filter(i=>!others.includes(i)))[0];
+  }else{
+    wall=shuffle(PHOTO_POOL).slice(0,16);
+    target=Math.floor(Math.random()*16);
+  }
+  const state={
+    mode, wall, target, els:[], selected:null, tool:"brick", color:COLORS[0],
+    strokeW:8, history:[], future:[], timer:RULES.createSeconds, practice:false, finished:false
+  };
+  let timerId=null;
+  sessionStorage.setItem("pw_demo_session",JSON.stringify({mode,wall,target}));
+
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  wrap.innerHTML=`
+  <div class="topbar">
+    <button class="ghost" id="back">← 首页</button>
+    <span class="title">${mode==="solo"?"单人出题":"本地试玩 · 创作"}</span>
+    <span class="tag">ruleset ${RULESET_ID}</span>
+    <span class="spacer"></span>
+    <label class="chk"><input type="checkbox" id="practice"> 练习模式（暂停计时）</label>
+    <span class="timer" id="timer">2:30</span>
+    <button class="primary" id="submit">完成创作</button>
+  </div>
+  <div class="editor">
+    <div class="panel wall-panel">
+      <h2>照片墙</h2>
+      <div class="sub" style="margin-bottom:8px">金色描边是你秘密抽到的目标</div>
+      <div class="wall-grid" id="wall"></div>
+    </div>
+    <div class="stage-wrap">
+      <svg class="stage" id="stage"></svg>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="panel tool-panel">
+      <h2>创作工具</h2>
+      <div class="tabs" id="tabs"></div>
+      <h3>颜色</h3>
+      <div class="swatches" id="swatches"></div>
+      <div id="toolbody"></div>
+      <div class="row">
+        <button id="up">置顶</button>
+        <button id="down">置底</button>
+        <button id="del">删除</button>
+      </div>
+      <div class="row">
+        <button id="undo">↩ 撤销</button>
+        <button id="redo">↪ 重做</button>
+      </div>
+      <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
+      <div class="note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
+    </div>
+  </div>`;
+  $app.appendChild(wrap);
+  wrap.querySelector("#back").onclick=()=>{if(timerId)clearInterval(timerId);location.hash="#/";};
+  wrap.querySelector("#submit").onclick=()=>finishCreate(state);
+  wrap.querySelector("#practice").onchange=e=>{state.practice=e.target.checked;};
+
+  const svg=wrap.querySelector("#stage");
+  const wallEl=wrap.querySelector("#wall");
+  const tabsEl=wrap.querySelector("#tabs");
+  const swEl=wrap.querySelector("#swatches");
+  const bodyEl=wrap.querySelector("#toolbody");
+  const hintEl=wrap.querySelector("#hint");
+  const cntEl=wrap.querySelector("#cnt");
+  const timerEl=wrap.querySelector("#timer");
+
+  /* 照片墙 */
+  wall.forEach((g,i)=>{
+    const c=html("button",{class:"cell"+(i===target?" target":"")},`<span class="coord">${coordLabel(i)}</span>${g}${i===target?'<span class="mark">目标</span>':""}`);
+    wallEl.appendChild(c);
+  });
+
+  /* 工具 tabs */
+  TOOLS.forEach(t=>{
+    const b=html("button",{class:state.tool===t.id?"on":""},t.name);
+    b.onclick=()=>{state.tool=t.id;state.selected=null;syncUI();};
+    tabsEl.appendChild(b);
+  });
+  /* 颜色 */
+  COLORS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.color===col?" on":""),"data-col":col});
+    s.style.background=col;
+    s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
+    swEl.appendChild(s);
+  });
+
+  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
+  function syncUI(){
+    // 工具高亮
+    [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
+    [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
+    hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
+    cntEl.textContent=state.els.length;
+    draw();
+  }
+  function addElement(e){
+    if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
+    commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
+  }
+  /* 工具内容 */
+  function buildToolBody(){
+    bodyEl.innerHTML="";
+    const t=state.tool;
+    if(t==="curve"){
+      const box=html("div",{});
+      box.innerHTML=`<h3>笔触粗细</h3>`;
+      const row=html("div",{class:"row"});
+      [4,8,15].forEach(w0=>{
+        const b=html("button",{class:state.strokeW===w0?"primary":""},w0===4?"细":w0===8?"中":"粗");
+        b.onclick=()=>{state.strokeW=w0;buildToolBody();};row.appendChild(b);
+      });
+      box.appendChild(row);
+      box.appendChild(html("div",{class:"note"},"直接在画布上按住拖动，画出轮廓或线条。"));
+      bodyEl.appendChild(box);
+    } else if(t==="block"){
+      const b=html("button",{class:"primary",style:"width:100%;margin-top:8px"},"＋ 添加方块");
+      b.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:90,h:90,rot:0,color:state.color});
+      bodyEl.appendChild(b);
+    } else if(t==="icon"){
+      const grid=html("div",{class:"add-grid"});
+      ICONS.slice(0,RULES.iconCount).forEach(g0=>{
+        const b=html("button",{},g0);
+        b.onclick=()=>addElement({kind:"icon",glyph:g0,x:STAGE/2,y:STAGE/2,w:64,h:64,rot:0,color:"#000"});
+        grid.appendChild(b);
+      });
+      bodyEl.appendChild(grid);
+    } else if(t==="stick"){
+      const row=html("div",{class:"row"});
+      const b1=html("button",{class:"primary"},"＋ 木棒");
+      b1.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:12,h:150,rot:0,color:"#8D6E63"});
+      const b2=html("button",{class:"primary"},"＋ 石头");
+      b2.onclick=()=>addElement({kind:"ellipse",x:STAGE/2,y:STAGE/2,w:46,h:46,rot:0,color:state.color});
+      row.appendChild(b1);row.appendChild(b2);bodyEl.appendChild(row);
+    } else if(t==="brick"){
+      const row=html("div",{class:"row"});
+      const b1=html("button",{class:"primary"},"＋ 矩形积木");
+      b1.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:120,h:80,rot:0,color:state.color});
+      const b2=html("button",{class:"primary"},"＋ 三角积木");
+      b2.onclick=()=>addElement({kind:"triangle",x:STAGE/2,y:STAGE/2,w:110,h:100,rot:0,color:state.color});
+      row.appendChild(b1);row.appendChild(b2);bodyEl.appendChild(row);
+    }
+  }
+  buildToolBody();
+  const origSync=syncUI;
+  syncUI=function(){origSync();buildToolBody();};
+
+  /* ---------- SVG 绘制与交互 ---------- */
+  const NS="http://www.w3.org/2000/svg";
+  function draw(){
+    renderArtwork(svg,state.els);
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
+      g.appendChild(h("rect",{x:-e.w/2-6,y:-e.h/2-6,width:e.w+12,height:e.h+12,rx:8,fill:"none",stroke:"#3B5BDB","stroke-width":1.5,"stroke-dasharray":"5 4"}));
+      const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
+      handles.forEach(([hx,hy])=>{
+        const hg=h("g",{"data-hx":hx,"data-hy":hy});
+        hg.appendChild(h("rect",{x:hx*e.w/2-15,y:hy*e.h/2-15,width:30,height:30,rx:6,fill:"transparent"}));
+        hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
+        g.appendChild(hg);
+      });
+      const rg=h("g",{"data-rot":"1"});
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:17,fill:"transparent"}));
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
+      g.appendChild(rg);
+      g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
+      svg.appendChild(g);
+    }
+  }
+
+  function pt(ev){
+    const m=svg.getScreenCTM();
+    const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
+    return {x:p.x,y:p.y};
+  }
+  let drag=null;
+  svg.addEventListener("pointerdown",ev=>{
+    if(state.finished)return;
+    const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
+    const rotH=ev.target.closest("[data-rot]");
+    const hand=ev.target.closest("[data-hx]");
+    if(rotH){
+      const e=state.els[state.selected];
+      drag={type:"rot",e,start:performance.now()};commit();
+    } else if(hand){
+      const e=state.els[state.selected];
+      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
+    } else {
+      const gg=ev.target.closest("g[data-kind]");
+      if(gg){
+        const idx=[...svg.querySelectorAll("g[data-kind]")].indexOf(gg);
+        state.selected=idx;
+        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
+        commit(); draw();
+      } else if(state.tool==="curve"){
+        commit();
+        drag={type:"draw",pts:[[p.x,p.y]]};
+      } else {
+        state.selected=null; draw();
+      }
+    }
+  });
+  svg.addEventListener("pointermove",ev=>{
+    if(!drag)return;
+    const p=pt(ev);
+    if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
+    else if(drag.type==="rot"){
+      const e=drag.e;
+      let ang=Math.atan2(p.y-e.y,p.x-e.x)*180/Math.PI+90;
+      e.rot=Math.round(ang); draw();
+    } else if(drag.type==="scale"){
+      const e=drag.e;
+      const rad=-(e.rot||0)*Math.PI/180;
+      const lx=(p.x-e.x)*Math.cos(rad)-(p.y-e.y)*Math.sin(rad);
+      const ly=(p.x-e.x)*Math.sin(rad)+(p.y-e.y)*Math.cos(rad);
+      let nw=Math.max(20,Math.abs(lx)*2), nh=Math.max(20,Math.abs(ly)*2);
+      if(drag.hx!==0 && drag.hy!==0){ const s=Math.max(nw/drag.ow,nh/drag.oh); nw=drag.ow*s; nh=drag.oh*s; }
+      else if(drag.hx!==0){ nw=drag.ow*(nw/drag.ow); nh=drag.oh; }
+      else { nh=drag.oh*(nh/drag.oh); nw=drag.ow; }
+      e.w=nw; e.h=nh; draw();
+    } else if(drag.type==="draw"){
+      const last=drag.pts[drag.pts.length-1];
+      if(Math.hypot(p.x-last[0],p.y-last[1])>4){drag.pts.push([p.x,p.y]);drawTempPath();}
+    }
+  });
+  svg.addEventListener("pointerup",()=>{
+    if(!drag)return;
+    if(drag.type==="draw"){
+      if(drag.pts.length>=2){
+        const xs=drag.pts.map(q=>q[0]),ys=drag.pts.map(q=>q[1]);
+        const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
+        const w=Math.max(12,Math.max(...xs)-Math.min(...xs)), h=Math.max(12,Math.max(...ys)-Math.min(...ys));
+        const d=smoothPath(drag.pts.map(q=>[q[0]-cx,q[1]-cy]));
+        state.els.push({kind:"path",x:cx,y:cy,w,h,rot:0,color:state.color,width:state.strokeW,d});
+        if(state.els.length>RULES.elementCap){state.els.pop();toast(`单作品元素上限 ${RULES.elementCap} 个`);}
+        state.selected=state.els.length-1;
+      } else { state.history.pop(); }
+      syncUI();
+    }
+    drag=null;
+  });
+  function clamp(e){ e.x=Math.max(0,Math.min(STAGE,e.x)); e.y=Math.max(0,Math.min(STAGE,e.y)); }
+  function drawTempPath(){
+    draw();
+    const d=smoothPath(drag.pts);
+    svg.appendChild(h("path",{d,fill:"none",stroke:state.color,"stroke-width":state.strokeW,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.8}));
+  }
+  function smoothPath(pts){
+    if(pts.length===2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+    let d=`M${pts[0][0]},${pts[0][1]}`;
+    for(let i=1;i<pts.length-1;i++){
+      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+      d+=` Q${pts[i][0]},${pts[i][1]} ${mx},${my}`;
+    }
+    const last=pts[pts.length-1]; d+=` L${last[0]},${last[1]}`;
+    return d;
+  }
+
+  /* 按钮操作 */
+  wrap.querySelector("#del").onclick=()=>{if(state.selected==null)return;commit();state.els.splice(state.selected,1);state.selected=null;syncUI();};
+  wrap.querySelector("#up").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.push(e);state.selected=state.els.length-1;syncUI();};
+  wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
+  wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
+  wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
+  window.addEventListener("keydown",function kd(ev){
+    if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
+    if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
+    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
+  });
+
+  /* 计时 */
+  timerId=setInterval(()=>{
+    if(state.finished){clearInterval(timerId);return;}
+    if(!state.practice){
+      state.timer--;
+      if(state.timer<=0){state.finished=true;clearInterval(timerId);toast("时间到，作品已自动提交");setTimeout(()=>finishCreate(state,true),600);}
+    }
+    const m=Math.floor(Math.max(0,state.timer)/60),s=Math.max(0,state.timer)%60;
+    timerEl.textContent=`${m}:${String(s).padStart(2,"0")}`;
+    timerEl.classList.toggle("urgent",state.timer<=15&&!state.practice);
+  },1000);
+  syncUI();
+  window.__pwEditor={state,svg,wrap,draw};
+}
+
+/* ================= 内置自检（#/selftest，合成指针事件走真实监听） ================= */
+function runSelfTest(){
+  location.hash="#/create?mode=play";
+  setTimeout(()=>{
+    const ed=window.__pwEditor; if(!ed){document.body.innerHTML="<pre>自检失败：编辑器未挂载</pre>";return;}
+    const {state,svg,wrap,draw}=ed;
+    state.practice=true; // 暂停计时
+    const results=[];
+    const rec=(name,ok,detail)=>{results.push({name,ok,detail});};
+    function assert(name,cond,detail){rec(name,!!cond,detail||"");}
+    const ctm=svg.getScreenCTM();
+    function screen(sx,sy){const p=new DOMPoint(sx,sy).matrixTransform(ctm);return {x:p.x,y:p.y};}
+    function fire(type,cx,cy,target){
+      const ev=new PointerEvent(type,{bubbles:true,cancelable:true,clientX:cx,clientY:cy,pointerId:1,pointerType:"mouse",isPrimary:true});
+      (target||svg).dispatchEvent(ev);
+    }
+    function drag(sx0,sy0,sx1,sy1,steps=8){
+      const a=screen(sx0,sy0),b=screen(sx1,sy1);
+      const t0=document.elementFromPoint(a.x,a.y)||svg;
+      fire("pointerdown",a.x,a.y,t0);
+      for(let i=1;i<=steps;i++){fire("pointermove",a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,svg);}
+      fire("pointerup",b.x,b.y,svg);
+    }
+    try{
+      /* 1. 添加矩形 */
+      wrap.querySelector(".tabs").children[4].click(); // 积木
+      const before=state.els.length;
+      [...wrap.querySelectorAll("#toolbody button")].find(b=>b.textContent.includes("矩形积木")).click();
+      assert("添加矩形积木",state.els.length===before+1,`els=${state.els.length}`);
+      const e=state.els[state.els.length-1];
+      Object.assign(e,{x:240,y:240,w:120,h:80,rot:0}); state.selected=state.els.length-1;
+      draw();
+
+      /* 2. 命中检测 */
+      const rotScr=screen(e.x,e.y-e.h/2-28);
+      const rotHit=document.elementFromPoint(rotScr.x,rotScr.y);
+      assert("旋转手柄命中区",!!(rotHit&&rotHit.closest("[data-rot]")),rotHit?rotHit.tagName+"."+(rotHit.getAttribute&&rotHit.getAttribute("fill")):"null");
+      const corScr=screen(e.x+e.w/2,e.y+e.h/2);
+      const corHit=document.elementFromPoint(corScr.x,corScr.y);
+      assert("缩放手柄命中区",!!(corHit&&corHit.closest("[data-hx]")),corHit?corHit.tagName:"null");
+      const bodyScr=screen(e.x,e.y);
+      const bodyHit=document.elementFromPoint(bodyScr.x,bodyScr.y);
+      assert("元素本体命中",!!(bodyHit&&bodyHit.closest("g[data-kind]")),bodyHit?bodyHit.tagName:"null");
+
+      /* 3. 旋转 90° */
+      drag(e.x,e.y-e.h/2-28, e.x+120,e.y);
+      assert("旋转到约 90°",Math.abs(e.rot-90)<=12,`rot=${e.rot}`);
+      e.rot=0; draw();
+
+      /* 4. 等比缩放 */
+      const ow=e.w;
+      drag(e.x+e.w/2,e.y+e.h/2, e.x+e.w/2+90,e.y+e.h/2+90);
+      assert("角点放大",e.w>ow+30,`w ${ow}->${e.w}`);
+      Object.assign(e,{w:120,h:80}); draw();
+
+      /* 5. 移动 */
+      drag(e.x,e.y,e.x+70,e.y+50);
+      assert("拖动移动",Math.abs(e.x-310)<8&&Math.abs(e.y-290)<8,`x=${e.x.toFixed(0)},y=${e.y.toFixed(0)}`);
+      Object.assign(e,{x:240,y:240}); draw();
+
+      /* 6. 删除 / 撤销 / 重做 */
+      const n=state.els.length;
+      state.selected=state.els.length-1;
+      wrap.querySelector("#del").click();
+      assert("删除选中元素",state.els.length===n-1,`${n}->${state.els.length}`);
+      wrap.querySelector("#undo").click();
+      assert("撤销恢复元素",state.els.length===n,`->${state.els.length}`);
+      wrap.querySelector("#redo").click();
+      assert("重做再次删除",state.els.length===n-1,`->${state.els.length}`);
+      wrap.querySelector("#undo").click();
+
+      /* 7. 曲线手绘 */
+      wrap.querySelector(".tabs").children[0].click(); // 曲线
+      const nc=state.els.length;
+      drag(60,60, 200,120, 10);
+      const last=state.els[state.els.length-1];
+      assert("手绘生成曲线",state.els.length===nc+1&&last&&last.kind==="path",last?last.kind:"none");
+
+      /* 8. 元素上限拦截 */
+      state.els.length=RULES.elementCap;
+      const capped=state.els.length;
+      wrap.querySelector(".tabs").children[4].click();
+      [...wrap.querySelectorAll("#toolbody button")].find(b=>b.textContent.includes("矩形积木")).click();
+      assert("元素上限 60 拦截",state.els.length===capped,`els=${state.els.length}`);
+
+      /* 9. 分享编码往返 */
+      const payload={v:1,w:PLAY_WALL,t:0,e:[{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"}]};
+      const back=dec(enc(payload));
+      assert("分享链接编码往返",back&&back.t===0&&back.e[0].x===1,back?"ok":"fail");
+
+      /* 10. 计分公式（2 人局边界） */
+      const score2=2*(2-1), score4=2*(4-1);
+      assert("计分公式 2 人/4 人",score2===2&&score4===6,`2p=${score2},4p=${score4}`);
+    }catch(err){
+      rec("自检异常",false,err.message);
+    }
+    /* 渲染报告 */
+    const passed=results.filter(r=>r.ok).length;
+    $app.innerHTML="";
+    const w=html("div",{class:"wrap"});
+    const card=html("div",{class:"card"});
+    card.innerHTML=`<h1>Demo 自检报告</h1>
+      <div class="sub">ruleset_id: ${RULESET_ID} · 合成 PointerEvent 走真实事件监听 · ${passed}/${results.length} 通过</div>
+      <table><thead><tr><th>检查项</th><th>结果</th><th>详情</th></tr></thead><tbody>
+      ${results.map(r=>`<tr><td>${r.name}</td><td style="color:${r.ok?"var(--ok)":"var(--bad)"};font-weight:700">${r.ok?"PASS":"FAIL"}</td><td>${r.detail}</td></tr>`).join("")}
+      </tbody></table>
+      <div class="foot-actions"><button class="primary" onclick="location.hash='#/create?mode=solo'">去单人出题</button><button class="ghost" onclick="location.hash='#/'">回首页</button></div>`;
+    w.appendChild(card);$app.appendChild(w);
+  },120);
+}
+
+function finishCreate(state, forced){
+  if(!forced && state.els.length===0){toast("至少放一个元素再提交");return;}
+  state.finished=true;
+  const payload={v:1,w:state.wall,t:state.target,e:state.els};
+  const code=enc(payload);
+  sessionStorage.setItem("pw_demo_mywork",JSON.stringify(payload));
+  if(state.mode==="solo") location.hash="#/share/"+code;
+  else location.hash="#/playguess";
+}
+
+/* ================= 单人出题 · 分享页 ================= */
+function renderShare(code){
+  const p=dec(code);
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  const card=html("div",{class:"card share-box"});
+  card.innerHTML=`
+  <h1>作品完成，发给朋友猜吧</h1>
+  <div class="sub">朋友打开链接即可猜图，无需注册；提交答案后才会揭晓对错。</div>
+  <div style="display:flex;justify-content:center;margin:14px 0"><svg class="stage" style="max-width:380px"></svg></div>
+  <div class="link-row">
+    <input id="link" readonly>
+    <button class="primary" id="copy">复制链接</button>
+  </div>
+  <div class="row">
+    <button class="ghost" id="png">⬇️ 导出作品图片（PNG）</button>
+    <button class="ghost" id="test">🔍 以朋友视角打开</button>
+  </div>
+  <div class="note">Demo 说明：为了离线运行，答案随链接携带、在提交时本地判定，页面上不显示答案；正式版答案保存在服务端，分享链接不含答案坐标。</div>
+  <div class="foot-actions">
+    <button class="accent" id="again">我再出一题</button>
+    <button class="ghost" id="home">回首页</button>
+  </div>`;
+  wrap.appendChild(card); $app.appendChild(wrap);
+  renderArtwork(card.querySelector("svg"),p.e);
+  const url=location.origin+location.pathname+"#/g/"+code;
+  card.querySelector("#link").value=url;
+  card.querySelector("#copy").onclick=async()=>{
+    try{await navigator.clipboard.writeText(url);toast("链接已复制");}
+    catch(e){card.querySelector("#link").select();document.execCommand("copy");toast("链接已复制");}
+  };
+  card.querySelector("#test").onclick=()=>location.hash="#/g/"+code;
+  card.querySelector("#again").onclick=()=>location.hash="#/create?mode=solo";
+  card.querySelector("#home").onclick=()=>location.hash="#/";
+  card.querySelector("#png").onclick=()=>exportPNG(p.e);
+}
+
+function exportPNG(els){
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);svg.setAttribute("width",1000);svg.setAttribute("height",1000);
+  svg.appendChild(h("rect",{x:0,y:0,width:STAGE,height:STAGE,fill:"#FBFAF6"}));
+  els.forEach(e=>svg.appendChild(shapeFor(e)));
+  const data=new XMLSerializer().serializeToString(svg);
+  const img=new Image();
+  const url="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(data);
+  img.onload=()=>{
+    const c=document.createElement("canvas");c.width=c.height=1000;
+    const ctx=c.getContext("2d");ctx.drawImage(img,0,0,1000,1000);
+    const a=html("a",{href:c.toDataURL("image/png"),download:"巧手猜图-我的作品.png"});
+    document.body.appendChild(a);a.click();a.remove();toast("作品图已导出");
+  };
+  img.src=url;
+}
+
+/* ================= 猜题页（分享落地） ================= */
+function renderGuess(code){
+  const p=dec(code);
+  if(!p){$app.innerHTML='<div class="wrap"><div class="card">链接无效或已损坏。<br><br><button class="primary" onclick="location.hash=\'#/\'">回首页</button></div></div>';return;}
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  const card=html("div",{class:"card"});
+  card.innerHTML=`
+    <h1>这是哪张照片？</h1>
+    <div class="sub">朋友用一套受限材料拼出了他的秘密照片。看他保留了哪个特征，从 16 张里选一张。</div>
+    <div class="guess-stage" style="margin-top:12px"><svg class="stage" id="gstage"></svg></div>
+    <div class="wall-big"><div class="wall-grid" id="gwall"></div></div>
+    <div class="confirm-bar" id="bar"><span class="sub">点选一张照片作答</span></div>`;
+  wrap.appendChild(card);$app.appendChild(wrap);
+  renderArtwork(card.querySelector("#gstage"),p.e);
+  let picked=null, done=false;
+  const wallEl=card.querySelector("#gwall"), bar=card.querySelector("#bar");
+  p.w.forEach((g,i)=>{
+    const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span>${g}`);
+    c.onclick=()=>{
+      if(done)return;
+      picked=i;[...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
+      bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g}</b></span><button class="primary" id="ok">确认提交</button>`;
+      bar.querySelector("#ok").onclick=()=>{
+        done=true;
+        const correct=picked===p.t;
+        [...wallEl.children].forEach((x,j)=>{x.disabled=true;if(j===p.t)x.classList.add("correct");if(j===picked&&!correct)x.classList.add("wrong");});
+        const v=html("div",{class:"verdict "+(correct?"ok":"bad")});
+        v.innerHTML=correct?"🎉 猜中了！+1 分，你抓住了关键特征。":`没猜中。正确答案是 <b>${coordLabel(p.t)} ${p.w[p.t]}</b>——随机乱猜的命中率只有 ${(RULES.randomBaseline*100).toFixed(2)}%，再来一题？`;
+        bar.innerHTML="";bar.appendChild(v);
+        const foot=html("div",{class:"foot-actions"});
+        foot.innerHTML=`<button class="accent" id="mine">我也来出题</button><button class="ghost" id="home">回首页</button>`;
+        card.appendChild(foot);
+        foot.querySelector("#mine").onclick=()=>location.hash="#/create?mode=solo";
+        foot.querySelector("#home").onclick=()=>location.hash="#/";
+      };
+    };
+    wallEl.appendChild(c);
+  });
+  function onGuessKey(ev){
+    if(!$app.contains(wrap)){window.removeEventListener("keydown",onGuessKey);return;}
+    if(ev.key==="Enter"&&!done){const b=bar.querySelector("#ok");if(b)b.click();}
+  }
+  window.addEventListener("keydown",onGuessKey);
+}
+
+/* ================= 本地试玩 · 猜 3 幅示范作品 ================= */
+function renderPlayGuess(){
+  const raw=sessionStorage.getItem("pw_demo_session");
+  if(!raw){location.hash="#/";return;}
+  const sess=JSON.parse(raw);
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  const card=html("div",{class:"card"});
+  card.innerHTML=`
+    <h1>猜其他玩家的作品</h1>
+    <div class="qbar" id="qbar"></div>
+    <div class="guess-stage"><svg class="stage" id="pstage"></svg></div>
+    <div class="wall-big"><div class="wall-grid" id="pwall"></div></div>
+    <div class="confirm-bar" id="pbar"><span class="sub">点选一张照片作答，可改选后确认</span></div>`;
+  wrap.appendChild(card);$app.appendChild(wrap);
+
+  let qi=0; const answers=[];
+  const svg=card.querySelector("#pstage"), wallEl=card.querySelector("#pwall"), qbar=card.querySelector("#qbar"), bar=card.querySelector("#pbar");
+  function renderQ(){
+    const work=PRESET_WORKS[qi];
+    qbar.textContent=`第 ${qi+1} / ${PRESET_WORKS.length} 幅 · 对方使用「${work.tool}」工具`;
+    renderArtwork(svg,work.els);
+    wallEl.innerHTML=""; bar.innerHTML=`<span class="sub">点选一张照片作答，可改选后确认</span>`;
+    let picked=null;
+    sess.wall.forEach((g,i)=>{
+      const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span>${g}`);
+      c.onclick=()=>{
+        picked=i;[...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
+        bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g}</b></span><button class="primary">确认</button>`;
+        bar.querySelector("button").onclick=()=>{
+          answers[qi]=i;
+          qi++;
+          if(qi<PRESET_WORKS.length) renderQ();
+          else{ sessionStorage.setItem("pw_demo_answers",JSON.stringify(answers)); location.hash="#/playreveal"; }
+        };
+      };
+      wallEl.appendChild(c);
+    });
+  }
+  renderQ();
+  function onPlayKey(ev){
+    if(!$app.contains(wrap)){window.removeEventListener("keydown",onPlayKey);return;}
+    if(ev.key==="Enter"){const b=bar.querySelector("button.primary");if(b)b.click();}
+  }
+  window.addEventListener("keydown",onPlayKey);
+}
+
+/* ================= 本地试玩 · 揭晓计分 ================= */
+function renderPlayReveal(){
+  const sess=JSON.parse(sessionStorage.getItem("pw_demo_session")||"null");
+  const answers=JSON.parse(sessionStorage.getItem("pw_demo_answers")||"[]");
+  const mine=JSON.parse(sessionStorage.getItem("pw_demo_mywork")||"null");
+  if(!sess||answers.length<PRESET_WORKS.length){location.hash="#/";return;}
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  const card=html("div",{class:"card"});
+  const score=PRESET_WORKS.filter((w,i)=>answers[i]===w.target).length;
+  card.innerHTML=`<h1>本轮揭晓</h1><div class="score-big">${score} / ${PRESET_WORKS.length} 分</div>
+    <div class="sub" style="text-align:center">猜中 1 幅 +1 分；随机乱猜的期望只有 ${(RULES.randomBaseline*PRESET_WORKS.length).toFixed(2)} 分。</div>
+    <h3 style="margin-top:16px">逐幅回顾</h3><div id="reviews"></div>`;
+  const reviews=card.querySelector("#reviews");
+  PRESET_WORKS.forEach((w,i)=>{
+    const ok=answers[i]===w.target;
+    const item=html("div",{class:"review-item"});
+    const sv=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    sv.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);
+    renderArtwork(sv,w.els);
+    item.appendChild(sv);
+    const info=html("div",{});
+    info.innerHTML=`<div><b>${w.tool}工具</b></div><div class="sub">你猜：${coordLabel(answers[i])} ${sess.wall[answers[i]]} ｜ 正确：${coordLabel(w.target)} ${sess.wall[w.target]}</div>`;
+    item.appendChild(info);
+    item.appendChild(html("span",{class:"res",style:ok?"color:var(--ok)":"color:var(--bad)"},ok?"✓ 猜中 +1":"✗ 未中"));
+    reviews.appendChild(item);
+  });
+  if(mine){
+    const my=html("div",{class:"note",style:"margin-top:14px"});
+    my.innerHTML=`<b>你的作品</b>（目标 ${coordLabel(mine.t)} ${mine.w[mine.t]}）：本地 Demo 没有真人对手，想知道它能被多少人猜中？生成链接发给真实朋友——这正是“单人出题”模式。`;
+    card.appendChild(my);
+    const sv=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    sv.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);sv.style.maxWidth="240px";sv.style.width="100%";sv.style.display="block";sv.style.margin="10px auto";
+    renderArtwork(sv,mine.e);card.appendChild(sv);
+  }
+  const foot=html("div",{class:"foot-actions"});
+  foot.innerHTML=`
+    <button class="accent" id="share">把我的作品发给朋友猜</button>
+    <button class="primary" id="again">再来一局</button>
+    <button class="ghost" id="home">回首页</button>`;
+  card.appendChild(foot);
+  wrap.appendChild(card);$app.appendChild(wrap);
+  foot.querySelector("#again").onclick=()=>location.hash="#/create?mode=play";
+  foot.querySelector("#home").onclick=()=>location.hash="#/";
+  foot.querySelector("#share").onclick=()=>{if(mine)location.hash="#/share/"+enc(mine);};
+}
+
+function runRoute(){
+  try{ route(); }
+  catch(e){
+    $app.innerHTML=`<div class="wrap"><div class="card"><h1>页面出错</h1><pre style="white-space:pre-wrap;word-break:break-all;font-size:13px;color:#C92A2A">${(e&&e.stack?e.stack:e+"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]))}</pre></div></div>`;
+  }
+}
+window.addEventListener("hashchange",runRoute);
+runRoute();
+</script>
+</body>
+</html>

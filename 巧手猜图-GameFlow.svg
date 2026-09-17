@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 480" font-family="Noto Sans SC, sans-serif">
+  <defs>
+    <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4F8FC"/>
+      <stop offset="1" stop-color="#E6EFF7"/>
+    </linearGradient>
+    <linearGradient id="gGreen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2F9F4"/>
+      <stop offset="1" stop-color="#E2F1E7"/>
+    </linearGradient>
+    <linearGradient id="gOrange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FDF6EC"/>
+      <stop offset="1" stop-color="#F9EAD7"/>
+    </linearGradient>
+    <linearGradient id="gPurple" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F2FC"/>
+      <stop offset="1" stop-color="#ECE5F8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 行 1：建房 → 大厅 → 发题 → 创作 → 提交 -->
+  <g>
+    <rect x="40" y="80" width="150" height="64" rx="12" fill="url(#gBlue)" stroke="#5B7FA6" stroke-width="1.5"/>
+    <text x="115" y="118" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">建房 / 入房</text>
+
+    <rect x="250" y="80" width="170" height="64" rx="12" fill="url(#gBlue)" stroke="#5B7FA6" stroke-width="1.5"/>
+    <text x="335" y="118" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">大厅等待（≥2 人）</text>
+
+    <rect x="480" y="80" width="210" height="64" rx="12" fill="url(#gPurple)" stroke="#8A6FC1" stroke-width="1.5"/>
+    <text x="585" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">发题</text>
+    <text x="585" y="132" text-anchor="middle" font-size="12" fill="#5A4B7E">照片墙 · 秘密坐标 · 工具</text>
+
+    <rect x="750" y="80" width="150" height="64" rx="12" fill="url(#gGreen)" stroke="#4E9E6F" stroke-width="1.5"/>
+    <text x="825" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">同时创作</text>
+    <text x="825" y="132" text-anchor="middle" font-size="12" fill="#3F7A57">150 秒限时</text>
+
+    <rect x="950" y="80" width="130" height="64" rx="12" fill="url(#gGreen)" stroke="#4E9E6F" stroke-width="1.5"/>
+    <text x="1015" y="118" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">提交锁定</text>
+    <text x="1015" y="172" text-anchor="middle" font-size="12" fill="#8A8F99">时间到自动提交</text>
+  </g>
+
+  <!-- 行 1 连线 -->
+  <g fill="#7A8599">
+    <line x1="190" y1="112" x2="250" y2="112" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="250,112 234,105 234,119"/>
+    <line x1="420" y1="112" x2="480" y2="112" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="480,112 464,105 464,119"/>
+    <line x1="690" y1="112" x2="750" y2="112" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="750,112 734,105 734,119"/>
+    <line x1="900" y1="112" x2="950" y2="112" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="950,112 934,105 934,119"/>
+    <line x1="1015" y1="144" x2="1015" y2="320" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="1015,320 1008,304 1022,304"/>
+  </g>
+
+  <!-- 行 2：猜测 → 揭晓 → 还有轮次？ → 终局 → 再来一局 -->
+  <g>
+    <rect x="950" y="320" width="130" height="64" rx="12" fill="url(#gOrange)" stroke="#D98B3E" stroke-width="1.5"/>
+    <text x="1015" y="352" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">互相猜测</text>
+    <text x="1015" y="372" text-anchor="middle" font-size="12" fill="#A66A28">60 秒限时</text>
+    <text x="1015" y="404" text-anchor="middle" font-size="12" fill="#8A8F99">可跳过 · 超时按已投处理</text>
+
+    <rect x="760" y="320" width="150" height="64" rx="12" fill="url(#gOrange)" stroke="#D98B3E" stroke-width="1.5"/>
+    <text x="835" y="358" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">揭晓与计分</text>
+
+    <polygon points="630,312 725,352 630,392 535,352" fill="#FFF8E1" stroke="#C9A227" stroke-width="1.5"/>
+    <text x="630" y="348" text-anchor="middle" font-size="15" font-weight="700" fill="#1F2329">还有轮次？</text>
+    <text x="630" y="366" text-anchor="middle" font-size="13" fill="#8A6D1B">是 / 否</text>
+
+    <rect x="330" y="320" width="150" height="64" rx="12" fill="url(#gBlue)" stroke="#5B7FA6" stroke-width="1.5"/>
+    <text x="405" y="358" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">终局结算</text>
+
+    <rect x="120" y="320" width="150" height="64" rx="12" fill="url(#gBlue)" stroke="#5B7FA6" stroke-width="1.5"/>
+    <text x="195" y="358" text-anchor="middle" font-size="16" font-weight="700" fill="#1F2329">再来一局</text>
+  </g>
+
+  <!-- 行 2 连线（右 → 左） -->
+  <g fill="#7A8599">
+    <line x1="950" y1="352" x2="910" y2="352" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="910,352 926,345 926,359"/>
+    <line x1="760" y1="352" x2="725" y2="352" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="725,352 741,345 741,359"/>
+    <line x1="535" y1="352" x2="480" y2="352" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="480,352 496,345 496,359"/>
+    <line x1="330" y1="352" x2="270" y2="352" stroke="#7A8599" stroke-width="2"/>
+    <polygon points="270,352 286,345 286,359"/>
+  </g>
+
+  <!-- 循环：还有轮次？ → 发题 -->
+  <g fill="#7A8599">
+    <polyline points="630,312 630,252 585,252 585,144" fill="none" stroke="#C9A227" stroke-width="2" stroke-dasharray="6 4"/>
+    <polygon points="585,144 578,158 592,158"/>
+    <text x="652" y="256" text-anchor="start" font-size="13" fill="#8A6D1B">是 · 下一轮：工具轮换 + 重新洗牌</text>
+  </g>
+
+  <!-- 循环：再来一局 → 大厅等待 -->
+  <g fill="#7A8599">
+    <polyline points="195,320 195,200 335,200 335,144" fill="none" stroke="#5B7FA6" stroke-width="2" stroke-dasharray="6 4"/>
+    <polygon points="335,144 328,158 342,158"/>
+    <text x="215" y="192" text-anchor="start" font-size="13" fill="#4A6A8E">重新建房 / 换人重开</text>
+  </g>
+</svg>
