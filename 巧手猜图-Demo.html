@@ -62,7 +62,7 @@ th{background:#F3EFE5}
 .cell.wrong{border-color:var(--bad);background:#FDE8E8}
 .cell .mark{position:absolute;right:2px;bottom:0;font-size:11px;font-weight:700}
 .stage-wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
-.stage{width:100%;max-width:520px;aspect-ratio:1;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line);touch-action:none;display:block}
+.stage{width:100%;max-width:520px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
 .stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
 .hint{font-size:13px;color:var(--muted);text-align:center;min-height:20px}
 /* 工具箱 */
@@ -109,6 +109,24 @@ label.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut
   .panel.tool-panel{order:3}
   .wall-grid{grid-template-columns:repeat(8,1fr)}
   .mode-grid{grid-template-columns:1fr}
+  /* ---- 移动端优化 ---- */
+  .wrap{padding:10px}
+  .topbar{gap:8px;padding:8px 10px;border-radius:12px}
+  .topbar .tag{display:none}
+  .topbar .title{font-size:15px}
+  .topbar .timer{font-size:16px;padding:4px 10px;min-width:auto}
+  .topbar button{padding:7px 10px;font-size:13px}
+  label.chk{font-size:11px;gap:4px}
+  .editor{gap:10px}
+  .panel{padding:12px}
+  .stage{box-shadow:inset 0 0 0 2.5px var(--line),0 6px 20px rgba(38,48,58,.14)}
+  .wall-grid{gap:4px}
+  .cell{font-size:22px;border-radius:7px}
+  .tabs{gap:3px}
+  .tabs button{font-size:11px;padding:6px 2px}
+  .swatches,.add-grid{gap:5px}
+  .row{gap:5px}
+  .row button{font-size:12px;padding:8px 6px}
 }
 </style>
 </head>
@@ -202,6 +220,7 @@ function shapeFor(e){
 function renderArtwork(svg, els, opts={}){
   svg.innerHTML="";
   svg.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);
+  svg.style.height=svg.getBoundingClientRect().width+"px";
   svg.appendChild(h("rect",{x:0,y:0,width:STAGE,height:STAGE,fill:opts.bg||"#FBFAF6"}));
   els.forEach(e=>svg.appendChild(shapeFor(e)));
 }
@@ -353,6 +372,7 @@ function renderEditor(mode){
   wrap.querySelector("#practice").onchange=e=>{state.practice=e.target.checked;};
 
   const svg=wrap.querySelector("#stage");
+  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
   const wallEl=wrap.querySelector("#wall");
   const tabsEl=wrap.querySelector("#tabs");
   const swEl=wrap.querySelector("#swatches");
@@ -452,12 +472,12 @@ function renderEditor(mode){
       const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
       handles.forEach(([hx,hy])=>{
         const hg=h("g",{"data-hx":hx,"data-hy":hy});
-        hg.appendChild(h("rect",{x:hx*e.w/2-15,y:hy*e.h/2-15,width:30,height:30,rx:6,fill:"transparent"}));
+        hg.appendChild(h("rect",{x:hx*e.w/2-20,y:hy*e.h/2-20,width:40,height:40,rx:8,fill:"transparent"}));
         hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
         g.appendChild(hg);
       });
       const rg=h("g",{"data-rot":"1"});
-      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:17,fill:"transparent"}));
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-34,r:24,fill:"transparent"}));
       rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
       g.appendChild(rg);
       g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
