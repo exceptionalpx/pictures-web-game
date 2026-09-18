@@ -441,7 +441,7 @@ function renderPuzzleEditor(){
   renderRail();
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;state.ghostShape=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
     tabsEl.appendChild(b);
   });
   COLORS.forEach(col=>{
@@ -486,6 +486,7 @@ function renderPuzzleEditor(){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
     if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+    state.ghostShape=null;
     document.removeEventListener("pointermove",followGhost);
   }
   function followGhost(e){
@@ -495,29 +496,43 @@ function renderPuzzleEditor(){
     state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
     renderGhost();
   }
+  function enableFloat(kind){
+    state.pickShape=kind; state.ghostShape=kind;
+    state.ghost={x:STAGE/2,y:STAGE/2};
+    document.addEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
+  function cancelFloat(){
+    state.ghost=null; state.ghostShape=null;
+    document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
   function togglePick(kind){
-    if(state.pickShape===kind && state.ghost){ state.ghost=null; document.removeEventListener("pointermove",followGhost); }
-    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; document.addEventListener("pointermove",followGhost); }
-    state.selected=null; renderGhost(); syncUI();
+    if(state.ghost && state.ghost.x!=null && state.ghostShape===kind){ cancelFloat(); }
+    else { enableFloat(kind); }
+    state.selected=null;
   }
   function makeShapeBtn(s0, inFloat){
     const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
     b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
     let pointerUsed=false;
     b.addEventListener("pointerdown",(ev)=>{
+      if(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches){ return; }
       pointerUsed=true; ev.preventDefault();
+      state.pickShape=s0.kind; syncUI();
       if(!state.ghost){ state.ghost={x:null,y:null}; }
       let dragged=false;
       const mv=(e)=>{
         const p=pt(e);
-        if(state.ghost){ state.pickShape=s0.kind; state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+        if(state.ghost){ state.ghost.x=Math.max(0,Math.min(STAGE,p.x)); state.ghost.y=Math.max(0,Math.min(STAGE,p.y)); dragged=true; renderGhost(); }
       };
       const up=()=>{
         document.removeEventListener("pointermove",mv);
         document.removeEventListener("pointerup",up);
-        if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
-          addShapeAt(state.ghost.x,state.ghost.y);
-        }
+        if(dragged){
+          if(state.ghost && state.ghost.x!=null && state.ghost.y!=null){ addShapeAt(state.ghost.x,state.ghost.y); }
+          else { cancelFloat(); }
+        } else { togglePick(s0.kind); }
       };
       document.addEventListener("pointermove",mv);
       document.addEventListener("pointerup",up);
@@ -673,7 +688,7 @@ function renderPuzzleEditor(){
       return;
     }
     clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
-    commit(); state.els=[]; state.selected=null; syncUI();
+    commit(); state.els=[]; state.selected=null; state.ghost=null; state.ghostShape=null; document.removeEventListener("pointermove",followGhost); syncUI();
   };
   window.addEventListener("keydown",function kd(ev){
     if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
@@ -873,6 +888,19 @@ async function runPuzzleTest(){
     const rbtns=[...document.querySelectorAll(".rail-grid button")];
     log(rbtns.find(b=>b.title==="圆形").classList.contains("on")===false && rbtns.find(b=>b.title==="三角形").classList.contains("on")===true,"切换形状后高亮跟随新形状");
     circ.click(); await sleep(20);
+    // 按下瞬间高亮跟随 + tap 统一浮动跟手
+    const dia=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形");
+    dia.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:77}));
+    await sleep(10);
+    log([...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形").classList.contains("on")===true,"按下瞬间高亮跟随新形状");
+    dia.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:77}));
+    await sleep(20);
+    log(!!document.querySelector("#stage g[data-ghost]") && [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形").classList.contains("on")===true,"tap 形状开启浮动跟手");
+    // 清空连浮动一起清
+    document.querySelector("#clear").click(); await sleep(15);
+    document.querySelector("#clear").click(); await sleep(30);
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0 && !document.querySelector("#stage g[data-ghost]"),"清空连浮动图形一起清空");
+    circ.click(); await sleep(20);
     const stage=document.querySelector("#stage");
     const r1=stage.getBoundingClientRect();
     stage.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
@@ -1040,7 +1068,7 @@ function renderEditor(){
   /* 工具 tabs */
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;state.ghostShape=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
     tabsEl.appendChild(b);
   });
   /* 颜色 */
@@ -1087,6 +1115,7 @@ function renderEditor(){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
     if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+    state.ghostShape=null;
     document.removeEventListener("pointermove",followGhost);
   }
   function followGhost(e){
@@ -1096,10 +1125,21 @@ function renderEditor(){
     state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
     renderGhost();
   }
+  function enableFloat(kind){
+    state.pickShape=kind; state.ghostShape=kind;
+    state.ghost={x:STAGE/2,y:STAGE/2};
+    document.addEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
+  function cancelFloat(){
+    state.ghost=null; state.ghostShape=null;
+    document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
   function togglePick(kind){
-    if(state.pickShape===kind && state.ghost){ state.ghost=null; document.removeEventListener("pointermove",followGhost); }
-    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; document.addEventListener("pointermove",followGhost); }
-    state.selected=null; renderGhost(); syncUI();
+    if(state.ghost && state.ghost.x!=null && state.ghostShape===kind){ cancelFloat(); }
+    else { enableFloat(kind); }
+    state.selected=null;
   }
   /* 工具内容 */
   function makeShapeBtn(s0, inFloat){
@@ -1107,19 +1147,22 @@ function renderEditor(){
     b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
     let pointerUsed=false;
     b.addEventListener("pointerdown",(ev)=>{
+      if(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches){ return; }
       pointerUsed=true; ev.preventDefault();
+      state.pickShape=s0.kind; syncUI();
       if(!state.ghost){ state.ghost={x:null,y:null}; }
       let dragged=false;
       const mv=(e)=>{
         const p=pt(e);
-        if(state.ghost){ state.pickShape=s0.kind; state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+        if(state.ghost){ state.ghost.x=Math.max(0,Math.min(STAGE,p.x)); state.ghost.y=Math.max(0,Math.min(STAGE,p.y)); dragged=true; renderGhost(); }
       };
       const up=()=>{
         document.removeEventListener("pointermove",mv);
         document.removeEventListener("pointerup",up);
-        if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
-          addShapeAt(state.ghost.x,state.ghost.y);
-        }
+        if(dragged){
+          if(state.ghost && state.ghost.x!=null && state.ghost.y!=null){ addShapeAt(state.ghost.x,state.ghost.y); }
+          else { cancelFloat(); }
+        } else { togglePick(s0.kind); }
       };
       document.addEventListener("pointermove",mv);
       document.addEventListener("pointerup",up);
@@ -1284,7 +1327,7 @@ function renderEditor(){
       return;
     }
     clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
-    commit(); state.els=[]; state.selected=null; syncUI();
+    commit(); state.els=[]; state.selected=null; state.ghost=null; state.ghostShape=null; document.removeEventListener("pointermove",followGhost); syncUI();
   };
   window.addEventListener("keydown",function kd(ev){
     if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
