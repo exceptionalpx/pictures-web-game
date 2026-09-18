@@ -98,6 +98,29 @@ a{color:var(--brand-d)}
 .stage{width:100%;max-width:520px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
 .stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
 .hint{font-size:13px;color:var(--muted);text-align:center;min-height:20px}
+/* 画布下方操作组 */
+.stage-wrap{position:relative}
+.canvas-ops{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;width:100%}
+.canvas-ops button{padding:5px 10px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#343A40;cursor:pointer}
+.canvas-ops button.arm{background:#FFF3E0;border-color:#FFA94D;color:#D9480F;font-weight:700}
+.op-state{font-size:10px;color:#868E96;margin-left:6px;white-space:nowrap}
+/* 窄屏画布底部形状悬浮条（仅图标） */
+.shape-float{display:none;position:absolute;left:50%;bottom:4px;transform:translateX(-50%);z-index:5;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+.shape-float .float-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.shape-float button{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:9px;background:transparent;padding:0}
+.shape-float button.on{background:#EDF1FF;border-color:var(--brand)}
+.shape-float button svg{width:26px;height:26px}
+.shape-float .float-col{position:absolute;right:8px;top:8px;width:22px;height:22px;font-size:12px;color:#868E96;border:1px solid var(--line);border-radius:6px;background:#fff;padding:0}
+.shape-float-mini{display:none;position:absolute;right:8px;bottom:8px;z-index:5;width:38px;height:38px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,.15);align-items:center;justify-content:center;font-size:17px;color:var(--brand);cursor:pointer}
+.shape-float-mini.show{display:flex}
+@media(max-width:600px){
+  .shape-float.open{display:block}
+  .tool-panel .shape-grid{display:none}
+}
+@media(min-width:601px){
+  .shape-float{display:none !important}
+  .shape-float-mini{display:none !important}
+}
 /* 工具箱 */
 .tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:10px}
 .tabs button{padding:7px 2px;font-size:12px;line-height:1.2}
@@ -249,7 +272,7 @@ function shapeFor(e){
   else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
   else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
   else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
-  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.38} ${w*0.38} 0 1 0 0,${-w/2} Z`,fill:col,opacity:op}));
+  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:col,opacity:op,"fill-rule":"evenodd"}));
   else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
   else if(e.kind==="arrow"){
     g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
@@ -364,6 +387,16 @@ function renderPuzzleEditor(){
     <div class="stage-wrap">
       <svg class="stage" id="stage"></svg>
       <div class="hint" id="hint"></div>
+      <div class="shape-float" id="shape-float"></div>
+      <div class="shape-float-mini" id="shape-float-mini" title="展开形状">⤢</div>
+      <div class="canvas-ops">
+        <button id="up">置顶</button>
+        <button id="down">置底</button>
+        <button id="del">删除</button>
+        <button id="undo">↩ 撤销</button>
+        <button id="redo">↪ 重做</button>
+        <button id="clear">清空</button>
+      </div>
     </div>
     <div class="panel tool-panel">
       <h2>创作工具</h2>
@@ -371,17 +404,8 @@ function renderPuzzleEditor(){
       <h3>颜色</h3>
       <div class="swatches" id="swatches"></div>
       <h3>不透明度</h3>
-      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span></div>
+      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div>
       <div id="toolbody"></div>
-      <div class="row">
-        <button id="up">置顶</button>
-        <button id="down">置底</button>
-        <button id="del">删除</button>
-      </div>
-      <div class="row">
-        <button id="undo">↩ 撤销</button>
-        <button id="redo">↪ 重做</button>
-      </div>
       <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       <div class="note">点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；点元素可拖动/缩放/旋转。画完点右上角「发布谜题」，把链接发给朋友猜。</div>
     </div>
@@ -395,6 +419,19 @@ function renderPuzzleEditor(){
   const bodyEl=wrap.querySelector("#toolbody");
   const hintEl=wrap.querySelector("#hint");
   const cntEl=wrap.querySelector("#cnt");
+  const floatEl=wrap.querySelector("#shape-float"), floatMini=wrap.querySelector("#shape-float-mini");
+  let floatCollapsed=false;
+  function renderFloat(){
+    floatEl.innerHTML="";
+    const grid=html("div",{class:"float-grid"});
+    SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,true)));
+    floatEl.appendChild(grid);
+    const col=html("button",{class:"float-col",title:"收起形状栏"},"⌄");
+    col.onclick=()=>{floatCollapsed=true;syncUI();};
+    floatEl.appendChild(col);
+  }
+  floatMini.onclick=()=>{floatCollapsed=false;renderFloat();syncUI();};
+  renderFloat();
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
     b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;renderGhost();syncUI();};
@@ -409,7 +446,9 @@ function renderPuzzleEditor(){
   const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
   opEl.addEventListener("input",()=>{
     state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
-    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); }
+    const st=wrap.querySelector("#opacity-state");
+    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); if(st) st.textContent="已应用到选中元素"; }
+    else { if(st) st.textContent="将应用到下一个放置的形状"; }
   });
   opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
   function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
@@ -418,6 +457,15 @@ function renderPuzzleEditor(){
     [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
     hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
     cntEl.textContent=state.els.length;
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      state.opacity=e.opacity;
+      opEl.value=Math.round(e.opacity*100); opvEl.textContent=opEl.value+"%";
+    }
+    if(floatEl){
+      floatEl.classList.toggle("open", state.tool==="shape" && !floatCollapsed);
+      floatMini.classList.toggle("show", state.tool==="shape" && floatCollapsed);
+    }
     draw();
   }
   function addElement(e){
@@ -434,6 +482,38 @@ function renderPuzzleEditor(){
     else { state.pickShape=kind; state.ghost={x:null,y:null}; }
     state.selected=null; renderGhost(); syncUI();
   }
+  function makeShapeBtn(s0, inFloat){
+    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+    b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
+    let pointerUsed=false;
+    b.addEventListener("pointerdown",(ev)=>{
+      pointerUsed=true; ev.preventDefault();
+      const wasOn=state.pickShape===s0.kind && !!state.ghost;
+      state.pickShape=s0.kind;
+      state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+      let dragged=false;
+      const mv=(e)=>{
+        const p=pt(e);
+        if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+      };
+      const up=()=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",up);
+        if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
+          addShapeAt(state.ghost.x,state.ghost.y);
+        } else if(!dragged && wasOn){
+          state.ghost=null; renderGhost(); syncUI();
+        }
+      };
+      document.addEventListener("pointermove",mv);
+      document.addEventListener("pointerup",up);
+    });
+    b.addEventListener("click",(ev)=>{
+      if(!pointerUsed){ togglePick(s0.kind); }
+      pointerUsed=false;
+    });
+    return b;
+  }
   function buildToolBody(){
     bodyEl.innerHTML="";
     const t=state.tool;
@@ -444,38 +524,7 @@ function renderPuzzleEditor(){
       bodyEl.appendChild(box);
     } else if(t==="shape"){
       const grid=html("div",{class:"shape-grid"});
-      SHAPES.forEach(s0=>{
-        const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
-        b.innerHTML=shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
-        let pointerUsed=false;
-        b.addEventListener("pointerdown",(ev)=>{
-          pointerUsed=true; ev.preventDefault();
-          const wasOn=state.pickShape===s0.kind && !!state.ghost;
-          state.pickShape=s0.kind;
-          state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
-          let dragged=false;
-          const mv=(e)=>{
-            const p=pt(e);
-            if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
-          };
-          const up=()=>{
-            document.removeEventListener("pointermove",mv);
-            document.removeEventListener("pointerup",up);
-            if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
-              addShapeAt(state.ghost.x,state.ghost.y);
-            } else if(!dragged && wasOn){
-              state.ghost=null; renderGhost(); syncUI();
-            }
-          };
-          document.addEventListener("pointermove",mv);
-          document.addEventListener("pointerup",up);
-        });
-        b.addEventListener("click",(ev)=>{
-          if(!pointerUsed){ togglePick(s0.kind); }
-          pointerUsed=false;
-        });
-        grid.appendChild(b);
-      });
+      SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,false)));
       bodyEl.appendChild(grid);
       bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
     }
@@ -537,6 +586,7 @@ function renderPuzzleEditor(){
       if(gg){
         const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
         state.selected=idx;
+        if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
         drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
         commit(); draw();
       } else if(state.tool==="pen"){
@@ -612,6 +662,17 @@ function renderPuzzleEditor(){
   wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
   wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
   wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
+  let clearArmed=false, clearTimer=null;
+  wrap.querySelector("#clear").onclick=()=>{
+    const b=wrap.querySelector("#clear");
+    if(!clearArmed){
+      clearArmed=true; b.classList.add("arm"); b.textContent="再点确认清空";
+      clearTimer=setTimeout(()=>{clearArmed=false;b.classList.remove("arm");b.textContent="清空";},3000);
+      return;
+    }
+    clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
+    commit(); state.els=[]; state.selected=null; syncUI();
+  };
   window.addEventListener("keydown",function kd(ev){
     if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
     if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
@@ -804,6 +865,53 @@ async function runPuzzleTest(){
     stage.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
     await sleep(40);
     log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"点击画布放置 1 个圆形");
+    // ---- v2：画布操作组 / 滑块同步 / 清空 / 月牙 / 悬浮条 ----
+    const opBtns=[...document.querySelectorAll(".canvas-ops button")].map(b=>b.textContent);
+    log(opBtns.length===6,"画布下方操作按钮组 6 个");
+    log(["置顶","置底","删除","撤销","重做","清空"].every(x=>opBtns.join(",").includes(x)),"操作组含全部 6 项");
+    const pzOp=document.querySelector("#opacity");
+    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="画笔").click();
+    pzOp.value=50; pzOp.dispatchEvent(new Event("input",{bubbles:true}));
+    await sleep(20);
+    log((document.querySelector("#opacity-state").textContent||"").includes("下一个放置"),"未选中时滑块提示应用到新形状");
+    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="形状").click();
+    const elg=document.querySelector("#stage g[data-kind]:not([data-ghost])");
+    const elr=elg.getBoundingClientRect();
+    elg.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:21}));
+    elg.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:21}));
+    await sleep(30);
+    log(document.querySelector("#opacity").value==="70","选中元素后滑块同步回 70%");
+    pzOp.value=30; pzOp.dispatchEvent(new Event("input",{bubbles:true}));
+    await sleep(20);
+    const inner=document.querySelector("#stage g[data-kind]:not([data-ghost])").querySelector("path,circle,rect,ellipse");
+    log(inner.getAttribute("opacity")==="0.3","选中元素透明度随滑块变为 0.3");
+    log((document.querySelector("#opacity-state").textContent||"").includes("已应用"),"滑块状态提示已应用到选中元素");
+    document.querySelector("#clear").click(); await sleep(20);
+    log((document.querySelector("#clear").textContent||"").includes("确认"),"清空需二次确认（按钮变再点确认）");
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"二次确认前元素保留");
+    document.querySelector("#clear").click(); await sleep(30);
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"二次确认后画布清空");
+    const cres=[...document.querySelectorAll(".shape-grid button")].find(b=>b.title==="月牙");
+    cres.click(); await sleep(20);
+    const st3=document.querySelector("#stage"); const r3=st3.getBoundingClientRect();
+    st3.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r3.left+r3.width/2,clientY:r3.top+r3.height/2,pointerId:41}));
+    st3.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r3.left+r3.width/2,clientY:r3.top+r3.height/2,pointerId:41}));
+    await sleep(30);
+    const cresG=document.querySelector("#stage g[data-kind=crescent]:not([data-ghost])");
+    log(!!cresG && !!cresG.querySelector("path") && cresG.querySelector("path").getAttribute("fill-rule")==="evenodd","月牙路径实心渲染（fill-rule evenodd）");
+    document.querySelector("#del").click(); await sleep(20);
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"删除按钮清掉月牙");
+    const sf=document.querySelector("#shape-float");
+    log(!!sf && sf.classList.contains("open") && sf.querySelectorAll(".float-grid button").length===12,"窄屏画布底部形状悬浮条展开（12 图标）");
+    log(!sf.querySelector("button b"),"悬浮条仅图标无文字");
+    const cssTxt=document.querySelector("style").textContent;
+    log(cssTxt.includes("@media(max-width:600px)") && cssTxt.includes(".shape-float.open{display:block}") && cssTxt.includes(".tool-panel .shape-grid{display:none}"),"窄屏 CSS 规则就位（悬浮条显示/面板网格隐藏）");
+    // 发布前补放一个元素（画布已被清空测试清空）
+    circ.click(); await sleep(20);
+    const st4=document.querySelector("#stage"); const r4=st4.getBoundingClientRect();
+    st4.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
+    st4.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
+    await sleep(30);
     // 发布弹层
     document.querySelector("#publish").click(); await sleep(60);
     log(!!document.querySelector(".mask .modal"),"发布弹层打开");
@@ -858,6 +966,16 @@ function renderEditor(){
     <div class="stage-wrap">
       <svg class="stage" id="stage"></svg>
       <div class="hint" id="hint"></div>
+      <div class="shape-float" id="shape-float"></div>
+      <div class="shape-float-mini" id="shape-float-mini" title="展开形状">⤢</div>
+      <div class="canvas-ops">
+        <button id="up">置顶</button>
+        <button id="down">置底</button>
+        <button id="del">删除</button>
+        <button id="undo">↩ 撤销</button>
+        <button id="redo">↪ 重做</button>
+        <button id="clear">清空</button>
+      </div>
     </div>
     <div class="panel tool-panel">
       <h2>创作工具</h2>
@@ -865,17 +983,8 @@ function renderEditor(){
       <h3>颜色</h3>
       <div class="swatches" id="swatches"></div>
       <h3>不透明度</h3>
-      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span></div>
+      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div>
       <div id="toolbody"></div>
-      <div class="row">
-        <button id="up">置顶</button>
-        <button id="down">置底</button>
-        <button id="del">删除</button>
-      </div>
-      <div class="row">
-        <button id="undo">↩ 撤销</button>
-        <button id="redo">↪ 重做</button>
-      </div>
       <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       <div class="note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
     </div>
@@ -889,6 +998,19 @@ function renderEditor(){
   const submitEl=wrap.querySelector("#submit"); submitEl.textContent="等待揭晓…"; submitEl.disabled=true;
 
   const svg=wrap.querySelector("#stage");
+  const floatEl=wrap.querySelector("#shape-float"), floatMini=wrap.querySelector("#shape-float-mini");
+  let floatCollapsed=false;
+  function renderFloat(){
+    floatEl.innerHTML="";
+    const grid=html("div",{class:"float-grid"});
+    SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,true)));
+    floatEl.appendChild(grid);
+    const col=html("button",{class:"float-col",title:"收起形状栏"},"⌄");
+    col.onclick=()=>{floatCollapsed=true;syncUI();};
+    floatEl.appendChild(col);
+  }
+  floatMini.onclick=()=>{floatCollapsed=false;renderFloat();syncUI();};
+  renderFloat();
   window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
   const tabsEl=wrap.querySelector("#tabs");
   const swEl=wrap.querySelector("#swatches");
@@ -919,7 +1041,9 @@ function renderEditor(){
   const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
   opEl.addEventListener("input",()=>{
     state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
-    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); }
+    const st=wrap.querySelector("#opacity-state");
+    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); if(st) st.textContent="已应用到选中元素"; }
+    else { if(st) st.textContent="将应用到下一个放置的形状"; }
   });
   opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
 
@@ -929,6 +1053,15 @@ function renderEditor(){
     [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
     hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
     cntEl.textContent=state.els.length;
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      state.opacity=e.opacity;
+      opEl.value=Math.round(e.opacity*100); opvEl.textContent=opEl.value+"%";
+    }
+    if(floatEl){
+      floatEl.classList.toggle("open", state.tool==="shape" && !floatCollapsed);
+      floatMini.classList.toggle("show", state.tool==="shape" && floatCollapsed);
+    }
     draw();
   }
   function addElement(e){
@@ -946,6 +1079,38 @@ function renderEditor(){
     state.selected=null; renderGhost(); syncUI();
   }
   /* 工具内容 */
+  function makeShapeBtn(s0, inFloat){
+    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+    b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
+    let pointerUsed=false;
+    b.addEventListener("pointerdown",(ev)=>{
+      pointerUsed=true; ev.preventDefault();
+      const wasOn=state.pickShape===s0.kind && !!state.ghost;
+      state.pickShape=s0.kind;
+      state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+      let dragged=false;
+      const mv=(e)=>{
+        const p=pt(e);
+        if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+      };
+      const up=()=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",up);
+        if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
+          addShapeAt(state.ghost.x,state.ghost.y);
+        } else if(!dragged && wasOn){
+          state.ghost=null; renderGhost(); syncUI();
+        }
+      };
+      document.addEventListener("pointermove",mv);
+      document.addEventListener("pointerup",up);
+    });
+    b.addEventListener("click",(ev)=>{
+      if(!pointerUsed){ togglePick(s0.kind); }
+      pointerUsed=false;
+    });
+    return b;
+  }
   function buildToolBody(){
     bodyEl.innerHTML="";
     const t=state.tool;
@@ -956,38 +1121,7 @@ function renderEditor(){
       bodyEl.appendChild(box);
     } else if(t==="shape"){
       const grid=html("div",{class:"shape-grid"});
-      SHAPES.forEach(s0=>{
-        const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
-        b.innerHTML=shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
-        let pointerUsed=false;
-        b.addEventListener("pointerdown",(ev)=>{
-          pointerUsed=true; ev.preventDefault();
-          const wasOn=state.pickShape===s0.kind && !!state.ghost;
-          state.pickShape=s0.kind;
-          state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
-          let dragged=false;
-          const mv=(e)=>{
-            const p=pt(e);
-            if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
-          };
-          const up=()=>{
-            document.removeEventListener("pointermove",mv);
-            document.removeEventListener("pointerup",up);
-            if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
-              addShapeAt(state.ghost.x,state.ghost.y);
-            } else if(!dragged && wasOn){
-              state.ghost=null; renderGhost(); syncUI();
-            }
-          };
-          document.addEventListener("pointermove",mv);
-          document.addEventListener("pointerup",up);
-        });
-        b.addEventListener("click",(ev)=>{
-          if(!pointerUsed){ togglePick(s0.kind); }
-          pointerUsed=false;
-        });
-        grid.appendChild(b);
-      });
+      SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,false)));
       bodyEl.appendChild(grid);
       bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
     }
@@ -1056,6 +1190,7 @@ function renderEditor(){
       if(gg){
         const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
         state.selected=idx;
+        if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
         drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
         commit(); draw();
       } else if(state.tool==="pen"){
@@ -1133,6 +1268,17 @@ function renderEditor(){
   wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
   wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
   wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
+  let clearArmed=false, clearTimer=null;
+  wrap.querySelector("#clear").onclick=()=>{
+    const b=wrap.querySelector("#clear");
+    if(!clearArmed){
+      clearArmed=true; b.classList.add("arm"); b.textContent="再点确认清空";
+      clearTimer=setTimeout(()=>{clearArmed=false;b.classList.remove("arm");b.textContent="清空";},3000);
+      return;
+    }
+    clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
+    commit(); state.els=[]; state.selected=null; syncUI();
+  };
   window.addEventListener("keydown",function kd(ev){
     if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
     if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
@@ -1408,7 +1554,7 @@ function renderOnlineGuess(){
     bar=card.querySelector("#pw-gbar"), recEl=card.querySelector("#pw-records");
   const wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
   renderArtwork(svg,__PW.canvas);
-  let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="";
+  let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
   const triedSet=new Set(__PW.myTried||[]);
   window.__pwCooldownMs = window.__pwCooldownMs || 10000;
   window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas); };
@@ -1434,20 +1580,29 @@ function renderOnlineGuess(){
     const r=pendingRow();
     if(m.correct){
       r.classList.remove("pending");
+      missStreak=0;
       if(m.repeat){
-        r.classList.add("repeat"); r.querySelector("b").textContent="✓ "+levelLabel(m.level)+"（已计分）";
+        r.classList.add("repeat"); r.querySelector("b").textContent="🔁 已猜过："+levelLabel(m.level);
         const msg=m.msg==="本轮文字分已满"?"本轮文字分已满（8/8）":"「"+m.word+"」已猜过，换个词试试";
         bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${msg}</span>`;
       }else{
         r.classList.add("hit");
         const label=levelLabel(m.level);
-        r.querySelector("b").textContent="✓ "+label+" +"+m.pts;
-        const guide=m.level==="category"?"，再具体点！":(m.level==="keyword"?"，很接近了！":"！");
-        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">🎯 命中「${esc(m.word)}」${label}${guide}（本轮 ${m.total||0}/8）</span>`;
+        r.querySelector("b").textContent="✓ "+label;
+        const guide=m.level==="category"?" · 已经到类别了，再具体点！":(m.level==="keyword"?" · 超级接近！想想它的名字":"！");
+        const head=m.level==="exact"?"🎉 完美命中！":"🎯 命中";
+        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${head}「${esc(m.word)}」✓ ${label}${guide}（本轮 ${m.total||0}/8）</span>`;
       }
     }else{
       r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
-      bar.innerHTML='<span class="sub">不对哦，试试图中主体的名字或特征（准确词 +5 / 联想词 +2 / 类别词 +1）</span>';
+      missStreak++;
+      const pool=[
+        "不对哦，再想想～答案是一个词",
+        "加油！试试图中主体的名字或身份",
+        "很接近了，换个角度描述试试"
+      ];
+      const msg=missStreak>=3?`已经想了 ${missStreak} 次啦，想想它属于哪一类？`:(pool[(missStreak-1)%pool.length]);
+      bar.innerHTML=`<span class="sub">${esc(msg)}</span>`;
     }
   };
   window.__pwWordHit=(m)=>{ toast(`${m.nickname} 猜中了${levelLabel(m.level)}`); };
@@ -1640,6 +1795,30 @@ async function runOnlineTest(){
     rec("放置圆形半透明", ed.state.els[0].kind==="circle"&&ed.state.els[0].opacity===0.7,"");
     rec("不透明度滑块存在", !!document.querySelector("#opacity"),"");
     rec("出题人按钮为等待揭晓", (document.querySelector("#submit").textContent||"").includes("等待揭晓"),"");
+    /* v2：出题人编辑器操作组 + 滑块同步 + 清空 */
+    const opBtns=[...document.querySelectorAll(".canvas-ops button")].map(b=>b.textContent);
+    rec("画布操作组 6 按钮", opBtns.length===6,"");
+    rec("操作组含清空", opBtns.includes("清空"),"");
+    const opI=document.querySelector("#opacity");
+    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="画笔").click();
+    opI.value=50; opI.dispatchEvent(new Event("input",{bubbles:true}));
+    await sleep(20);
+    rec("未选中滑块提示新形状", (document.querySelector("#opacity-state").textContent||"").includes("下一个放置"),"");
+    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
+    const elg=ed.svg.querySelector("g[data-kind]:not([data-ghost])");
+    const elr=elg.getBoundingClientRect();
+    elg.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:12}));
+    elg.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:12}));
+    await sleep(30);
+    rec("选中后滑块同步 70", document.querySelector("#opacity").value==="70","");
+    opI.value=30; opI.dispatchEvent(new Event("input",{bubbles:true}));
+    await sleep(20);
+    rec("选中元素透明度随滑块变", ed.state.els[0].opacity===0.3,"");
+    document.querySelector("#clear").click(); await sleep(20);
+    rec("清空需二次确认", (document.querySelector("#clear").textContent||"").includes("确认"),"");
+    rec("二次确认前元素保留", ed.state.els.length===1,"");
+    document.querySelector("#clear").click(); await sleep(30);
+    rec("二次确认后清空", ed.state.els.length===0,"");
     /* 作答动态：出题人实时看到猜词与选图对错 */
     __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"汽车",correct:false});
     await sleep(30);
@@ -1687,6 +1866,20 @@ async function runOnlineTest(){
     __PW.handle({t:"word_res",correct:false});
     await sleep(40);
     rec("未命中记录✗", !!document.querySelector("#pw-records .guess-record.miss"),"");
+    /* v2：反馈去重 + 引导语 + 鼓励池 + 连续未中引导 */
+    __PW.handle({t:"word_res",correct:true,level:"exact",pts:5,word:"大象",total:5});
+    await sleep(40);
+    const hitB=document.querySelector("#pw-records .guess-record.hit b");
+    rec("记录行无重复分数", !!hitB && (hitB.textContent||"").includes("准确词 +5") && !(hitB.textContent||"").includes("+5 +5"),"");
+    rec("准确命中引导语", (document.querySelector("#pw-gbar").textContent||"").includes("完美命中"),"");
+    __PW.handle({t:"word_res",correct:false});
+    await sleep(30);
+    rec("未命中鼓励语", /不对哦|加油|很接近了/.test(document.querySelector("#pw-gbar").textContent||""),"");
+    __PW.handle({t:"word_res",correct:false});
+    await sleep(30);
+    __PW.handle({t:"word_res",correct:false});
+    await sleep(30);
+    rec("连续3次未中引导", (document.querySelector("#pw-gbar").textContent||"").includes("已经想了 3 次"),"");
 
     /* 6. 画布实时同步 */
     __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7},{kind:"crescent",x:30,y:40,w:90,h:90,rot:45,color:"#2980B9",opacity:0.5},{kind:"arrow",x:50,y:60,w:100,h:90,rot:0,color:"#2F9E44",opacity:1}]});
