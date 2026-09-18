@@ -1355,7 +1355,7 @@ function renderEditor(){
   }
   window.__pwDrawerWord=(m)=>{
     if(m.correct){
-      const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)} +${m.pts}`;
+      const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)}`;
       addFeed(`<b>${esc(m.nickname)}</b><span class="tag">${tag}</span>`,"ok");
     }else{
       addFeed(`<b>${esc(m.nickname)}</b><span class="tag">猜「${esc(m.word)}」✗</span>`,"no");
@@ -1876,6 +1876,7 @@ async function runOnlineTest(){
     __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"大象",correct:true,level:"exact",pts:5});
     await sleep(30);
     rec("出题人见命中词+层级", (document.querySelector("#feed").textContent||"").includes("准确词")&&(document.querySelector("#feed").textContent||"").includes("+5"),"");
+    rec("出题人feed无重复分数", (document.querySelector("#feed").textContent||"").includes("准确词 +5") && !(document.querySelector("#feed").textContent||"").includes("+5 +5"),"");
     __PW.handle({t:"guess_view",pid:"pB",nickname:"小红",cell:3,correct:true,first:true});
     await sleep(30);
     rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
