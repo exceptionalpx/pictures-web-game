@@ -35,10 +35,10 @@ const ONLINE = {
 
 const STAGE = 480;
 
-/* ================= 64 图图库（v3-photo 写实照片版，词表来自 image-pack-64.json） ================= */
+/* ================= 64 图图库（v4-photo 写实照片版，词表来自 image-pack-64.json） ================= */
 const PACK = JSON.parse(fs.readFileSync(path.join(__dirname, "image-pack-64.json"), "utf8"));
-/** IMAGES: {id, category, category_word, zh, keywords[2], exact, en_prompt, img} */
-const IMAGES = PACK.images.map(g => ({ ...g, img: "/images/" + g.id + ".png" }));
+/** IMAGES: {id, category, category_word, zh, keywords[2], aliases[], exact, en_prompt, img, thumb} */
+const IMAGES = PACK.images.map(g => ({ ...g, img: "/images/" + g.id + ".png", thumb: "/images-thumb/" + g.id + ".jpg" }));
 
 function normalizeWord(s){ return (s||"").toString().toLowerCase().replace(/[\s\u3000.,!?，。！？、~～\-]/g,""); }
 /**
@@ -54,6 +54,8 @@ function matchLevel(text, img){
   if(t.includes(img.exact)) return { hit:true, level:"exact", pts: ONLINE.wordScore.exact, word: img.exact };
   const kw = (img.keywords||[]).find(k => t.includes(k));
   if(kw) return { hit:true, level:"keyword", pts: ONLINE.wordScore.keyword, word: kw };
+  const al = (img.aliases||[]).find(a => t.includes(a));
+  if(al) return { hit:true, level:"keyword", pts: ONLINE.wordScore.keyword, word: al };
   if(img.category_word && t.includes(img.category_word)) return { hit:true, level:"category", pts: ONLINE.wordScore.category, word: img.category_word };
   return { hit:false };
 }
@@ -332,6 +334,9 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   const app = express();
   app.get("/health", (req, res) => res.type("text/plain").send("ok"));
   app.get("/", (req, res) => res.redirect(302, "/巧手猜图.html"));
+  // 照片墙缩略图与大图长缓存；其余静态文件不缓存（保证 HTML 实时更新）
+  app.use("/images-thumb", express.static(path.join(__dirname, "images-thumb"), { maxAge: "1d" }));
+  app.use("/images", express.static(path.join(__dirname, "images"), { maxAge: "1d" }));
   app.use(express.static(path.join(__dirname, ".")));
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: "/ws" });

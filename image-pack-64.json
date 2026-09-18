@@ -1,12 +1,12 @@
 {
   "pack": "pictures-web-64-v3-photo",
-  "version": 3,
+  "version": 4,
   "scoring": {
     "category_word": 1,
     "keyword": 2,
     "exact": 5
   },
-  "note": "巧手猜图网页版 64 图词表 v3：每图 = 1 类别词(+1，同类共用) + 2 联想词(+2，全库唯一) + 1 准确词(+5)。词条全部 2 字以上、联想词/准确词跨图唯一、无空白标点。",
+  "note": "巧手猜图网页版 64 图词表 v4：每图 = 1 类别词(+1，同类共用) + 2 联想词(+2，全库唯一) + 1 准确词(+5) + aliases 近似名(+2，命中按联想词计分)。词条全部 1 字以上、exact 不与联想词/别名子串重叠、无空白标点。",
   "style_template": "realistic photograph of {SUBJECT}, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
   "images": [
     {
@@ -19,7 +19,11 @@
         "长鼻"
       ],
       "exact": "大象",
-      "en_prompt": "realistic photograph of a standing elephant with big ears and long trunk, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a standing elephant with big ears and long trunk, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "象",
+        "非洲象"
+      ]
     },
     {
       "id": "ani-giraffe",
@@ -31,7 +35,11 @@
         "长脖子"
       ],
       "exact": "长颈鹿",
-      "en_prompt": "realistic photograph of a giraffe with very long neck and spotted body, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a giraffe with very long neck and spotted body, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "长颈",
+        "非洲鹿"
+      ]
     },
     {
       "id": "ani-penguin",
@@ -43,7 +51,10 @@
         "黑白"
       ],
       "exact": "企鹅",
-      "en_prompt": "realistic photograph of a penguin standing with black back and white belly, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a penguin standing with black back and white belly, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "鹅"
+      ]
     },
     {
       "id": "ani-shark",
@@ -55,7 +66,11 @@
         "尖牙"
       ],
       "exact": "鲨鱼",
-      "en_prompt": "realistic photograph of a shark with dorsal fin and sharp teeth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a shark with dorsal fin and sharp teeth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "大白鲨",
+        "鱼"
+      ]
     },
     {
       "id": "ani-butterfly",
@@ -67,7 +82,11 @@
         "翅膀"
       ],
       "exact": "蝴蝶",
-      "en_prompt": "realistic photograph of a butterfly with two large patterned wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a butterfly with two large patterned wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "蝶",
+        "彩蝶"
+      ]
     },
     {
       "id": "ani-owl",
@@ -79,7 +98,11 @@
         "圆眼"
       ],
       "exact": "猫头鹰",
-      "en_prompt": "realistic photograph of an owl with big round eyes and pointed ears, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of an owl with big round eyes and pointed ears, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "夜猫子",
+        "枭"
+      ]
     },
     {
       "id": "ani-turtle",
@@ -91,7 +114,11 @@
         "龟壳"
       ],
       "exact": "乌龟",
-      "en_prompt": "realistic photograph of a turtle with domed shell and small head, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a turtle with domed shell and small head, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "龟",
+        "甲鱼"
+      ]
     },
     {
       "id": "ani-bee",
@@ -103,7 +130,11 @@
         "采蜜"
       ],
       "exact": "蜜蜂",
-      "en_prompt": "realistic photograph of a striped bee with wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a striped bee with wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "蜂",
+        "嗡嗡"
+      ]
     },
     {
       "id": "food-pizza",
@@ -115,7 +146,11 @@
         "拉丝"
       ],
       "exact": "披萨",
-      "en_prompt": "realistic photograph of a round pizza slice with cheese topping, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a round pizza slice with cheese topping, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "饼",
+        "意大利饼"
+      ]
     },
     {
       "id": "food-burger",
@@ -127,7 +162,11 @@
         "面包"
       ],
       "exact": "汉堡",
-      "en_prompt": "realistic photograph of a hamburger with bun, meat patty and layers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a hamburger with bun, meat patty and layers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "堡",
+        "牛肉堡"
+      ]
     },
     {
       "id": "food-sushi",
@@ -139,7 +178,11 @@
         "海苔"
       ],
       "exact": "寿司",
-      "en_prompt": "realistic photograph of a sushi roll wrapped in nori seaweed, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a sushi roll wrapped in nori seaweed, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "饭团",
+        "紫菜卷"
+      ]
     },
     {
       "id": "food-icecream",
@@ -151,7 +194,11 @@
         "蛋筒"
       ],
       "exact": "冰淇淋",
-      "en_prompt": "realistic photograph of an ice cream cone with two scoops, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of an ice cream cone with two scoops, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "雪糕",
+        "冰激凌"
+      ]
     },
     {
       "id": "food-coffee",
@@ -163,7 +210,11 @@
         "提神"
       ],
       "exact": "咖啡",
-      "en_prompt": "realistic photograph of a coffee cup with saucer and steam, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a coffee cup with saucer and steam, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "拿铁",
+        "卡布奇诺"
+      ]
     },
     {
       "id": "food-hotpot",
@@ -175,7 +226,11 @@
         "涮肉"
       ],
       "exact": "火锅",
-      "en_prompt": "realistic photograph of a steaming hot pot with divided broth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a steaming hot pot with divided broth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "涮锅",
+        "暖锅"
+      ]
     },
     {
       "id": "food-mooncake",
@@ -187,7 +242,11 @@
         "馅料"
       ],
       "exact": "月饼",
-      "en_prompt": "realistic photograph of a round mooncake with patterned top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a round mooncake with patterned top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "中秋点心",
+        "圆饼"
+      ]
     },
     {
       "id": "food-banana",
@@ -199,7 +258,11 @@
         "黄色"
       ],
       "exact": "香蕉",
-      "en_prompt": "realistic photograph of a curved banana bunch, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a curved banana bunch, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "芭蕉",
+        "蕉"
+      ]
     },
     {
       "id": "veh-sailboat",
@@ -211,7 +274,11 @@
         "大海"
       ],
       "exact": "帆船",
-      "en_prompt": "realistic photograph of a sailboat with white triangular sails on a mast, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a sailboat with white triangular sails on a mast, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "船",
+        "帆"
+      ]
     },
     {
       "id": "veh-balloon",
@@ -223,7 +290,11 @@
         "升空"
       ],
       "exact": "热气球",
-      "en_prompt": "realistic photograph of a hot air balloon with striped envelope and basket, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a hot air balloon with striped envelope and basket, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "气球",
+        "气艇"
+      ]
     },
     {
       "id": "veh-rocket",
@@ -235,7 +306,11 @@
         "火焰"
       ],
       "exact": "火箭",
-      "en_prompt": "realistic photograph of a rocket with fins and exhaust flame, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a rocket with fins and exhaust flame, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "飞船",
+        "太空船"
+      ]
     },
     {
       "id": "veh-train",
@@ -247,7 +322,11 @@
         "车厢"
       ],
       "exact": "火车",
-      "en_prompt": "realistic photograph of a locomotive train with windows and wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a locomotive train with windows and wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "列车",
+        "高铁"
+      ]
     },
     {
       "id": "veh-helicopter",
@@ -259,7 +338,11 @@
         "空中"
       ],
       "exact": "直升机",
-      "en_prompt": "realistic photograph of a helicopter with top rotor and tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a helicopter with top rotor and tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "飞机",
+        "旋翼机"
+      ]
     },
     {
       "id": "veh-bicycle",
@@ -271,7 +354,11 @@
         "车轮"
       ],
       "exact": "自行车",
-      "en_prompt": "realistic photograph of a bicycle with two wheels and handlebar, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a bicycle with two wheels and handlebar, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "单车",
+        "脚踏车"
+      ]
     },
     {
       "id": "veh-motorcycle",
@@ -283,7 +370,11 @@
         "引擎"
       ],
       "exact": "摩托车",
-      "en_prompt": "realistic photograph of a motorcycle with large wheels and seat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a motorcycle with large wheels and seat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "机车",
+        "摩托"
+      ]
     },
     {
       "id": "veh-ship",
@@ -295,7 +386,11 @@
         "航行"
       ],
       "exact": "轮船",
-      "en_prompt": "realistic photograph of a cruise ship with decks and funnel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a cruise ship with decks and funnel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "船",
+        "邮轮"
+      ]
     },
     {
       "id": "land-eiffel",
@@ -307,7 +402,11 @@
         "风景"
       ],
       "exact": "埃菲尔铁塔",
-      "en_prompt": "realistic photograph of the Eiffel Tower with lattice structure, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of the Eiffel Tower with lattice structure, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "铁塔",
+        "巴黎铁塔"
+      ]
     },
     {
       "id": "land-pyramid",
@@ -319,7 +418,11 @@
         "古迹"
       ],
       "exact": "金字塔",
-      "en_prompt": "realistic photograph of a pyramid with triangular faces, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a pyramid with triangular faces, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "法老陵墓",
+        "三角塔"
+      ]
     },
     {
       "id": "land-lighthouse",
@@ -331,7 +434,11 @@
         "灯光"
       ],
       "exact": "灯塔",
-      "en_prompt": "realistic photograph of a lighthouse with light beam on a rock, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a lighthouse with light beam on a rock, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "塔",
+        "灯楼"
+      ]
     },
     {
       "id": "land-windmill",
@@ -343,7 +450,10 @@
         "叶片"
       ],
       "exact": "风车",
-      "en_prompt": "realistic photograph of a windmill with four turning blades, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a windmill with four turning blades, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "磨坊"
+      ]
     },
     {
       "id": "land-castle",
@@ -355,7 +465,11 @@
         "塔楼"
       ],
       "exact": "城堡",
-      "en_prompt": "realistic photograph of a castle with towers and battlements, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a castle with towers and battlements, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "古堡",
+        "堡垒"
+      ]
     },
     {
       "id": "land-greatwall",
@@ -367,7 +481,11 @@
         "蜿蜒"
       ],
       "exact": "长城",
-      "en_prompt": "realistic photograph of the Great Wall winding on mountains with watchtowers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of the Great Wall winding on mountains with watchtowers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "城墙",
+        "烽火台"
+      ]
     },
     {
       "id": "land-pearl",
@@ -379,7 +497,11 @@
         "电视塔"
       ],
       "exact": "东方明珠",
-      "en_prompt": "realistic photograph of the Oriental Pearl Tower with spheres and spire, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of the Oriental Pearl Tower with spheres and spire, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "明珠塔",
+        "陆家嘴塔"
+      ]
     },
     {
       "id": "land-colosseum",
@@ -391,7 +513,11 @@
         "竞技"
       ],
       "exact": "斗兽场",
-      "en_prompt": "realistic photograph of the Roman Colosseum with arched tiers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of the Roman Colosseum with arched tiers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "竞技场",
+        "罗马竞技场"
+      ]
     },
     {
       "id": "job-astronaut",
@@ -403,7 +529,11 @@
         "登月"
       ],
       "exact": "宇航员",
-      "en_prompt": "realistic photograph of an astronaut in spacesuit with helmet, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of an astronaut in spacesuit with helmet, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "太空人",
+        "航天员"
+      ]
     },
     {
       "id": "job-firefighter",
@@ -415,7 +545,11 @@
         "消防车"
       ],
       "exact": "消防员",
-      "en_prompt": "realistic photograph of a firefighter with helmet and axe, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a firefighter with helmet and axe, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "救火队员",
+        "消防队员"
+      ]
     },
     {
       "id": "job-chef",
@@ -427,7 +561,11 @@
         "高帽"
       ],
       "exact": "厨师",
-      "en_prompt": "realistic photograph of a chef with tall white hat and apron, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a chef with tall white hat and apron, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "大厨",
+        "炊事员"
+      ]
     },
     {
       "id": "job-doctor",
@@ -439,7 +577,11 @@
         "白大褂"
       ],
       "exact": "医生",
-      "en_prompt": "realistic photograph of a doctor with stethoscope and white coat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a doctor with stethoscope and white coat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "大夫",
+        "医师"
+      ]
     },
     {
       "id": "job-fisherman",
@@ -451,7 +593,11 @@
         "渔船"
       ],
       "exact": "渔民",
-      "en_prompt": "realistic photograph of a fisherman casting a fishing net, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a fisherman casting a fishing net, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "渔夫",
+        "渔人"
+      ]
     },
     {
       "id": "job-police",
@@ -463,7 +609,11 @@
         "制服"
       ],
       "exact": "警察",
-      "en_prompt": "realistic photograph of a police officer in uniform with cap and badge, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a police officer in uniform with cap and badge, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "民警",
+        "警官"
+      ]
     },
     {
       "id": "job-teacher",
@@ -475,7 +625,11 @@
         "黑板"
       ],
       "exact": "教师",
-      "en_prompt": "realistic photograph of a teacher pointing at a blackboard, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a teacher pointing at a blackboard, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "老师",
+        "教员"
+      ]
     },
     {
       "id": "job-painter",
@@ -487,7 +641,11 @@
         "调色盘"
       ],
       "exact": "画家",
-      "en_prompt": "realistic photograph of a painter holding a palette and brush, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a painter holding a palette and brush, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "画师",
+        "美术家"
+      ]
     },
     {
       "id": "nat-rainbow",
@@ -499,7 +657,11 @@
         "七色"
       ],
       "exact": "彩虹",
-      "en_prompt": "realistic photograph of a rainbow arch with seven color bands, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a rainbow arch with seven color bands, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "虹",
+        "七彩"
+      ]
     },
     {
       "id": "nat-lightning",
@@ -511,7 +673,11 @@
         "电光"
       ],
       "exact": "闪电",
-      "en_prompt": "realistic photograph of a lightning bolt zigzag shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a lightning bolt zigzag shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "雷",
+        "霹雳"
+      ]
     },
     {
       "id": "nat-shootingstar",
@@ -523,7 +689,10 @@
         "许愿"
       ],
       "exact": "流星",
-      "en_prompt": "realistic photograph of a shooting star with long glowing tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a shooting star with long glowing tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "陨星"
+      ]
     },
     {
       "id": "nat-snowmountain",
@@ -535,7 +704,10 @@
         "积雪"
       ],
       "exact": "雪山",
-      "en_prompt": "realistic photograph of a snowy mountain peak, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a snowy mountain peak, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "雪峰"
+      ]
     },
     {
       "id": "nat-volcano",
@@ -547,7 +719,11 @@
         "岩浆"
       ],
       "exact": "火山",
-      "en_prompt": "realistic photograph of a volcano with cone shape and crater, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a volcano with cone shape and crater, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "喷火口",
+        "熔岩山"
+      ]
     },
     {
       "id": "nat-snowflake",
@@ -559,7 +735,11 @@
         "飘落"
       ],
       "exact": "雪花",
-      "en_prompt": "realistic photograph of a six-pointed snowflake, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a six-pointed snowflake, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "雪片",
+        "冰晶"
+      ]
     },
     {
       "id": "nat-sunrise",
@@ -571,7 +751,11 @@
         "地平线"
       ],
       "exact": "日出",
-      "en_prompt": "realistic photograph of a sunrise with half sun above horizon line, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a sunrise with half sun above horizon line, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "晨曦",
+        "旭日"
+      ]
     },
     {
       "id": "nat-starrysky",
@@ -583,7 +767,11 @@
         "银河"
       ],
       "exact": "星空",
-      "en_prompt": "realistic photograph of a starry night sky with moon and many stars, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a starry night sky with moon and many stars, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "星夜",
+        "星河"
+      ]
     },
     {
       "id": "cul-lantern",
@@ -595,7 +783,11 @@
         "挂饰"
       ],
       "exact": "灯笼",
-      "en_prompt": "realistic photograph of a red Chinese lantern with tassel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a red Chinese lantern with tassel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "灯",
+        "花灯"
+      ]
     },
     {
       "id": "cul-dragonboat",
@@ -607,7 +799,10 @@
         "划船"
       ],
       "exact": "龙舟",
-      "en_prompt": "realistic photograph of a dragon boat with dragon head and paddles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a dragon boat with dragon head and paddles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "龙船"
+      ]
     },
     {
       "id": "cul-liondance",
@@ -619,7 +814,11 @@
         "喜庆"
       ],
       "exact": "舞狮",
-      "en_prompt": "realistic photograph of a lion dance mask with mane and open mouth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a lion dance mask with mane and open mouth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "狮子",
+        "醒狮"
+      ]
     },
     {
       "id": "cul-christmastree",
@@ -631,7 +830,11 @@
         "彩灯"
       ],
       "exact": "圣诞树",
-      "en_prompt": "realistic photograph of a christmas tree with star on top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a christmas tree with star on top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "松树",
+        "云杉"
+      ]
     },
     {
       "id": "cul-pumpkin",
@@ -643,7 +846,11 @@
         "雕刻"
       ],
       "exact": "南瓜灯",
-      "en_prompt": "realistic photograph of a jack-o-lantern carved pumpkin with scary face, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a jack-o-lantern carved pumpkin with scary face, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "南瓜",
+        "杰克灯"
+      ]
     },
     {
       "id": "cul-kite",
@@ -655,7 +862,10 @@
         "长线"
       ],
       "exact": "风筝",
-      "en_prompt": "realistic photograph of a diamond kite with tail and string, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a diamond kite with tail and string, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "纸鸢"
+      ]
     },
     {
       "id": "cul-redenvelope",
@@ -667,7 +877,10 @@
         "拜年"
       ],
       "exact": "红包",
-      "en_prompt": "realistic photograph of a red envelope with gold seal, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a red envelope with gold seal, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "利是"
+      ]
     },
     {
       "id": "cul-foldingfan",
@@ -679,7 +892,10 @@
         "凉风"
       ],
       "exact": "折扇",
-      "en_prompt": "realistic photograph of an open folding fan with pleated shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of an open folding fan with pleated shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "扇子"
+      ]
     },
     {
       "id": "spt-football",
@@ -691,7 +907,11 @@
         "射门"
       ],
       "exact": "足球",
-      "en_prompt": "realistic photograph of a soccer ball with black and white pentagon patches, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a soccer ball with black and white pentagon patches, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "皮球",
+        "蹴鞠"
+      ]
     },
     {
       "id": "spt-tennis",
@@ -703,7 +923,10 @@
         "对打"
       ],
       "exact": "网球",
-      "en_prompt": "realistic photograph of a tennis racket with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a tennis racket with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "球拍"
+      ]
     },
     {
       "id": "spt-archery",
@@ -715,7 +938,11 @@
         "拉弓"
       ],
       "exact": "射箭",
-      "en_prompt": "realistic photograph of a bow with arrow and target, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a bow with arrow and target, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "弓箭",
+        "箭"
+      ]
     },
     {
       "id": "spt-golf",
@@ -727,7 +954,11 @@
         "草地"
       ],
       "exact": "高尔夫",
-      "en_prompt": "realistic photograph of a golf club with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a golf club with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "小白球",
+        "挥杆"
+      ]
     },
     {
       "id": "spt-skiing",
@@ -739,7 +970,11 @@
         "疾驰"
       ],
       "exact": "滑雪",
-      "en_prompt": "realistic photograph of a pair of skis with poles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a pair of skis with poles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "双板",
+        "雪杖"
+      ]
     },
     {
       "id": "spt-surfing",
@@ -747,11 +982,15 @@
       "category_word": "运动",
       "zh": "冲浪",
       "keywords": [
-        "冲浪板",
+        "海浪",
         "平衡"
       ],
       "exact": "冲浪",
-      "en_prompt": "realistic photograph of a surfboard riding a wave, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a surfboard riding a wave, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "踏浪",
+        "浪尖"
+      ]
     },
     {
       "id": "spt-baseball",
@@ -763,7 +1002,10 @@
         "赛场"
       ],
       "exact": "棒球",
-      "en_prompt": "realistic photograph of a baseball bat with a ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a baseball bat with a ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "垒球"
+      ]
     },
     {
       "id": "spt-skateboard",
@@ -775,7 +1017,11 @@
         "滑行"
       ],
       "exact": "滑板",
-      "en_prompt": "realistic photograph of a skateboard with four wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark"
+      "en_prompt": "realistic photograph of a skateboard with four wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
+      "aliases": [
+        "陆冲",
+        "长板"
+      ]
     }
   ]
 }

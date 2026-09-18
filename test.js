@@ -352,6 +352,54 @@ test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 /
   assert.equal(normalizeWord("  大象 ！"), "大象");
 });
 
+test("词表 v4：aliases 非空 / exact 不包含于联想词与别名 / 冲浪子串重叠已修复 / thumb 字段齐全", () => {
+  assert.equal(PACK.version, 4, "词表版本 v4");
+  const surf = IMAGES.find(g => g.id === "spt-surfing");
+  assert.ok(surf, "冲浪图存在");
+  assert.ok(!surf.keywords.includes("冲浪板"), "冲浪keyword 不再含「冲浪板」（exact「冲浪」是其子串会抢占层级）");
+  assert.ok(surf.keywords.includes("海浪"), "冲浪keyword 已替换为「海浪」");
+  for(const g of IMAGES){
+    assert.ok(Array.isArray(g.aliases) && g.aliases.length >= 1, `每图至少 1 个别名：${g.id}`);
+    assert.ok(g.thumb && g.thumb === "/images-thumb/" + g.id + ".jpg", `thumb 路径：${g.id}`);
+    // exact 不得包含于本图任一联想词/别名（否则该词会被 exact 抢占层级）
+    for(const w of [...g.keywords, ...g.aliases]){
+      assert.ok(!w.includes(g.exact), `exact「${g.exact}」不是「${w}」的子串（${g.id}）`);
+    }
+    // 别名不与同图联想词/类别词重复
+    for(const a of g.aliases){
+      assert.ok(!g.keywords.includes(a), `别名「${a}」不与联想词重复（${g.id}）`);
+      assert.ok(a !== g.category_word, `别名「${a}」不等于类别词（${g.id}）`);
+    }
+  }
+  // 全库 aliases 去空白标点
+  for(const g of IMAGES){
+    for(const a of g.aliases){
+      assert.ok(!/[\s　，。！？]/.test(a), `别名无空白标点：${a}`);
+    }
+  }
+});
+
+test("文字竞猜 v4：近似名 aliases 命中按联想词 +2 / 优先级不降级", () => {
+  const elephant = IMAGES.find(g => g.exact === "大象");
+  const shark = IMAGES.find(g => g.exact === "鲨鱼");
+  const lighthouse = IMAGES.find(g => g.exact === "灯塔");
+  const sailboat = IMAGES.find(g => g.exact === "帆船");
+  const surfing = IMAGES.find(g => g.id === "spt-surfing");
+  assert.equal(matchLevel("象", elephant).level, "keyword", "「象」别名 → 联想层级");
+  assert.equal(matchLevel("象", elephant).pts, 2, "别名按联想词 +2");
+  assert.equal(matchLevel("大白鲨", shark).level, "keyword", "「大白鲨」别名 → 联想层级");
+  assert.equal(matchLevel("塔", lighthouse).level, "keyword", "「塔」别名 → 联想层级");
+  assert.equal(matchLevel("船", sailboat).level, "keyword", "「船」别名 → 联想层级");
+  assert.equal(matchLevel("大象", elephant).level, "exact", "准确词仍最高优先级 +5");
+  assert.equal(matchLevel("动物", elephant).level, "category", "类别词仍 +1");
+  // 冲浪：答「冲浪板」命中 exact「冲浪」（子串）→ exact+5 属宽容；答「踏浪」→ 别名 +2
+  assert.equal(matchLevel("踏浪", surfing).level, "keyword", "「踏浪」别名 → +2");
+  assert.equal(matchLevel("海浪", surfing).level, "keyword", "「海浪」联想词 → +2");
+  // 别名不跨图误中：他图精确词不命中
+  assert.equal(matchLevel("大白鲨", elephant).hit, false, "他图别名不误中");
+});
+
+
 /* ================= e2e 网络测试 ================= */
 
 function wsClient(url){

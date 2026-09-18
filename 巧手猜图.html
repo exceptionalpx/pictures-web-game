@@ -184,6 +184,9 @@ function html(tag, attrs={}, htmlStr){
   if(htmlStr!=null) e.innerHTML=htmlStr;
   return e;
 }
+function preloadThumbs(wall){
+  (wall||[]).forEach(g=>{ if(g && g.thumb){ const im=new Image(); im.src=g.thumb; } });
+}
 function levelLabel(level){
   return { exact:"准确词 +5", keyword:"联想词 +2", category:"类别词 +1" }[level] || "文字命中";
 }
@@ -616,7 +619,7 @@ const __PW = window.__pwOnline = {
         this.target=m.target; this.status=m.status; this.reconnectAt=Date.now();
         this.drawer=(m.drawerIdx>=0&&m.players[m.drawerIdx])?{pid:m.players[m.drawerIdx].pid,nickname:m.players[m.drawerIdx].nickname}:{pid:"",nickname:""};
         if(this.status==="lobby") renderOnlineLobby();
-        else if(this.status==="playing") renderOnlineRoom();
+        else if(this.status==="playing"){ preloadThumbs(this.wall); renderOnlineRoom(); }
         else renderOnlineReveal();
         break;
       case "player_joined":
@@ -627,6 +630,7 @@ const __PW = window.__pwOnline = {
         this.round=m.round; this.deadline=m.deadline; this.createSeconds=m.createSeconds;
         this.lockSeconds=m.lockSeconds; this.drawer=m.drawer; this.status="playing";
         this.wall=m.wall||[]; this.target=m.target; this.reveal=null; this.over=null; this.answered=0; this.canvas=[];
+        preloadThumbs(this.wall);
         renderOnlineRoom(); break;
       case "canvas":
         this.canvas=m.els||[];
@@ -833,10 +837,11 @@ function renderOnlineGuess(){
     if(m.correct){
       const label=levelLabel(m.level);
       r.classList.remove("pending"); r.classList.add("hit"); r.querySelector("b").textContent=(m.repeat?"✓ ":"✓ ")+label+(m.repeat?"（已命中）":"");
-      bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">🎯 ${label}！可继续猜，或等照片墙开放后选图确认</span>`;
+      const guide=m.level==="category"?"，再具体点！":(m.level==="keyword"?"，很接近了！":"！");
+      bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">🎯 ${label}${guide} 可继续猜，或等照片墙开放后选图确认</span>`;
     }else{
       r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
-      bar.innerHTML='<span class="sub">不对哦，再猜猜（准确词 +5 / 联想词 +2 / 类别词 +1）</span>';
+      bar.innerHTML='<span class="sub">不对哦，试试图中主体的名字或特征（准确词 +5 / 联想词 +2 / 类别词 +1）</span>';
     }
   };
   window.__pwWordHit=(m)=>{ toast(`${m.nickname} 猜中了${levelLabel(m.level)}`); };
@@ -887,7 +892,7 @@ function renderOnlineGuess(){
   function buildWall(){
     wallEl=html("div",{class:"wall-grid"});
     __PW.wall.forEach((g,i)=>{
-      const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span><img src="${g.img}" alt="${g.zh}">`);
+      const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span><img src="${g.thumb||g.img}" alt="${g.zh}" loading="lazy" decoding="async">`);
       c.onclick=()=>{
         if(locked||done||cooldownUntil>Date.now()) return;
         picked=i;
@@ -991,6 +996,7 @@ async function runOnlineTest(){
     {id:"food-mooncake",category:"食物",category_word:"食物",zh:"月饼",keywords:["中秋","馅料"],exact:"月饼",img:"/images/food-mooncake.png"},
     {id:"food-banana",category:"食物",category_word:"食物",zh:"香蕉",keywords:["水果","黄色"],exact:"香蕉",img:"/images/food-banana.png"}
   ];
+  WALL16.forEach(g=>{ g.thumb=g.img.replace("/images/","/images-thumb/").replace(".png",".jpg"); });
   window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
   window.__pwCooldownMs=60;           // 自检内冷却缩短
   try{
@@ -1074,6 +1080,7 @@ async function runOnlineTest(){
     await sleep(900);
     rec("解锁后照片墙出现", !!document.querySelector("#pw-photo-holder .wall-grid")&&document.querySelector("#pw-photo-holder .wall-grid").children.length===16,"");
     rec("照片墙为真实图片", document.querySelectorAll("#pw-photo-holder .wall-grid .cell img").length===16,"");
+    rec("照片墙使用缩略图", document.querySelectorAll('#pw-photo-holder .wall-grid .cell img[src*="/images-thumb/"]').length===16,"");
     rec("解锁提示", (document.querySelector("#pw-gbar").textContent||"").includes("照片墙开放"),"");
     rec("文字框仍可用", !!document.querySelector("#pw-word"),"");
 
