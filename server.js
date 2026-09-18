@@ -30,6 +30,7 @@ const ONLINE = {
   baseCorrect: 1,             // 猜对基础分
   firstBonus: 2,              // 首个选图正确额外奖励
   wordScore: { category: 1, keyword: 2, exact: 5 },  // 文字竞猜三级计分：类别词 +1 / 联想词 +2 / 准确词 +5
+  wordCap: 8,                 // 每轮每人文字命中得分封顶（类别1+联想级最多4+准确5=8）
   cooldownMs: 10000           // 选图猜错后的冷却时长（冷却内不能再选图，可继续文字竞猜）
 };
 
@@ -98,7 +99,7 @@ class Room {
     if(this.players.length >= ONLINE.maxPlayers) return { err: "room_full", msg: "房间已满" };
     nickname = (nickname||"").toString().trim().slice(0,12) || ("玩家" + (this.players.length+1));
     const pid = genId();
-    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", tried: [], lastWrongAt: 0 });
+    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", wordScored: [], tried: [], lastWrongAt: 0 });
     this.touch();
     return { pid };
   }
@@ -127,7 +128,7 @@ class Room {
     this.wall = shuffle(IMAGES).slice(0,16);   // 每轮从 64 图池随机抽 16 张
     this.target = Math.floor(Math.random()*16);
     this.canvas = { els: [], ver: 0 };
-    this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.tried = []; p.lastWrongAt = 0; });
+    this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.wordScored = []; p.tried = []; p.lastWrongAt = 0; });
     this.roundStart = Date.now();
     this.deadline = this.roundStart + this.opts.createMs;
     this.status = "playing";
@@ -150,7 +151,8 @@ class Room {
 
   /**
    * 文字竞猜：整轮开放、不限次数。
-   * 三级命中：准确词 +5 / 联想词 +2 / 类别词 +1（先中最高层级，可与选图分叠加，重复命中不再加分）
+   * 词条级去重：每个词条（类别/联想/别名/准确）每轮每玩家只计一次分，不同词条可累加、可逐级升级；
+   * 封顶：每轮每人文字分不超过 ONLINE.wordCap（8 = 类别1 + 联想级最多4 + 准确5）。
    */
   submitWord(pid, text){
     if(this.status !== "playing") return { err: "not_playing" };
@@ -160,12 +162,18 @@ class Room {
     if(!p) return { err: "no_player" };
     const m = matchLevel(text, this.wall[this.target]);
     if(!m.hit) return { ok: true, correct: false };
-    if(p.wordHit) return { ok: true, correct: true, repeat: true, level: p.wordLevel, pts: p.wordPts };   // 已命中，不重复加分
+    if((p.wordScored||[]).includes(m.word)){
+      return { ok: true, correct: true, repeat: true, level: m.level, pts: 0, word: m.word, msg: "该词已猜过" };
+    }
+    if((p.wordPts||0) >= ONLINE.wordCap){
+      return { ok: true, correct: true, repeat: true, level: m.level, pts: 0, word: m.word, msg: "本轮文字分已满" };
+    }
+    p.wordScored = (p.wordScored||[]).concat(m.word);
+    p.wordPts = (p.wordPts||0) + m.pts;
     p.wordHit = true;
-    p.wordPts = m.pts;
     p.wordLevel = m.level;
     this.touch();
-    return { ok: true, correct: true, level: m.level, pts: m.pts, word: m.word };
+    return { ok: true, correct: true, level: m.level, pts: m.pts, word: m.word, total: p.wordPts };
   }
 
   /**
@@ -210,13 +218,13 @@ class Room {
     const d = this.drawer();
     const results = this.players.map(p => {
       if(p.pid === d.pid){
-        const hitCount = this.guessers().filter(g => g.wordHit || (g.guessed && g.guessed.correct)).length;
+        const hitCount = this.guessers().filter(g => (g.wordPts > 0) || (g.guessed && g.guessed.correct)).length;
         const pts = hitCount * ONLINE.baseCorrect;
         p.score += pts;
         return { pid: p.pid, nickname: p.nickname, role: "drawer", guessed: null, correct: null, wordHit: false, points: pts, hitCount };
       }
       let pts = 0;
-      if(p.wordHit) pts += p.wordPts;
+      if(p.wordPts > 0) pts += p.wordPts;
       if(p.guessed && p.guessed.correct){ pts += ONLINE.baseCorrect + (p.guessed.first ? ONLINE.firstBonus : 0); }
       p.score += pts;
       return {
@@ -428,9 +436,9 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
           sendTo(room, drawerPid, { t:"word_view", pid, nickname: room.findPlayer(pid).nickname, word: String(m.text||"").trim(), correct: !!r.correct, level: r.level || "", pts: r.pts || 0, repeat: !!r.repeat });
         }
         if(r.correct){
-          if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true, level: r.level, pts: r.pts }); }
+          if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true, level: r.level, pts: r.pts, word: r.word, msg: r.msg }); }
           broadcast(room, { t:"word_hit", pid, nickname: room.findPlayer(pid).nickname, level: r.level }, pid);   // 猜题人之间只广播层级，不含词
-          return send({ t:"word_res", correct: true, level: r.level, pts: r.pts, word: r.word });
+          return send({ t:"word_res", correct: true, level: r.level, pts: r.pts, word: r.word, total: r.total });
         }
         return send({ t:"word_res", correct: false });
       }

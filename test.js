@@ -44,7 +44,7 @@ test("作答锁定窗口：前 30 秒拒绝选图，解锁后放行", () => {
   });
 });
 
-test("文字竞猜：整轮开放 / 三级命中 / 未命中 / 错图不命中 / 重复命中不重复加分 / 解锁后仍可猜", async () => {
+test("文字竞猜 v5：词条级去重 / 逐级升级累加 / 8 分封顶 / 未命中 / 错图不命中 / 解锁后仍可猜", async () => {
   const room = new Room("TW1", { lockMs: 50, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B"); room.addPlayer("C");
   room.maxRounds = 2; room.startRound();
@@ -53,27 +53,49 @@ test("文字竞猜：整轮开放 / 三级命中 / 未命中 / 错图不命中 /
   assert.equal(miss.correct, false, "未命中");
   // 目标图置为 IMAGES[0]（大象：exact=大象，keywords=[非洲,长鼻]，category_word=动物）
   room.wall[room.target] = IMAGES[0];
+  // 先类别词 +1，再准确词 +5：逐级升级，不被低层级锁死
+  const cat1 = room.submitWord(b, "动物");
+  assert.equal(cat1.correct, true);
+  assert.equal(cat1.level, "category", "类别词命中");
+  assert.equal(cat1.pts, 1, "类别词 +1");
+  assert.equal(cat1.total, 1, "累计 1 分");
   const ex = room.submitWord(b, "我猜是非洲大象！");
   assert.equal(ex.correct, true, "包含准确词即命中");
-  assert.equal(ex.level, "exact", "先中最高层级");
+  assert.equal(ex.level, "exact", "准确词优先，不被先前类别词锁定");
   assert.equal(ex.pts, 5, "准确词 +5");
+  assert.equal(ex.total, 6, "累计 6 分（1+5）");
+  // 词条级去重：同一词条再答 → repeat 不加分
   const rep = room.submitWord(b, "大象");
   assert.equal(rep.correct, true);
-  assert.equal(rep.repeat, true, "重复命中标记 repeat，不再加分");
+  assert.equal(rep.repeat, true, "同一词条重复 → repeat");
+  assert.equal(rep.pts, 0, "重复不加分");
+  // 联想词再 +2 → 累计 8 分封顶
+  const kw = room.submitWord(b, "非洲");
+  assert.equal(kw.correct, true, "联想词命中");
+  assert.equal(kw.level, "keyword");
+  assert.equal(kw.pts, 2, "联想词 +2");
+  assert.equal(kw.total, 8, "累计 8 分");
+  const cap = room.submitWord(b, "长鼻");
+  assert.equal(cap.correct, true);
+  assert.equal(cap.repeat, true, "已到 8 分封顶 → repeat");
+  assert.equal(cap.pts, 0, "封顶不加分");
+  assert.equal(cap.msg, "本轮文字分已满", "封顶提示");
   // 换目标为自行车图：B 发"大象" → 词对但图错 → 不命中；C 发联想词 → keyword 命中
   const bike = IMAGES.find(g => g.exact === "自行车");
   assert.ok(bike, "64 图含自行车");
   room.wall[room.target] = bike;
   const wrongEmoji = room.submitWord(b, "大象");
   assert.equal(wrongEmoji.correct, false, "词对但图错 → 不命中");
-  const kw = room.submitWord(c, "我去骑行锻炼");
-  assert.equal(kw.correct, true, "联想词命中");
-  assert.equal(kw.level, "keyword");
-  assert.equal(kw.pts, 2, "联想词 +2");
-  // 类别词命中（repeat，不重复加分）
-  const cat = room.submitWord(c, "交通工具真多");
-  assert.equal(cat.correct, true);
-  assert.equal(cat.repeat, true, "已命中后类别词不重复加分");
+  const kw2 = room.submitWord(c, "我去骑行锻炼");
+  assert.equal(kw2.correct, true, "联想词命中");
+  assert.equal(kw2.level, "keyword");
+  assert.equal(kw2.pts, 2, "联想词 +2");
+  // C 再答类别词（新词条）→ 累加 +1（不同词条可累加）
+  const cat2 = room.submitWord(c, "交通工具");
+  assert.equal(cat2.correct, true);
+  assert.equal(cat2.level, "category", "不同词条可累加");
+  assert.equal(cat2.pts, 1, "类别词 +1");
+  assert.equal(cat2.total, 3, "累计 3 分（2+1）");
   // 锁定窗口结束后（解锁后）文字竞猜仍开放
   return sleep(80).then(() => {
     const late = room.submitWord(b, "自行车");
@@ -309,6 +331,27 @@ test("画布权限：非出题人更新被拒", () => {
   assert.equal(r.err, "not_drawer");
   const ok = room.setCanvas(room.players[0].pid, []);
   assert.ok(ok.ok);
+});
+
+test("画布元素扩展：12 种 kind + opacity/rot 透传 / 非法与超限拒绝", () => {
+  const room = new Room("T8b", { lockMs: 0, createMs: 100000 });
+  room.addPlayer("A"); room.addPlayer("B");
+  room.maxRounds = 2; room.startRound();
+  const d = room.players[0].pid;
+  const els = [
+    {kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7},
+    {kind:"crescent",x:30,y:40,w:90,h:90,rot:45,color:"#2980B9",opacity:0.5},
+    {kind:"arrow",x:50,y:60,w:100,h:90,rot:0,color:"#2F9E44",opacity:1}
+  ];
+  const r = room.setCanvas(d, els);
+  assert.equal(r.ok, true);
+  assert.equal(room.canvas.els.length, 3, "12 形状元素透传");
+  assert.equal(room.canvas.els[1].opacity, 0.5, "opacity 透传");
+  assert.equal(room.canvas.els[1].rot, 45, "rot 透传");
+  const bad = room.setCanvas(d, "notarray");
+  assert.equal(bad.err, "invalid", "非数组拒绝");
+  const over = room.setCanvas(d, els.concat(Array.from({length:60},()=>els[0])));
+  assert.equal(over.err, "invalid", "超上限拒绝");
 });
 
 test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {

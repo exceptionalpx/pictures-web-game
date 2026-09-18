@@ -75,7 +75,7 @@ a{color:var(--brand-d)}
 .stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
 .hint{font-size:13px;color:var(--muted);text-align:center;min-height:20px}
 /* 工具箱 */
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:10px}
 .tabs button{padding:7px 2px;font-size:12px;line-height:1.2}
 .tabs button.on{background:var(--brand);color:#fff;font-weight:600}
 .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
@@ -83,6 +83,10 @@ a{color:var(--brand-d)}
 .swatch.on{box-shadow:0 0 0 2.5px var(--ink)}
 .add-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
 .add-grid button{padding:0;aspect-ratio:1;font-size:20px;line-height:1}
+.shape-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.shape-grid button{padding:4px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:8px}
+.shape-grid button.on{border-color:var(--brand);background:#EDF1FF}
+.shape-grid svg{width:40px;height:40px}
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .row button{flex:1;white-space:nowrap}
 .counter{font-size:12px;color:var(--muted);text-align:right;margin-top:6px}
@@ -136,7 +140,7 @@ th{background:#F3EFE5}
   .cell{border-radius:7px}
   .tabs{gap:3px}
   .tabs button{font-size:11px;padding:6px 2px}
-  .swatches,.add-grid{gap:5px}
+  .swatches,.add-grid,.shape-grid{gap:5px}
   .row{gap:5px}
   .row button{font-size:12px;padding:8px 6px}
 }
@@ -157,11 +161,22 @@ const STAGE = 480;                 // 画布逻辑尺寸
 const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
 const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
 const TOOLS = [
-  {id:"curve", name:"曲线", hint:"在画布上按住拖动即可绘制曲线"},
-  {id:"block", name:"方块", hint:"点“添加方块”，再拖动、旋转、改色"},
-  {id:"icon",  name:"图标", hint:"点下方任意图标放到画布上"},
-  {id:"stick", name:"棒石", hint:"木棒搭骨架，石头做圆点"},
-  {id:"brick", name:"积木", hint:"矩形和三角，堆叠出剪影"}
+  {id:"pen",   name:"画笔", hint:"细线画笔：在画布上按住拖动，画细节或点睛"},
+  {id:"shape", name:"形状", hint:"点下方形状，再点击画布放置；点元素可拖动/缩放/旋转/改色"}
+];
+const SHAPES = [
+  {kind:"circle",     name:"圆形",   w:90,  h:90},
+  {kind:"semicircle", name:"半圆",   w:100, h:50},
+  {kind:"triangle",   name:"三角形", w:100, h:90},
+  {kind:"ellipse",    name:"椭圆",   w:100, h:60},
+  {kind:"diamond",    name:"菱形",   w:90,  h:90},
+  {kind:"crescent",   name:"月牙",   w:90,  h:90},
+  {kind:"rect",       name:"长方形", w:100, h:60},
+  {kind:"square",     name:"正方形", w:80,  h:80},
+  {kind:"waterdrop",  name:"水滴",   w:70,  h:100},
+  {kind:"arrow",      name:"箭头",   w:100, h:90},
+  {kind:"bar",        name:"棒型",   w:14,  h:100},
+  {kind:"cross",      name:"十字",   w:90,  h:90}
 ];
 
 /* ================= 工具函数 ================= */
@@ -194,17 +209,42 @@ function levelLabel(level){
 /* ================= 作品渲染（创作/实时观看/揭晓共用） ================= */
 function shapeFor(e){
   const g = h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`,"data-kind":e.kind});
-  if(e.kind==="rect") g.appendChild(h("rect",{x:-e.w/2,y:-e.h/2,width:e.w,height:e.h,rx:6,fill:e.color}));
-  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:e.w/2,ry:e.h/2,fill:e.color}));
-  else if(e.kind==="triangle"){
-    g.appendChild(h("polygon",{points:`0,${-e.h/2} ${-e.w/2},${e.h/2} ${e.w/2},${e.h/2}`,fill:e.color}));
-  } else if(e.kind==="icon"){
-    const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":e.h});
+  const op=typeof e.opacity==="number"?e.opacity:1;
+  const col=e.color||"#E03131";
+  const w=e.w||80, hh=e.h||80;
+  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:col,opacity:op}));
+  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:col,opacity:op}));
+  else if(e.kind==="cross"){
+    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:col,opacity:op}));
+    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:col,opacity:op}));
+  }
+  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:col,opacity:op}));
+  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:col,opacity:op}));
+  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
+  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
+  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
+  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.38} ${w*0.38} 0 1 0 0,${-w/2} Z`,fill:col,opacity:op}));
+  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
+  else if(e.kind==="arrow"){
+    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
+    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:col,opacity:op}));
+  }
+  else if(e.kind==="icon"){
+    const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":hh,opacity:op});
     t.textContent=e.glyph; g.appendChild(t);
-  } else if(e.kind==="path"){
-    g.appendChild(h("path",{d:e.d,fill:"none",stroke:e.color,"stroke-width":e.width,"stroke-linecap":"round","stroke-linejoin":"round"}));
+  }
+  else if(e.kind==="path"){
+    g.appendChild(h("path",{d:e.d,fill:"none",stroke:col,"stroke-width":e.width||3,"stroke-linecap":"round","stroke-linejoin":"round",opacity:op}));
   }
   return g;
+}
+function shapeIcon(kind, color){
+  const s0=SHAPES.find(s=>s.kind===kind);
+  const ratio=s0?Math.min(1,s0.h/s0.w):1;
+  const svgEl=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svgEl.setAttribute("viewBox","0 0 56 56");
+  svgEl.appendChild(shapeFor({kind,x:28,y:28,w:44,h:Math.max(16,44*ratio),rot:0,color:color||"#3B5BDB"}));
+  return svgEl.outerHTML;
 }
 function renderArtwork(svg, els, opts={}){
   svg.innerHTML="";
@@ -244,7 +284,7 @@ function renderHome(){
     <div class="rule-card">
       <div class="big">🎨</div>
       <h3>出题人 · 看目标照片作画</h3>
-      <span class="sub">你看到目标照片（如“大象”），用曲线/方块/图标/棒石/积木把它<b>抽象地</b>画出来，不能临摹——90 秒倒计时，画布实时同步给所有人。</span>
+      <span class="sub">你看到目标照片（如“大象”），用<b>12 种半透明形状 + 细线画笔</b>把它<b>抽象地</b>拼出来，不能临摹——90 秒倒计时，画布实时同步给所有人。</span>
     </div>
     <div class="rule-card">
       <div class="big">✍️</div>
@@ -275,8 +315,8 @@ function renderEditor(){
   const wall=(__PW.wall||[]).slice();
   const target=__PW.target;
   const state={
-    wall, target, els:[], selected:null, tool:"brick", color:COLORS[0],
-    strokeW:8, history:[], future:[], finished:false
+    wall, target, els:[], selected:null, tool:"pen", pickShape:"circle",
+    color:COLORS[0], opacity:0.7, strokeW:3, history:[], future:[], finished:false
   };
   let timerId=null;
   $app.innerHTML="";
@@ -304,6 +344,8 @@ function renderEditor(){
       <div class="tabs" id="tabs"></div>
       <h3>颜色</h3>
       <div class="swatches" id="swatches"></div>
+      <h3>不透明度</h3>
+      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span></div>
       <div id="toolbody"></div>
       <div class="row">
         <button id="up">置顶</button>
@@ -354,6 +396,12 @@ function renderEditor(){
     s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
     swEl.appendChild(s);
   });
+  const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
+  opEl.addEventListener("input",()=>{
+    state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
+    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); }
+  });
+  opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
 
   function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
   function syncUI(){
@@ -367,47 +415,29 @@ function renderEditor(){
     if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
     commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
   }
+  function addShapeAt(x,y){
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
+  }
   /* 工具内容 */
   function buildToolBody(){
     bodyEl.innerHTML="";
     const t=state.tool;
-    if(t==="curve"){
+    if(t==="pen"){
       const box=html("div",{});
-      box.innerHTML=`<h3>笔触粗细</h3>`;
-      const row=html("div",{class:"row"});
-      [4,8,15].forEach(w0=>{
-        const b=html("button",{class:state.strokeW===w0?"primary":""},w0===4?"细":w0===8?"中":"粗");
-        b.onclick=()=>{state.strokeW=w0;buildToolBody();};row.appendChild(b);
-      });
-      box.appendChild(row);
-      box.appendChild(html("div",{class:"note"},"直接在画布上按住拖动，画出轮廓或线条。"));
+      box.innerHTML=`<h3>细线画笔</h3>`;
+      box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
       bodyEl.appendChild(box);
-    } else if(t==="block"){
-      const b=html("button",{class:"primary",style:"width:100%;margin-top:8px"},"＋ 添加方块");
-      b.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:90,h:90,rot:0,color:state.color});
-      bodyEl.appendChild(b);
-    } else if(t==="icon"){
-      const grid=html("div",{class:"add-grid"});
-      ICONS.forEach(g0=>{
-        const b=html("button",{},g0);
-        b.onclick=()=>addElement({kind:"icon",glyph:g0,x:STAGE/2,y:STAGE/2,w:64,h:64,rot:0,color:"#000"});
+    } else if(t==="shape"){
+      const grid=html("div",{class:"shape-grid"});
+      SHAPES.forEach(s0=>{
+        const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+        b.innerHTML=shapeIcon(s0.kind,state.color);
+        b.onclick=()=>{state.pickShape=s0.kind;buildToolBody();};
         grid.appendChild(b);
       });
       bodyEl.appendChild(grid);
-    } else if(t==="stick"){
-      const row=html("div",{class:"row"});
-      const b1=html("button",{class:"primary"},"＋ 木棒");
-      b1.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:12,h:150,rot:0,color:"#8D6E63"});
-      const b2=html("button",{class:"primary"},"＋ 石头");
-      b2.onclick=()=>addElement({kind:"ellipse",x:STAGE/2,y:STAGE/2,w:46,h:46,rot:0,color:state.color});
-      row.appendChild(b1);row.appendChild(b2);bodyEl.appendChild(row);
-    } else if(t==="brick"){
-      const row=html("div",{class:"row"});
-      const b1=html("button",{class:"primary"},"＋ 矩形积木");
-      b1.onclick=()=>addElement({kind:"rect",x:STAGE/2,y:STAGE/2,w:120,h:80,rot:0,color:state.color});
-      const b2=html("button",{class:"primary"},"＋ 三角积木");
-      b2.onclick=()=>addElement({kind:"triangle",x:STAGE/2,y:STAGE/2,w:110,h:100,rot:0,color:state.color});
-      row.appendChild(b1);row.appendChild(b2);bodyEl.appendChild(row);
+      bodyEl.appendChild(html("div",{class:"note"},"点形状选中，再点击画布空白处放置；点元素可拖动、拖角缩放、拖顶部圆点旋转。" ));
     }
   }
   buildToolBody();
@@ -465,9 +495,11 @@ function renderEditor(){
         state.selected=idx;
         drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
         commit(); draw();
-      } else if(state.tool==="curve"){
+      } else if(state.tool==="pen"){
         commit();
         drag={type:"draw",pts:[[p.x,p.y]]};
+      } else if(state.tool==="shape"){
+        addShapeAt(p.x,p.y);
       } else {
         state.selected=null; draw();
       }
@@ -835,10 +867,18 @@ function renderOnlineGuess(){
   window.__pwWordRes=(m)=>{
     const r=pendingRow();
     if(m.correct){
-      const label=levelLabel(m.level);
-      r.classList.remove("pending"); r.classList.add("hit"); r.querySelector("b").textContent=(m.repeat?"✓ ":"✓ ")+label+(m.repeat?"（已命中）":"");
-      const guide=m.level==="category"?"，再具体点！":(m.level==="keyword"?"，很接近了！":"！");
-      bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">🎯 ${label}${guide} 可继续猜，或等照片墙开放后选图确认</span>`;
+      r.classList.remove("pending");
+      if(m.repeat){
+        r.classList.add("repeat"); r.querySelector("b").textContent="✓ "+levelLabel(m.level)+"（已计分）";
+        const msg=m.msg==="本轮文字分已满"?"本轮文字分已满（8/8）":"「"+m.word+"」已猜过，换个词试试";
+        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${msg}</span>`;
+      }else{
+        r.classList.add("hit");
+        const label=levelLabel(m.level);
+        r.querySelector("b").textContent="✓ "+label+" +"+m.pts;
+        const guide=m.level==="category"?"，再具体点！":(m.level==="keyword"?"，很接近了！":"！");
+        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">🎯 命中「${esc(m.word)}」${label}${guide}（本轮 ${m.total||0}/8）</span>`;
+      }
     }else{
       r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
       bar.innerHTML='<span class="sub">不对哦，试试图中主体的名字或特征（准确词 +5 / 联想词 +2 / 类别词 +1）</span>';
@@ -1024,9 +1064,15 @@ async function runOnlineTest(){
     rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("1:"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
-    document.querySelector(".tabs").children[4].click();
-    [...document.querySelectorAll("#toolbody button")].find(b=>b.textContent.includes("矩形积木")).click();
+    document.querySelector(".tabs").children[1].click();
+    [...document.querySelectorAll("#toolbody button")].find(b=>b.title==="圆形").click();
+    const srect=ed.svg.getBoundingClientRect();
+    ed.svg.dispatchEvent(new PointerEvent("pointerdown",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
+    ed.svg.dispatchEvent(new PointerEvent("pointerup",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
+    await sleep(50);
     rec("出题人添加元素", ed.state.els.length===1,"");
+    rec("放置圆形半透明", ed.state.els[0].kind==="circle"&&ed.state.els[0].opacity===0.7,"");
+    rec("不透明度滑块存在", !!document.querySelector("#opacity"),"");
     rec("出题人按钮为等待揭晓", (document.querySelector("#submit").textContent||"").includes("等待揭晓"),"");
     /* 作答动态：出题人实时看到猜词与选图对错 */
     __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"汽车",correct:false});
@@ -1057,11 +1103,17 @@ async function runOnlineTest(){
     document.querySelector("#pw-wordsend").click();
     await sleep(40);
     rec("猜测记录待定行", !!document.querySelector("#pw-records .guess-record.pending"),"");
-    __PW.handle({t:"word_res",correct:true,level:"exact",pts:5});
+    __PW.handle({t:"word_res",correct:true,level:"exact",pts:5,word:"大象",total:5});
     await sleep(40);
     rec("猜测记录命中行", !!document.querySelector("#pw-records .guess-record.hit"),"");
     rec("记录显示+5", (document.querySelector("#pw-records").textContent||"").includes("+5"),"");
     rec("文字命中提示层级", (document.querySelector("#pw-gbar").textContent||"").includes("准确词 +5"),"");
+    rec("命中显示词条+本轮分", (document.querySelector("#pw-gbar").textContent||"").includes("大象")&&(document.querySelector("#pw-gbar").textContent||"").includes("5/8"),"");
+    /* 词条级去重：重复命中 → 提示已猜过 */
+    __PW.handle({t:"word_res",correct:true,repeat:true,level:"category",word:"动物",msg:"该词已猜过"});
+    await sleep(40);
+    rec("重复命中提示已猜过", (document.querySelector("#pw-gbar").textContent||"").includes("已猜过"),"");
+    rec("重复命中记录标记", !!document.querySelector("#pw-records .guess-record.repeat"),"");
     // 未命中记录
     winput.value="汽车";
     document.querySelector("#pw-wordsend").click();
@@ -1071,9 +1123,9 @@ async function runOnlineTest(){
     rec("未命中记录✗", !!document.querySelector("#pw-records .guess-record.miss"),"");
 
     /* 6. 画布实时同步 */
-    __PW.handle({t:"canvas",els:[{kind:"rect",x:1,y:2,w:3,h:4,rot:0,color:"#000"},{kind:"triangle",x:5,y:6,w:7,h:8,rot:0,color:"#000"}]});
+    __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7},{kind:"crescent",x:30,y:40,w:90,h:90,rot:45,color:"#2980B9",opacity:0.5},{kind:"arrow",x:50,y:60,w:100,h:90,rot:0,color:"#2F9E44",opacity:1}]});
     await sleep(60);
-    rec("猜题人画布同步", document.querySelector("#pw-gstage").childNodes.length>=2,"");
+    rec("猜题人画布同步(12形状)", document.querySelector("#pw-gstage").querySelectorAll("g[data-kind]").length>=2,"");
 
     /* 7. 解锁：照片墙出现在文字框下方 */
     __PW.deadline=Date.now()+500;
