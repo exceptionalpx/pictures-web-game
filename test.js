@@ -379,6 +379,55 @@ test("单人谜题：创建（词表图/自定义词）→ 读取不含答案 �
   assert.equal(PuzzleStore.guess("ZZZZZZ", "动物").err, "not_found", "不存在谜题");
 });
 
+test("单人谜题 custom_image：上传图+三级词条 → 读取含图不含词 → 三级计分 → 边界拒绝", () => {
+  const canvas=[{kind:"circle",x:1,y:2,w:90,h:90,rot:0,color:"#000",opacity:0.7}];
+  const p3 = PuzzleStore.create({canvas, answerMode:"custom_image", img:"data:image/jpeg;base64,AAAA", words:{exact:"长颈鹿", keywords:["草原","脖子"], aliases:["鹿"], category_word:"动物"}});
+  assert.equal(p3.ok, true, "自定义图片谜题创建");
+  const got = PuzzleStore.get(p3.id);
+  assert.ok(got && got.img && got.img.indexOf("data:")===0, "读取含图片");
+  assert.equal(got.answerExact, undefined, "读取对象不含答案词字段");
+  assert.equal(got.words.exact, "长颈鹿", "词条仅服务端判分用");
+  const e1 = PuzzleStore.guess(p3.id, "长颈鹿");
+  assert.equal(e1.correct, true); assert.equal(e1.level, "exact"); assert.equal(e1.pts, 5, "准确 +5");
+  assert.equal(PuzzleStore.guess(p3.id, "草原").level, "keyword", "联想 +2");
+  assert.equal(PuzzleStore.guess(p3.id, "鹿").level, "keyword", "别名 +2");
+  assert.equal(PuzzleStore.guess(p3.id, "动物").level, "category", "类别 +1");
+  assert.equal(PuzzleStore.guess(p3.id, "飞机").correct, false, "不中");
+  const bad3 = PuzzleStore.create({canvas, answerMode:"custom_image", img:"data:image/jpeg;base64,AAAA", words:{exact:"  "}});
+  assert.equal(bad3.err, "invalid_words", "缺准确词拒绝");
+  const bad4 = PuzzleStore.create({canvas, answerMode:"custom_image", img:"", words:{exact:"长颈鹿"}});
+  assert.equal(bad4.err, "invalid_image", "缺图拒绝");
+  const bad5 = PuzzleStore.create({canvas, answerMode:"custom_image", img:"x".repeat(2e6), words:{exact:"长颈鹿"}});
+  assert.equal(bad5.err, "invalid_image", "超大图拒绝");
+});
+
+test("房间：房主携带自定义图 → 图池含自定义目标 → 文字三级计分 → 选图命中", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("房主", [
+    { zh:"长颈鹿图", img:"data:image/jpeg;base64,AAAA", exact:"长颈鹿", keywords:["草原","脖子"], aliases:["鹿"], category_word:"动物" },
+    { zh:"坏图", img:"", exact:"无效图" },
+    { zh:"超大图", img:"x".repeat(2e6), exact:"超大" }
+  ]);
+  assert.equal(r.room.customImages.length, 1, "仅有效自定义图进入图池");
+  const b = r.room.addPlayer("甲");
+  assert.ok(b.pid, "加入玩家");
+  assert.equal(r.room.canStart(), true, "可开局");
+  r.room.maxRounds = 2;
+  const s = r.room.startRound();
+  assert.equal(s.ok, true, "开局");
+  assert.equal(r.room.wall.length, 16, "照片墙 16 张");
+  const custom = r.room.customImages[0];
+  r.room.wall[0] = custom;   // 确定性：自定义图放目标格（随机抽不保证出现）
+  r.room.target = 0;
+  const m1 = r.room.submitWord(b.pid, "动物");
+  assert.equal(m1.correct, true); assert.equal(m1.level, "category"); assert.equal(m1.pts, 1, "类别 +1");
+  const m2 = r.room.submitWord(b.pid, "长颈鹿");
+  assert.equal(m2.correct, true); assert.equal(m2.level, "exact"); assert.equal(m2.pts, 5, "准确 +5");
+  r.room.opts.lockMs = 0;
+  const g2 = r.room.submitGuess(b.pid, 0);
+  assert.equal(g2.correct, true, "选图命中自定义目标");
+});
+
 test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {
   assert.equal(IMAGES.length, 64, "64 张图");
   assert.equal(PACK.scoring.category_word, 1, "类别词 1 分");
