@@ -37,6 +37,30 @@ a{color:var(--brand-d)}
 .rule-card h3{margin:0 0 4px;color:var(--ink)}
 .rule-card .big{font-size:24px}
 .hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.hero-actions .alt{background:#F59F00;border-color:#E8890C}
+.mask{position:fixed;inset:0;background:rgba(24,28,41,.55);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px}
+.modal{background:#fff;border-radius:16px;padding:18px;max-width:420px;width:100%;max-height:84vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+.modal h2{margin:0 0 10px;font-size:17px}
+.radio-line{display:block;margin:6px 0;font-size:13px;color:#343A40}
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.cat-tab{padding:4px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12px;color:#495057}
+.cat-tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.img-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border:2px solid var(--line);border-radius:8px;background:#fff}
+.img-cell img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px}
+.img-cell span{font-size:10px;color:#495057}
+.img-cell.on{border-color:var(--brand);background:#EDF1FF}
+.img-picked{font-size:12px;color:var(--brand);margin:6px 0;min-height:16px}
+.puzzle-code{font-size:34px;font-weight:800;letter-spacing:6px;text-align:center;color:var(--brand);margin:10px 0;font-variant-numeric:tabular-nums}
+.link-box{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;color:#343A40;background:#F8F9FA}
+.modal.center{text-align:center}
+.guess-fb{margin-top:10px;font-size:14px}
+.guess-fb .fb.hit{background:#E9FBF2;border:1px solid #B2F2C8;color:#2B8A3E;border-radius:10px;padding:10px 12px}
+.guess-fb .fb.miss{background:#FFF5F5;border:1px solid #FFC9C9;color:#C92A2A;border-radius:10px;padding:10px 12px}
+.test-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+.test-tbl td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+.test-tbl tr.pass td:first-child{color:#2B8A3E;font-weight:700}
+.test-tbl tr.fail td:first-child{color:#C92A2A;font-weight:700}
 .hero-actions button{font-size:16px;padding:13px 26px}
 /* 顶栏 */
 .topbar{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 16px;margin-bottom:14px;flex-wrap:wrap}
@@ -84,9 +108,11 @@ a{color:var(--brand-d)}
 .add-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
 .add-grid button{padding:0;aspect-ratio:1;font-size:20px;line-height:1}
 .shape-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
-.shape-grid button{padding:4px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:8px}
+.shape-grid button{padding:3px 2px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#fff;border:1px solid var(--line);border-radius:8px}
 .shape-grid button.on{border-color:var(--brand);background:#EDF1FF}
-.shape-grid svg{width:40px;height:40px}
+.shape-grid svg{width:32px;height:32px}
+.shape-grid button b{font-size:9px;font-weight:600;color:#495057;line-height:1}
+.shape-grid button.on b{color:var(--brand)}
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .row button{flex:1;white-space:nowrap}
 .counter{font-size:12px;color:var(--muted);text-align:right;margin-top:6px}
@@ -161,8 +187,8 @@ const STAGE = 480;                 // 画布逻辑尺寸
 const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
 const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
 const TOOLS = [
-  {id:"pen",   name:"画笔", hint:"细线画笔：在画布上按住拖动，画细节或点睛"},
-  {id:"shape", name:"形状", hint:"点下方形状，再点击画布放置；点元素可拖动/缩放/旋转/改色"}
+  {id:"shape", name:"形状", hint:"点下方形状，再点击画布或拖到画布放置；点元素可拖动/缩放/旋转/改色"},
+  {id:"pen",   name:"画笔", hint:"细线画笔：在画布上按住拖动，画细节或点睛"}
 ];
 const SHAPES = [
   {kind:"circle",     name:"圆形",   w:90,  h:90},
@@ -240,10 +266,13 @@ function shapeFor(e){
 }
 function shapeIcon(kind, color){
   const s0=SHAPES.find(s=>s.kind===kind);
-  const ratio=s0?Math.min(1,s0.h/s0.w):1;
+  const iw=36, ih=36;
+  const sw=s0?Math.max(1,s0.w):iw, sh=s0?Math.max(1,s0.h):ih;
+  const scale=Math.min(iw/sw, ih/sh);
+  const w=Math.max(3,sw*scale), h=Math.max(3,sh*scale);
   const svgEl=document.createElementNS("http://www.w3.org/2000/svg","svg");
   svgEl.setAttribute("viewBox","0 0 56 56");
-  svgEl.appendChild(shapeFor({kind,x:28,y:28,w:44,h:Math.max(16,44*ratio),rot:0,color:color||"#3B5BDB"}));
+  svgEl.appendChild(shapeFor({kind,x:28,y:28,w,h,rot:0,color:color||"#3B5BDB"}));
   return svgEl.outerHTML;
 }
 function renderArtwork(svg, els, opts={}){
@@ -259,9 +288,15 @@ function route(){
   const hash=location.hash||"#/";
   const [path,query=""]=hash.slice(1).split("?");
   const params=Object.fromEntries(new URLSearchParams(query));
-  if(path==="/"||path==="/home") renderHome();
-  else if(path==="/online") renderOnline();
-  else if(path==="/onlinetest") runOnlineTest();
+  const parts=path.split("/").filter(Boolean);
+  if(path==="/"||path==="/home"||parts.length===0) renderHome();
+  else if(parts[0]==="online") renderOnline();
+  else if(parts[0]==="onlinetest") runOnlineTest();
+  else if(parts[0]==="puzzletest") runPuzzleTest();
+  else if(parts[0]==="puzzle"){
+    if(parts[1]) renderPuzzleGuess(parts[1]);
+    else renderPuzzleEditor();
+  }
   else renderHome();
   window.scrollTo(0,0);
 }
@@ -279,6 +314,7 @@ function renderHome(){
   </div>
   <div class="hero-actions">
     <button class="primary" id="go-online" style="min-width:220px">🕹️ 进入联机对战</button>
+    <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 单人出题 · 分享给朋友猜</button>
   </div>
   <div class="rule-grid">
     <div class="rule-card">
@@ -307,15 +343,499 @@ function renderHome(){
     <div class="note">本地运行：先启动服务端 <code>node server.js</code>（默认 http://localhost:4000），再打开本页面；部署到线上时前端会自动改用 wss 连接。</div>
   </div>`;
   w.querySelector("#go-online").addEventListener("click",()=>location.hash="#/online");
+  w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
   $app.appendChild(w);
 }
+
+
+/* ================= 单人谜题（画好→分享链接→朋友猜） ================= */
+function renderPuzzleEditor(){
+  const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null};
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  wrap.innerHTML=`
+  <div class="topbar">
+    <button class="ghost" id="back">← 首页</button>
+    <span class="title">单人出题 · 自由创作</span>
+    <span class="spacer"></span>
+    <button class="primary" id="publish">发布谜题</button>
+  </div>
+  <div class="editor">
+    <div class="stage-wrap">
+      <svg class="stage" id="stage"></svg>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="panel tool-panel">
+      <h2>创作工具</h2>
+      <div class="tabs" id="tabs"></div>
+      <h3>颜色</h3>
+      <div class="swatches" id="swatches"></div>
+      <h3>不透明度</h3>
+      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span></div>
+      <div id="toolbody"></div>
+      <div class="row">
+        <button id="up">置顶</button>
+        <button id="down">置底</button>
+        <button id="del">删除</button>
+      </div>
+      <div class="row">
+        <button id="undo">↩ 撤销</button>
+        <button id="redo">↪ 重做</button>
+      </div>
+      <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
+      <div class="note">点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；点元素可拖动/缩放/旋转。画完点右上角「发布谜题」，把链接发给朋友猜。</div>
+    </div>
+  </div>`;
+  $app.appendChild(wrap);
+  wrap.querySelector("#back").onclick=()=>location.hash="#/";
+  const svg=wrap.querySelector("#stage");
+  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
+  const tabsEl=wrap.querySelector("#tabs");
+  const swEl=wrap.querySelector("#swatches");
+  const bodyEl=wrap.querySelector("#toolbody");
+  const hintEl=wrap.querySelector("#hint");
+  const cntEl=wrap.querySelector("#cnt");
+  TOOLS.forEach(t=>{
+    const b=html("button",{class:state.tool===t.id?"on":""},t.name);
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;renderGhost();syncUI();};
+    tabsEl.appendChild(b);
+  });
+  COLORS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.color===col?" on":""),"data-col":col});
+    s.style.background=col;
+    s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
+    swEl.appendChild(s);
+  });
+  const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
+  opEl.addEventListener("input",()=>{
+    state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
+    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); }
+  });
+  opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
+  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
+  function syncUI(){
+    [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
+    [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
+    hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
+    cntEl.textContent=state.els.length;
+    draw();
+  }
+  function addElement(e){
+    if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
+    commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
+  }
+  function addShapeAt(x,y){
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
+    if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+  }
+  function togglePick(kind){
+    if(state.pickShape===kind && state.ghost){ state.ghost=null; }
+    else { state.pickShape=kind; state.ghost={x:null,y:null}; }
+    state.selected=null; renderGhost(); syncUI();
+  }
+  function buildToolBody(){
+    bodyEl.innerHTML="";
+    const t=state.tool;
+    if(t==="pen"){
+      const box=html("div",{});
+      box.innerHTML=`<h3>细线画笔</h3>`;
+      box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
+      bodyEl.appendChild(box);
+    } else if(t==="shape"){
+      const grid=html("div",{class:"shape-grid"});
+      SHAPES.forEach(s0=>{
+        const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+        b.innerHTML=shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
+        let pointerUsed=false;
+        b.addEventListener("pointerdown",(ev)=>{
+          pointerUsed=true; ev.preventDefault();
+          const wasOn=state.pickShape===s0.kind && !!state.ghost;
+          state.pickShape=s0.kind;
+          state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+          let dragged=false;
+          const mv=(e)=>{
+            const p=pt(e);
+            if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+          };
+          const up=()=>{
+            document.removeEventListener("pointermove",mv);
+            document.removeEventListener("pointerup",up);
+            if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
+              addShapeAt(state.ghost.x,state.ghost.y);
+            } else if(!dragged && wasOn){
+              state.ghost=null; renderGhost(); syncUI();
+            }
+          };
+          document.addEventListener("pointermove",mv);
+          document.addEventListener("pointerup",up);
+        });
+        b.addEventListener("click",(ev)=>{
+          if(!pointerUsed){ togglePick(s0.kind); }
+          pointerUsed=false;
+        });
+        grid.appendChild(b);
+      });
+      bodyEl.appendChild(grid);
+      bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
+    }
+  }
+  buildToolBody();
+  const origSync=syncUI;
+  syncUI=function(){origSync();buildToolBody();};
+  const NS="http://www.w3.org/2000/svg";
+  let ghostG=null;
+  function draw(){
+    renderArtwork(svg,state.els);
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
+      g.appendChild(h("rect",{x:-e.w/2-6,y:-e.h/2-6,width:e.w+12,height:e.h+12,rx:8,fill:"none",stroke:"#3B5BDB","stroke-width":1.5,"stroke-dasharray":"5 4"}));
+      const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
+      handles.forEach(([hx,hy])=>{
+        const hg=h("g",{"data-hx":hx,"data-hy":hy});
+        hg.appendChild(h("rect",{x:hx*e.w/2-20,y:hy*e.h/2-20,width:40,height:40,rx:8,fill:"transparent"}));
+        hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
+        g.appendChild(hg);
+      });
+      const rg=h("g",{"data-rot":"1"});
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-34,r:24,fill:"transparent"}));
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
+      g.appendChild(rg);
+      g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
+      svg.appendChild(g);
+    }
+    renderGhost();
+  }
+  function pt(ev){
+    const m=svg.getScreenCTM();
+    const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
+    return {x:p.x,y:p.y};
+  }
+  function renderGhost(){
+    if(ghostG){ ghostG.remove(); ghostG=null; }
+    if(state.tool!=="shape" || !state.ghost || state.ghost.x==null) return;
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    ghostG=shapeFor({kind:s0.kind,x:state.ghost.x,y:state.ghost.y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:0.45});
+    ghostG.setAttribute("pointer-events","none");
+    ghostG.setAttribute("data-ghost","1");
+    svg.appendChild(ghostG);
+  }
+  let drag=null;
+  svg.addEventListener("pointerdown",ev=>{
+    const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
+    const rotH=ev.target.closest("[data-rot]");
+    const hand=ev.target.closest("[data-hx]");
+    if(rotH){
+      const e=state.els[state.selected];
+      drag={type:"rot",e,start:performance.now()};commit();
+    } else if(hand){
+      const e=state.els[state.selected];
+      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
+    } else {
+      const gg=ev.target.closest("g[data-kind]");
+      if(gg){
+        const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
+        state.selected=idx;
+        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
+        commit(); draw();
+      } else if(state.tool==="pen"){
+        commit();
+        drag={type:"draw",pts:[[p.x,p.y]]};
+      } else if(state.tool==="shape"){
+        addShapeAt(p.x,p.y);
+      } else {
+        state.selected=null; draw();
+      }
+    }
+  });
+  svg.addEventListener("pointermove",ev=>{
+    const p=pt(ev);
+    if(!drag){
+      if(state.tool==="shape" && state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
+      return;
+    }
+    if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
+    else if(drag.type==="rot"){
+      const e=drag.e;
+      let ang=Math.atan2(p.y-e.y,p.x-e.x)*180/Math.PI+90;
+      e.rot=Math.round(ang); draw();
+    } else if(drag.type==="scale"){
+      const e=drag.e;
+      const rad=-(e.rot||0)*Math.PI/180;
+      const lx=(p.x-e.x)*Math.cos(rad)-(p.y-e.y)*Math.sin(rad);
+      const ly=(p.x-e.x)*Math.sin(rad)+(p.y-e.y)*Math.cos(rad);
+      let nw=Math.max(20,Math.abs(lx)*2), nh=Math.max(20,Math.abs(ly)*2);
+      if(drag.hx!==0 && drag.hy!==0){ const s=Math.max(nw/drag.ow,nh/drag.oh); nw=drag.ow*s; nh=drag.oh*s; }
+      else if(drag.hx!==0){ nw=drag.ow*(nw/drag.ow); nh=drag.oh; }
+      else { nh=drag.oh*(nh/drag.oh); nw=drag.ow; }
+      e.w=nw; e.h=nh; draw();
+    } else if(drag.type==="draw"){
+      const last=drag.pts[drag.pts.length-1];
+      if(Math.hypot(p.x-last[0],p.y-last[1])>4){drag.pts.push([p.x,p.y]);drawTempPath();}
+    }
+  });
+  svg.addEventListener("pointerup",()=>{
+    if(!drag)return;
+    if(drag.type==="draw"){
+      if(drag.pts.length>=2){
+        const xs=drag.pts.map(q=>q[0]),ys=drag.pts.map(q=>q[1]);
+        const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
+        const w=Math.max(12,Math.max(...xs)-Math.min(...xs)), h=Math.max(12,Math.max(...ys)-Math.min(...ys));
+        const d=smoothPath(drag.pts.map(q=>[q[0]-cx,q[1]-cy]));
+        state.els.push({kind:"path",x:cx,y:cy,w,h,rot:0,color:state.color,width:state.strokeW,d});
+        if(state.els.length>RULES.elementCap){state.els.pop();toast(`单作品元素上限 ${RULES.elementCap} 个`);}
+        state.selected=state.els.length-1;
+      } else { state.history.pop(); }
+      syncUI();
+    }
+    drag=null;
+  });
+  function clamp(e){ e.x=Math.max(0,Math.min(STAGE,e.x)); e.y=Math.max(0,Math.min(STAGE,e.y)); }
+  function drawTempPath(){
+    draw();
+    const d=smoothPath(drag.pts);
+    svg.appendChild(h("path",{d,fill:"none",stroke:state.color,"stroke-width":state.strokeW,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.8}));
+  }
+  function smoothPath(pts){
+    if(pts.length===2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+    let d=`M${pts[0][0]},${pts[0][1]}`;
+    for(let i=1;i<pts.length-1;i++){
+      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+      d+=` Q${pts[i][0]},${pts[i][1]} ${mx},${my}`;
+    }
+    const last=pts[pts.length-1]; d+=` L${last[0]},${last[1]}`;
+    return d;
+  }
+  wrap.querySelector("#del").onclick=()=>{if(state.selected==null)return;commit();state.els.splice(state.selected,1);state.selected=null;syncUI();};
+  wrap.querySelector("#up").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.push(e);state.selected=state.els.length-1;syncUI();};
+  wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
+  wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
+  wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
+  window.addEventListener("keydown",function kd(ev){
+    if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
+    if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
+    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
+  });
+
+  /* ---- 发布谜题 ---- */
+  let packCache=null;
+  async function loadPack(){ if(!packCache){ const r=await fetch("image-pack-64.json"); packCache=await r.json(); } return packCache; }
+  wrap.querySelector("#publish").onclick=()=>{ if(state.els.length===0){ toast("先画点什么再发布吧"); return; } openPublish(); };
+  async function openPublish(){
+    const pack=await loadPack();
+    const cats=[...new Set(pack.images.map(g=>g.category))];
+    let pickedImage=null, mode="image";
+    const mask=html("div",{class:"mask"});
+    mask.innerHTML=`
+    <div class="modal">
+      <h2>发布谜题 · 设置答案</h2>
+      <label class="radio-line"><input type="radio" name="ansmode" value="image" checked> 从图库选一张作为答案</label>
+      <div class="cat-tabs" id="cat-tabs"></div>
+      <div class="img-grid" id="img-grid"></div>
+      <div class="img-picked" id="img-picked">尚未选择照片</div>
+      <label class="radio-line"><input type="radio" name="ansmode" value="custom"> 自定义答案词（多个用逗号分隔，猜中任意一个即对）</label>
+      <input id="custom-words" placeholder="例如：帆船, 小船, 海" style="display:none;width:100%;box-sizing:border-box;margin-top:6px">
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="cancel">取消</button>
+        <button class="primary" id="confirm">确认发布</button>
+      </div>
+    </div>`;
+    $app.appendChild(mask);
+    const catTabs=mask.querySelector("#cat-tabs"), imgGrid=mask.querySelector("#img-grid"), pickedEl=mask.querySelector("#img-picked"), customEl=mask.querySelector("#custom-words");
+    let cat=cats[0];
+    function drawCats(){
+      catTabs.innerHTML="";
+      cats.forEach(c=>{
+        const b=html("button",{class:"cat-tab"+(c===cat?" on":"")},c);
+        b.onclick=()=>{cat=c;drawCats();drawImgs();};
+        catTabs.appendChild(b);
+      });
+    }
+    function drawImgs(){
+      imgGrid.innerHTML="";
+      pack.images.filter(g=>g.category===cat).forEach(g=>{
+        const b=html("button",{class:"img-cell"+(pickedImage&&pickedImage.id===g.id?" on":""),title:g.zh});
+        b.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${g.zh}"><span>${g.zh}</span>`;
+        b.onclick=()=>{pickedImage=g;drawImgs();pickedEl.textContent=`已选：${g.zh}（类别：${g.category}）`;};
+        imgGrid.appendChild(b);
+      });
+    }
+    drawCats(); drawImgs();
+    [...mask.querySelectorAll("input[name=ansmode]")].forEach(r=>{
+      r.onchange=()=>{mode=r.value;customEl.style.display=mode==="custom"?"block":"none";imgGrid.style.display=mode==="custom"?"none":"grid";catTabs.style.display=mode==="custom"?"none":"flex";};
+    });
+    mask.querySelector("#cancel").onclick=()=>mask.remove();
+    mask.querySelector("#confirm").onclick=async()=>{
+      const btn=mask.querySelector("#confirm"); btn.disabled=true; btn.textContent="发布中…";
+      const body={canvas:state.els,answerMode:mode};
+      if(mode==="image"){
+        if(!pickedImage){toast("请从图库选择一张答案照片");btn.disabled=false;btn.textContent="确认发布";return;}
+        body.imageId=pickedImage.id;
+      } else {
+        body.customWords=customEl.value.split(/[,，、\s]+/).filter(Boolean);
+        if(body.customWords.length===0){toast("请填写至少一个答案词");btn.disabled=false;btn.textContent="确认发布";return;}
+      }
+      try{
+        const r=await fetch("/api/puzzle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const j=await r.json();
+        if(!j.ok){toast("发布失败："+(j.err||"未知错误"));btn.disabled=false;btn.textContent="确认发布";return;}
+        mask.remove(); showPublished(j.id);
+      }catch(e){toast("网络错误，请重试");btn.disabled=false;btn.textContent="确认发布";}
+    };
+  }
+  function showPublished(id){
+    const link=location.origin+location.pathname+"#/puzzle/"+id;
+    const mask=html("div",{class:"mask"});
+    mask.innerHTML=`
+    <div class="modal center">
+      <h2>🎉 谜题已发布</h2>
+      <div class="puzzle-code">${id}</div>
+      <div class="note" style="text-align:center">把链接发给朋友，打开即可看画猜词</div>
+      <input class="link-box" id="linkbox" value="${esc(link)}" readonly>
+      <div class="row" style="justify-content:center;margin-top:12px">
+        <button class="primary" id="copylink">复制链接</button>
+        <button class="ghost" id="trylink">自己先试试</button>
+      </div>
+    </div>`;
+    $app.appendChild(mask);
+    const copyBtn=mask.querySelector("#copylink");
+    copyBtn.onclick=()=>{
+      const lb=mask.querySelector("#linkbox"); lb.select();
+      try{ document.execCommand("copy"); toast("链接已复制"); }
+      catch(e){ toast("请长按链接手动复制"); }
+    };
+    mask.querySelector("#trylink").onclick=()=>{mask.remove();location.hash="#/puzzle/"+id;};
+  }
+  syncUI();
+}
+
+async function renderPuzzleGuess(id){
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  wrap.innerHTML=`
+  <div class="topbar">
+    <button class="ghost" id="back">← 首页</button>
+    <span class="title">猜谜 · ${esc(id)}</span>
+    <span class="spacer"></span>
+  </div>
+  <div class="stage-wrap" style="max-width:560px;margin:0 auto">
+    <svg class="stage" id="stage"></svg>
+    <div class="hint" id="hint">看看这幅画，猜猜作者画的是什么</div>
+  </div>
+  <div class="card" style="max-width:560px;margin:12px auto">
+    <div class="row" id="guess-row">
+      <input id="guess-input" placeholder="输入你的猜测…" autocomplete="off">
+      <button class="primary" id="guess-send">猜</button>
+    </div>
+    <div id="guess-fb" class="guess-fb"></div>
+  </div>`;
+  $app.appendChild(wrap);
+  wrap.querySelector("#back").onclick=()=>location.hash="#/";
+  const fbEl=wrap.querySelector("#guess-fb");
+  let data=null;
+  try{
+    const r=await fetch("/api/puzzle/"+encodeURIComponent(id));
+    if(r.status===404){ fbEl.innerHTML=`<div class="fb miss">这个谜题不存在或已过期（谜题 24 小时后自动清理）。</div>`; return; }
+    data=await r.json();
+  }catch(e){ fbEl.innerHTML=`<div class="fb miss">加载失败，请检查网络后刷新。</div>`; return; }
+  const svg=wrap.querySelector("#stage");
+  renderArtwork(svg,data.canvas);
+  const hint=wrap.querySelector("#hint");
+  hint.textContent=`作者画了 ${data.canvas.length} 个元素 · 猜中答案即可看到谜底`;
+  const input=wrap.querySelector("#guess-input"), send=wrap.querySelector("#guess-send");
+  function doGuess(){
+    const text=input.value.trim();
+    if(!text) return;
+    send.disabled=true;
+    fetch("/api/puzzle/"+encodeURIComponent(id)+"/guess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})})
+      .then(r=>r.json()).then(j=>{
+        send.disabled=false;
+        if(j.err){ fbEl.innerHTML=`<div class="fb miss">谜题不存在或已过期。</div>`; return; }
+        if(j.correct){
+          let ansText="";
+          if(j.answer && j.answer.mode==="image") ansText=`谜底是「${j.answer.zh}」（${j.answer.category}）`;
+          else if(j.answer && j.answer.mode==="custom") ansText=`谜底是「${j.answer.words.join(" / ")}」`;
+          else ansText="答对了";
+          fbEl.innerHTML=`<div class="fb hit">🎉 答对了！${ansText}</div>`;
+        } else {
+          fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
+        }
+      }).catch(()=>{ send.disabled=false; fbEl.innerHTML=`<div class="fb miss">网络错误，请重试。</div>`; });
+  }
+  send.onclick=doGuess;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") doGuess(); });
+}
+
+/* ---- 单人谜题自检 ---- */
+async function runPuzzleTest(){
+  const rows=[];
+  const log=(ok,msg)=>{ rows.push({ok,msg}); };
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const origFetch=window.fetch;
+  window.fetch=async (url,opts)=>{
+    const u=String(url);
+    if(opts && opts.method==="POST" && u.includes("/guess")){
+      const body=JSON.parse(opts.body||"{}");
+      if(String(body.text||"").includes("大象")) return {status:200,ok:true,json:async()=>({ok:true,correct:true,level:"exact",word:"大象",pts:5,answer:{mode:"image",zh:"大象",category:"动物"}})};
+      return {status:200,ok:true,json:async()=>({ok:true,correct:false})};
+    }
+    if(opts && opts.method==="POST" && u.includes("/api/puzzle")) return {status:200,ok:true,json:async()=>({ok:true,id:"ABCDEF",url:"/巧手猜图.html#/puzzle/ABCDEF"})};
+    if(u.includes("/api/puzzle/") && u.endsWith("mock1")) return {status:200,ok:true,json:async()=>({ok:true,canvas:[{kind:"circle",x:10,y:10,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],answerMode:"image"})};
+    if(u.endsWith("image-pack-64.json")) return {status:200,ok:true,json:async()=>({images:[{id:"ani-elephant",category:"动物",zh:"大象",exact:"大象",keywords:["森林","鼻子"],aliases:["象"],category_word:"动物"},{id:"ani-giraffe",category:"动物",zh:"长颈鹿",exact:"长颈鹿",keywords:["草原","脖子"],aliases:["鹿"],category_word:"动物"}]})};
+    return {status:200,ok:true,json:async()=>({ok:true})};
+  };
+  try{
+    location.hash="#/puzzle"; route(); await sleep(60);
+    log(!!document.querySelector("#publish"),"创作页有发布按钮");
+    log(document.querySelectorAll("#tabs button").length===2,"工具 tabs 2 个");
+    log(document.querySelectorAll(".shape-grid button").length===12,"形状网格 12 个");
+    log(document.querySelectorAll(".shape-grid button b").length===12,"形状图标带文字标签");
+    const wt=document.querySelector(".shape-grid button[title=水滴] b");
+    log(!!wt && wt.textContent==="水滴","水滴图标带「水滴」标签");
+    const defaultTool=[...document.querySelectorAll("#tabs button")].find(b=>b.className==="on");
+    log(!!defaultTool && defaultTool.textContent==="形状","默认工具=形状");
+    // 浮动放置：click 圆形 → 浮动出现 → 点画布放置
+    const circ=[...document.querySelectorAll(".shape-grid button")].find(b=>b.title==="圆形");
+    circ.click(); await sleep(30);
+    const stage=document.querySelector("#stage");
+    const r1=stage.getBoundingClientRect();
+    stage.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
+    stage.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
+    await sleep(40);
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"点击画布放置 1 个圆形");
+    // 发布弹层
+    document.querySelector("#publish").click(); await sleep(60);
+    log(!!document.querySelector(".mask .modal"),"发布弹层打开");
+    log(document.querySelectorAll(".cat-tabs .cat-tab").length>=1,"图库类别 tab 出现");
+    log(!!document.querySelector(".img-grid .img-cell"),"图库缩略图出现");
+    document.querySelector("#cancel").click(); await sleep(20);
+    // 猜题页
+    location.hash="#/puzzle/mock1"; route(); await sleep(80);
+    log(document.querySelectorAll("#stage g[data-kind]").length===1,"猜题页渲染只读画布 1 元素");
+    log(!!document.querySelector("#guess-input"),"猜题页有输入框");
+    const input=document.querySelector("#guess-input"), send=document.querySelector("#guess-send");
+    input.value="大象"; send.click(); await sleep(60);
+    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("答对了"),"猜中显示答对+谜底");
+    input.value="猫"; send.click(); await sleep(60);
+    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("不对"),"未中显示不对");
+    // 发布成功视图（直接调 showPublished 需要 context，跳过——用 POST stub 走创作页 confirm）
+  }catch(e){ log(false,"异常: "+e.message); }
+  window.fetch=origFetch;
+  const pass=rows.filter(r=>r.ok).length;
+  $app.innerHTML="";
+  const w=html("div",{class:"wrap"});
+  w.innerHTML=`<div class="card"><h2>单人谜题自检 · ${pass}/${rows.length}</h2><table class="test-tbl"><tbody>${rows.map(r=>`<tr class="${r.ok?"pass":"fail"}"><td>${r.ok?"PASS":"FAIL"}</td><td>${esc(r.msg)}</td></tr>`).join("")}</tbody></table><div class="note">本页是内部自检报告，正式版不含此页。</div></div>`;
+  $app.appendChild(w);
+}
+
 
 /* ================= 创作编辑器（出题人视角） ================= */
 function renderEditor(){
   const wall=(__PW.wall||[]).slice();
   const target=__PW.target;
   const state={
-    wall, target, els:[], selected:null, tool:"pen", pickShape:"circle",
+    wall, target, els:[], selected:null, tool:"shape", pickShape:"circle",
     color:COLORS[0], opacity:0.7, strokeW:3, history:[], future:[], finished:false
   };
   let timerId=null;
@@ -386,7 +906,7 @@ function renderEditor(){
   /* 工具 tabs */
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;syncUI();};
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;renderGhost();syncUI();};
     tabsEl.appendChild(b);
   });
   /* 颜色 */
@@ -418,6 +938,12 @@ function renderEditor(){
   function addShapeAt(x,y){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
+    if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+  }
+  function togglePick(kind){
+    if(state.pickShape===kind && state.ghost){ state.ghost=null; }
+    else { state.pickShape=kind; state.ghost={x:null,y:null}; }
+    state.selected=null; renderGhost(); syncUI();
   }
   /* 工具内容 */
   function buildToolBody(){
@@ -432,12 +958,38 @@ function renderEditor(){
       const grid=html("div",{class:"shape-grid"});
       SHAPES.forEach(s0=>{
         const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
-        b.innerHTML=shapeIcon(s0.kind,state.color);
-        b.onclick=()=>{state.pickShape=s0.kind;buildToolBody();};
+        b.innerHTML=shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
+        let pointerUsed=false;
+        b.addEventListener("pointerdown",(ev)=>{
+          pointerUsed=true; ev.preventDefault();
+          const wasOn=state.pickShape===s0.kind && !!state.ghost;
+          state.pickShape=s0.kind;
+          state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+          let dragged=false;
+          const mv=(e)=>{
+            const p=pt(e);
+            if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+          };
+          const up=()=>{
+            document.removeEventListener("pointermove",mv);
+            document.removeEventListener("pointerup",up);
+            if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
+              addShapeAt(state.ghost.x,state.ghost.y);
+            } else if(!dragged && wasOn){
+              state.ghost=null; renderGhost(); syncUI();
+            }
+          };
+          document.addEventListener("pointermove",mv);
+          document.addEventListener("pointerup",up);
+        });
+        b.addEventListener("click",(ev)=>{
+          if(!pointerUsed){ togglePick(s0.kind); }
+          pointerUsed=false;
+        });
         grid.appendChild(b);
       });
       bodyEl.appendChild(grid);
-      bodyEl.appendChild(html("div",{class:"note"},"点形状选中，再点击画布空白处放置；点元素可拖动、拖角缩放、拖顶部圆点旋转。" ));
+      bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
     }
   }
   buildToolBody();
@@ -448,6 +1000,7 @@ function renderEditor(){
   const NS="http://www.w3.org/2000/svg";
   let canvasTimer=null;
   function scheduleCanvas(){ if(canvasTimer)return; canvasTimer=setTimeout(()=>{canvasTimer=null; __PW.send({t:"canvas",els:state.els});},200); }
+  let ghostG=null;
   function draw(){
     renderArtwork(svg,state.els);
     if(state.selected!=null && state.els[state.selected]){
@@ -469,12 +1022,22 @@ function renderEditor(){
       svg.appendChild(g);
     }
     scheduleCanvas();
+    renderGhost();
   }
 
   function pt(ev){
     const m=svg.getScreenCTM();
     const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
     return {x:p.x,y:p.y};
+  }
+  function renderGhost(){
+    if(ghostG){ ghostG.remove(); ghostG=null; }
+    if(state.tool!=="shape" || !state.ghost || state.ghost.x==null) return;
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    ghostG=shapeFor({kind:s0.kind,x:state.ghost.x,y:state.ghost.y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:0.45});
+    ghostG.setAttribute("pointer-events","none");
+    ghostG.setAttribute("data-ghost","1");
+    svg.appendChild(ghostG);
   }
   let drag=null;
   svg.addEventListener("pointerdown",ev=>{
@@ -491,7 +1054,7 @@ function renderEditor(){
     } else {
       const gg=ev.target.closest("g[data-kind]");
       if(gg){
-        const idx=[...svg.querySelectorAll("g[data-kind]")].indexOf(gg);
+        const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
         state.selected=idx;
         drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
         commit(); draw();
@@ -506,8 +1069,11 @@ function renderEditor(){
     }
   });
   svg.addEventListener("pointermove",ev=>{
-    if(!drag)return;
     const p=pt(ev);
+    if(!drag){
+      if(state.tool==="shape" && state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
+      return;
+    }
     if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
     else if(drag.type==="rot"){
       const e=drag.e;
@@ -1064,7 +1630,7 @@ async function runOnlineTest(){
     rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("1:"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
-    document.querySelector(".tabs").children[1].click();
+    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
     [...document.querySelectorAll("#toolbody button")].find(b=>b.title==="圆形").click();
     const srect=ed.svg.getBoundingClientRect();
     ed.svg.dispatchEvent(new PointerEvent("pointerdown",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));

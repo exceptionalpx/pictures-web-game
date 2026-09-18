@@ -7,7 +7,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { WebSocket } = require("ws");
-const { Room, RoomManager, startServer, IMAGES, PACK, matchLevel, normalizeWord } = require("./server.js");
+const { Room, RoomManager, startServer, IMAGES, PACK, matchLevel, normalizeWord, PuzzleStore } = require("./server.js");
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -352,6 +352,31 @@ test("画布元素扩展：12 种 kind + opacity/rot 透传 / 非法与超限拒
   assert.equal(bad.err, "invalid", "非数组拒绝");
   const over = room.setCanvas(d, els.concat(Array.from({length:60},()=>els[0])));
   assert.equal(over.err, "invalid", "超上限拒绝");
+});
+
+test("单人谜题：创建（词表图/自定义词）→ 读取不含答案 → 三级判定 → 边界拒绝", () => {
+  const p1 = PuzzleStore.create({canvas:[{kind:"circle",x:1,y:2,w:90,h:90,rot:0,color:"#000",opacity:0.7}], answerMode:"image", imageId:"ani-elephant"});
+  assert.equal(p1.ok, true, "词表图谜题创建");
+  const got = PuzzleStore.get(p1.id);
+  assert.ok(got, "可读取");
+  assert.equal(got.canvas.length, 1, "画布保留");
+  assert.equal(got.answerMode, "image");
+  assert.equal(got.answerExact, undefined, "读取对象不含答案词");
+  const g1 = PuzzleStore.guess(p1.id, "动物");
+  assert.equal(g1.correct, true); assert.equal(g1.level, "category"); assert.equal(g1.pts, 1, "类别 +1");
+  const g2 = PuzzleStore.guess(p1.id, "大象");
+  assert.equal(g2.correct, true); assert.equal(g2.level, "exact"); assert.equal(g2.pts, 5, "准确 +5");
+  assert.equal(PuzzleStore.guess(p1.id, "长颈鹿").correct, false, "他图词不命中");
+  const p2 = PuzzleStore.create({canvas:[{kind:"bar",x:1,y:2,w:14,h:100,rot:0,color:"#000"}], answerMode:"custom", customWords:["帆船","小船","帆"]});
+  assert.equal(p2.ok, true, "自定义词谜题");
+  const c1 = PuzzleStore.guess(p2.id, "一艘帆船在海上");
+  assert.equal(c1.correct, true); assert.equal(c1.level, "exact"); assert.equal(c1.word, "帆船", "自定义词包含命中");
+  assert.equal(PuzzleStore.guess(p2.id, "游艇").correct, false, "不含答案词不中");
+  const bad = PuzzleStore.create({canvas:[], answerMode:"image", imageId:"ani-elephant"});
+  assert.equal(bad.err, "invalid_canvas", "空画布拒绝");
+  const bad2 = PuzzleStore.create({canvas:[{kind:"circle",x:1,y:2,w:9,h:9,rot:0,color:"#000"}], answerMode:"custom", customWords:["  "]});
+  assert.equal(bad2.err, "invalid_words", "空答案词拒绝");
+  assert.equal(PuzzleStore.guess("ZZZZZZ", "动物").err, "not_found", "不存在谜题");
 });
 
 test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {

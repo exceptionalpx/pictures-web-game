@@ -337,11 +337,91 @@ class RoomManager {
   }
 }
 
+/* ================= 单人谜题（异步猜图：画好→分享链接→朋友猜） ================= */
+const PuzzleStore = {
+  map: new Map(),
+  ttl: 24*3600*1000,   // 24 小时过期
+  cap: 100,            // 上限 100 条，超出清最旧
+  CODE: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+  genId(){
+    let s="";
+    for(let i=0;i<6;i++) s += this.CODE[Math.floor(Math.random()*this.CODE.length)];
+    return s;
+  },
+  create({canvas, answerMode, imageId, customWords}){
+    if(!Array.isArray(canvas) || canvas.length===0 || canvas.length>ONLINE.elementCap) return { err:"invalid_canvas" };
+    if(answerMode === "image"){
+      const img = IMAGES.find(g=>g.id===imageId) || IMAGES.find(g=>g.exact===String(imageId||"").trim());
+      if(!img) return { err:"invalid_image" };
+      let id; do{ id=this.genId(); }while(this.map.has(id));
+      this.map.set(id, { id, canvas, answerMode:"image", imageId:img.id, createdAt:Date.now() });
+      this.cleanup();
+      return { ok:true, id };
+    }
+    if(answerMode === "custom"){
+      const words = (customWords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean);
+      if(words.length===0) return { err:"invalid_words" };
+      let id; do{ id=this.genId(); }while(this.map.has(id));
+      this.map.set(id, { id, canvas, answerMode:"custom", words, createdAt:Date.now() });
+      this.cleanup();
+      return { ok:true, id };
+    }
+    return { err:"invalid_mode" };
+  },
+  get(id){
+    const key = String(id||"").toUpperCase();
+    const p = this.map.get(key);
+    if(!p) return null;
+    if(Date.now()-p.createdAt > this.ttl){ this.map.delete(key); return null; }
+    return p;
+  },
+  cleanup(now = Date.now()){
+    for(const [id,p] of this.map){ if(now-p.createdAt > this.ttl) this.map.delete(id); }
+    if(this.map.size > this.cap){
+      const oldest = [...this.map.entries()].sort((a,b)=>a[1].createdAt-b[1].createdAt);
+      for(const [k] of oldest.slice(0, this.map.size - this.cap)) this.map.delete(k);
+    }
+  },
+  guess(id, text){
+    const p = this.get(id);
+    if(!p) return { err:"not_found" };
+    const t = normalizeWord(String(text||"").trim());
+    if(!t) return { ok:true, correct:false };
+    if(p.answerMode === "image"){
+      const img = IMAGES.find(g=>g.id===p.imageId);
+      if(!img) return { ok:true, correct:false };
+      const m = matchLevel(t, img);
+      if(!m.hit) return { ok:true, correct:false };
+      return { ok:true, correct:true, level:m.level, word:m.word, pts:m.pts, answer:{ mode:"image", zh:img.zh, category:img.category, exact:img.exact } };
+    }
+    const hit = p.words.find(w => t.includes(w));
+    if(!hit) return { ok:true, correct:false };
+    return { ok:true, correct:true, level:"exact", word:hit, pts:5, answer:{ mode:"custom", words:p.words } };
+  }
+};
+
 /* ================= 网络层 ================= */
 function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   const app = express();
+  app.use(express.json({ limit: "1mb" }));
   app.get("/health", (req, res) => res.type("text/plain").send("ok"));
   app.get("/", (req, res) => res.redirect(302, "/巧手猜图.html"));
+  // 单人谜题 API：创建（发布）/ 读取（不含答案）/ 猜词判定
+  app.post("/api/puzzle", (req, res) => {
+    const r = PuzzleStore.create(req.body || {});
+    if(r.err) return res.status(400).json({ err:r.err });
+    res.json({ ok:true, id:r.id, url:"/巧手猜图.html#/puzzle/"+r.id });
+  });
+  app.get("/api/puzzle/:id", (req, res) => {
+    const p = PuzzleStore.get(req.params.id);
+    if(!p) return res.status(404).json({ err:"not_found" });
+    res.json({ ok:true, canvas:p.canvas, answerMode:p.answerMode });
+  });
+  app.post("/api/puzzle/:id/guess", (req, res) => {
+    const r = PuzzleStore.guess(req.params.id, (req.body||{}).text);
+    if(r.err) return res.status(404).json({ err:r.err });
+    res.json(r);
+  });
   // 照片墙缩略图与大图长缓存；其余静态文件不缓存（保证 HTML 实时更新）
   app.use("/images-thumb", express.static(path.join(__dirname, "images-thumb"), { maxAge: "1d" }));
   app.use("/images", express.static(path.join(__dirname, "images"), { maxAge: "1d" }));
@@ -499,6 +579,6 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   return { app, server, wss, manager, ready };
 }
 
-module.exports = { ONLINE, IMAGES, PACK, normalizeWord, matchLevel, STAGE, Room, RoomManager, startServer };
+module.exports = { ONLINE, IMAGES, PACK, normalizeWord, matchLevel, STAGE, Room, RoomManager, PuzzleStore, startServer };
 
 if(require.main === module){ startServer(); }
