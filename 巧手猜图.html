@@ -69,8 +69,9 @@ a{color:var(--brand-d)}
 .timer{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700;background:#F3EFE5;border-radius:10px;padding:6px 14px;min-width:84px;text-align:center}
 .timer.urgent{color:var(--bad);background:#FDE8E8}
 /* 创作布局 */
-.editor{display:grid;grid-template-columns:240px 1fr 250px;gap:14px;align-items:start}
+.editor{display:grid;grid-template-columns:1fr;gap:14px;justify-items:center}
 .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.editor .wall-panel{width:220px;max-width:100%}
 .wall-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .cell{position:relative;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);background:#FCFBF8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;overflow:hidden}
 .cell img{width:100%;height:100%;object-fit:cover;display:block}
@@ -86,7 +87,7 @@ a{color:var(--brand-d)}
 .target-card{display:flex;flex-direction:column;gap:8px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px}
 .target-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
 .target-card .sub{margin-top:2px}
-.feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px}
+.feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px;max-width:640px;width:100%}
 .feed-panel h2{font-size:15px;margin-bottom:8px}
 .feed{display:flex;flex-direction:column;gap:4px;max-height:148px;overflow-y:auto}
 .feed .fitem{display:flex;gap:8px;align-items:center;font-size:14px;padding:4px 8px;border-radius:8px;background:#FAF7EF}
@@ -95,9 +96,17 @@ a{color:var(--brand-d)}
 .feed .fitem .tag{font-weight:700;color:#1B7F3B}
 .feed .fitem.no .tag{color:#A83226}
 .stage-wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
-.stage{width:100%;max-width:520px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
+.stage{width:100%;max-width:640px;height:auto;background:var(--stage);border-radius:14px;box-shadow:inset 0 0 0 2px var(--line),0 4px 16px rgba(38,48,58,.12);touch-action:none;display:block}
 .stage text{user-select:none;font-family:-apple-system,"Apple Color Emoji","Segoe UI Emoji","PingFang SC",sans-serif}
 .hint{font-size:13px;color:var(--muted);text-align:center;min-height:20px}
+/* 画布下方功能条（工具 tabs + 颜色 + 不透明度） */
+.tool-bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px;width:100%;max-width:640px;justify-content:center;padding:12px 14px}
+.tb-group{display:flex;flex-direction:column;gap:4px;align-items:center}
+.tb-group h3{font-size:11px;color:var(--muted);margin:0;font-weight:600}
+.tb-group .note{font-size:12px;color:var(--muted);text-align:center}
+.tool-bar .row{display:flex;align-items:center;gap:6px}
+.tool-bar .counter{font-size:12px;color:var(--muted);align-self:center;white-space:nowrap}
+.tb-note{flex-basis:100%;text-align:center;margin:0}
 /* 画布下方操作组 */
 .stage-wrap{position:relative}
 .canvas-ops{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;width:100%}
@@ -105,8 +114,10 @@ a{color:var(--brand-d)}
 .canvas-ops button.arm{background:#FFF3E0;border-color:#FFA94D;color:#D9480F;font-weight:700}
 .op-state{font-size:10px;color:#868E96;margin-left:6px;white-space:nowrap}
 /* 窄屏画布左侧形状栏（2 列竖排，不重叠画布） */
-.stage-row{position:relative;display:flex;gap:8px;align-items:flex-start;width:100%}
-.shape-rail{display:none;flex:none;flex-direction:column;gap:4px;padding:6px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.stage-row{position:relative;display:flex;gap:8px;align-items:flex-start;width:732px;max-width:100%;margin:0 auto}
+.stage-row .stage{flex:1;max-width:none;min-width:0}
+.shape-rail{display:flex;flex:none;flex-direction:column;gap:4px;padding:6px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.shape-rail:not(.open){display:none}
 .shape-rail .rail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px}
 .shape-rail button{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:8px;background:transparent;padding:0}
 .shape-rail button.on{background:#EDF1FF;border-color:var(--brand)}
@@ -115,21 +126,16 @@ a{color:var(--brand-d)}
 .shape-rail-mini{display:none;position:absolute;left:6px;top:6px;z-index:5;width:38px;height:38px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,.15);align-items:center;justify-content:center;font-size:16px;color:var(--brand);cursor:pointer}
 .shape-rail-mini.show{display:flex}
 @media(max-width:600px){
-  .shape-rail.open{display:flex}
-  .stage-row .stage{flex:1;max-width:none;min-width:0}
-  .tool-panel .shape-grid{display:none}
-}
-@media(min-width:601px){
-  .shape-rail{display:none !important}
-  .shape-rail-mini{display:none !important}
+  .stage-row{width:100%}
+  .tool-bar{max-width:none}
 }
 /* 工具箱 */
-.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:10px}
-.tabs button{padding:7px 2px;font-size:12px;line-height:1.2}
+.tabs{display:flex;gap:4px;margin:0}
+.tabs button{padding:6px 14px;font-size:12px;line-height:1.2;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
 .tabs button.on{background:var(--brand);color:#fff;font-weight:600}
-.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
-.swatch{aspect-ratio:1;border-radius:50%;padding:0;border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--line)}
-.swatch.on{box-shadow:0 0 0 2.5px var(--ink)}
+.swatches{display:flex;gap:5px;margin:0;flex-wrap:wrap;justify-content:center}
+.swatch{width:22px;height:22px;border-radius:50%;padding:0;border:2px solid #fff;box-shadow:0 0 0 1.5px var(--line);cursor:pointer}
+.swatch.on{box-shadow:0 0 0 2px var(--ink)}
 .add-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
 .add-grid button{padding:0;aspect-ratio:1;font-size:20px;line-height:1}
 .shape-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
@@ -172,9 +178,6 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 th{background:#F3EFE5}
 @media(max-width:860px){
   .editor{grid-template-columns:1fr}
-  .panel.wall-panel{order:1}
-  .stage-wrap{order:2}
-  .panel.tool-panel{order:3}
   .wall-grid{grid-template-columns:repeat(8,1fr)}
   .rule-grid{grid-template-columns:1fr}
   /* ---- 移动端优化 ---- */
@@ -191,7 +194,7 @@ th{background:#F3EFE5}
   .cell{border-radius:7px}
   .tabs{gap:3px}
   .tabs button{font-size:11px;padding:6px 2px}
-  .swatches,.add-grid,.shape-grid{gap:5px}
+  .add-grid{gap:5px}
   .row{gap:5px}
   .row button{font-size:12px;padding:8px 6px}
 }
@@ -398,6 +401,14 @@ function renderPuzzleEditor(){
         <svg class="stage" id="stage"></svg>
       </div>
       <div class="hint" id="hint"></div>
+      <div class="tool-bar panel">
+        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
+        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
+        <div class="tb-group" id="toolbody"></div>
+        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
+        <div class="note tb-note">点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；点元素可拖动/缩放/旋转。画完点右上角「发布谜题」，把链接发给朋友猜。</div>
+      </div>
       <div class="canvas-ops">
         <button id="up">置顶</button>
         <button id="down">置底</button>
@@ -406,17 +417,6 @@ function renderPuzzleEditor(){
         <button id="redo">↪ 重做</button>
         <button id="clear">清空</button>
       </div>
-    </div>
-    <div class="panel tool-panel">
-      <h2>创作工具</h2>
-      <div class="tabs" id="tabs"></div>
-      <h3>颜色</h3>
-      <div class="swatches" id="swatches"></div>
-      <h3>不透明度</h3>
-      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div>
-      <div id="toolbody"></div>
-      <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-      <div class="note">点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；点元素可拖动/缩放/旋转。画完点右上角「发布谜题」，把链接发给朋友猜。</div>
     </div>
   </div>`;
   $app.appendChild(wrap);
@@ -475,6 +475,9 @@ function renderPuzzleEditor(){
       railEl.classList.toggle("open", !railCollapsed);
       railMini.classList.toggle("show", railCollapsed);
     }
+    document.querySelectorAll("[data-shape-btn]").forEach(btn=>{
+      btn.classList.toggle("on", state.pickShape===btn.dataset.kind);
+    });
     draw();
   }
   function addElement(e){
@@ -488,30 +491,26 @@ function renderPuzzleEditor(){
   }
   function togglePick(kind){
     if(state.pickShape===kind && state.ghost){ state.ghost=null; }
-    else { state.pickShape=kind; state.ghost={x:null,y:null}; }
+    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; }
     state.selected=null; renderGhost(); syncUI();
   }
   function makeShapeBtn(s0, inFloat){
-    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
     b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
     let pointerUsed=false;
     b.addEventListener("pointerdown",(ev)=>{
       pointerUsed=true; ev.preventDefault();
-      const wasOn=state.pickShape===s0.kind && !!state.ghost;
-      state.pickShape=s0.kind;
-      state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+      if(!state.ghost){ state.ghost={x:null,y:null}; }
       let dragged=false;
       const mv=(e)=>{
         const p=pt(e);
-        if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+        if(state.ghost){ state.pickShape=s0.kind; state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
       };
       const up=()=>{
         document.removeEventListener("pointermove",mv);
         document.removeEventListener("pointerup",up);
         if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
           addShapeAt(state.ghost.x,state.ghost.y);
-        } else if(!dragged && wasOn){
-          state.ghost=null; renderGhost(); syncUI();
         }
       };
       document.addEventListener("pointermove",mv);
@@ -532,10 +531,7 @@ function renderPuzzleEditor(){
       box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
       bodyEl.appendChild(box);
     } else if(t==="shape"){
-      const grid=html("div",{class:"shape-grid"});
-      SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,false)));
-      bodyEl.appendChild(grid);
-      bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
+      bodyEl.appendChild(html("div",{class:"note"},"点左侧形状，浮动图形跟随；点画布放置或拖到画布放下；再点同形状取消。" ));
     }
   }
   buildToolBody();
@@ -859,15 +855,21 @@ async function runPuzzleTest(){
     location.hash="#/puzzle"; route(); await sleep(60);
     log(!!document.querySelector("#publish"),"创作页有发布按钮");
     log(document.querySelectorAll("#tabs button").length===2,"工具 tabs 2 个");
-    log(document.querySelectorAll(".shape-grid button").length===12,"形状网格 12 个");
-    log(document.querySelectorAll(".shape-grid button b").length===12,"形状图标带文字标签");
-    const wt=document.querySelector(".shape-grid button[title=水滴] b");
-    log(!!wt && wt.textContent==="水滴","水滴图标带「水滴」标签");
+    log(document.querySelectorAll(".rail-grid button").length===12,"左列形状栏 12 图标");
+    log(!!document.querySelector(".rail-grid button[title=水滴]"),"水滴图标在左列可点");
+    const rtb=document.querySelector(".tool-bar");
+    log(!!rtb && !!rtb.querySelector("#tabs") && !!rtb.querySelector("#swatches") && !!rtb.querySelector("#opacity"),"画布下方功能条（工具/颜色/不透明度）");
     const defaultTool=[...document.querySelectorAll("#tabs button")].find(b=>b.className==="on");
     log(!!defaultTool && defaultTool.textContent==="形状","默认工具=形状");
     // 浮动放置：click 圆形 → 浮动出现 → 点画布放置
-    const circ=[...document.querySelectorAll(".shape-grid button")].find(b=>b.title==="圆形");
+    const circ=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形");
     circ.click(); await sleep(30);
+    log(!!document.querySelector("#stage g[data-ghost]"),"点击形状后浮动图形立即出现");
+    const tr=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="三角形");
+    tr.click(); await sleep(20);
+    const rbtns=[...document.querySelectorAll(".rail-grid button")];
+    log(rbtns.find(b=>b.title==="圆形").classList.contains("on")===false && rbtns.find(b=>b.title==="三角形").classList.contains("on")===true,"切换形状后高亮跟随新形状");
+    circ.click(); await sleep(20);
     const stage=document.querySelector("#stage");
     const r1=stage.getBoundingClientRect();
     stage.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
@@ -900,7 +902,7 @@ async function runPuzzleTest(){
     log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"二次确认前元素保留");
     document.querySelector("#clear").click(); await sleep(30);
     log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"二次确认后画布清空");
-    const star=[...document.querySelectorAll(".shape-grid button")].find(b=>b.title==="五角星");
+    const star=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="五角星");
     star.click(); await sleep(20);
     const st3=document.querySelector("#stage"); const r3=st3.getBoundingClientRect();
     st3.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r3.left+r3.width/2,clientY:r3.top+r3.height/2,pointerId:41}));
@@ -914,7 +916,7 @@ async function runPuzzleTest(){
     log(!!rail && rail.classList.contains("open") && rail.querySelectorAll(".rail-grid button").length===12,"窄屏画布左侧形状栏展开（12 图标）");
     log(!rail.querySelector("button b"),"形状栏仅图标无文字");
     const cssTxt=document.querySelector("style").textContent;
-    log(cssTxt.includes("@media(max-width:600px)") && cssTxt.includes(".shape-rail.open{display:flex}") && cssTxt.includes(".tool-panel .shape-grid{display:none}"),"窄屏 CSS 规则就位（左列显示/面板网格隐藏）");
+    log(cssTxt.includes("width:732px") && cssTxt.includes(".shape-rail:not(.open){display:none}") && cssTxt.includes(".tool-bar{display:flex"),"统一布局 CSS 就位（左列+640画布+功能条）");
     // 发布前补放一个元素（画布已被清空测试清空）
     circ.click(); await sleep(20);
     const st4=document.querySelector("#stage"); const r4=st4.getBoundingClientRect();
@@ -979,6 +981,14 @@ function renderEditor(){
         <svg class="stage" id="stage"></svg>
       </div>
       <div class="hint" id="hint"></div>
+      <div class="tool-bar panel">
+        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
+        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
+        <div class="tb-group" id="toolbody"></div>
+        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
+        <div class="note tb-note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
+      </div>
       <div class="canvas-ops">
         <button id="up">置顶</button>
         <button id="down">置底</button>
@@ -987,17 +997,6 @@ function renderEditor(){
         <button id="redo">↪ 重做</button>
         <button id="clear">清空</button>
       </div>
-    </div>
-    <div class="panel tool-panel">
-      <h2>创作工具</h2>
-      <div class="tabs" id="tabs"></div>
-      <h3>颜色</h3>
-      <div class="swatches" id="swatches"></div>
-      <h3>不透明度</h3>
-      <div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div>
-      <div id="toolbody"></div>
-      <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-      <div class="note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
     </div>
   </div>
   <div class="feed-panel">
@@ -1073,6 +1072,9 @@ function renderEditor(){
       railEl.classList.toggle("open", !railCollapsed);
       railMini.classList.toggle("show", railCollapsed);
     }
+    document.querySelectorAll("[data-shape-btn]").forEach(btn=>{
+      btn.classList.toggle("on", state.pickShape===btn.dataset.kind);
+    });
     draw();
   }
   function addElement(e){
@@ -1086,31 +1088,27 @@ function renderEditor(){
   }
   function togglePick(kind){
     if(state.pickShape===kind && state.ghost){ state.ghost=null; }
-    else { state.pickShape=kind; state.ghost={x:null,y:null}; }
+    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; }
     state.selected=null; renderGhost(); syncUI();
   }
   /* 工具内容 */
   function makeShapeBtn(s0, inFloat){
-    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name});
+    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
     b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
     let pointerUsed=false;
     b.addEventListener("pointerdown",(ev)=>{
       pointerUsed=true; ev.preventDefault();
-      const wasOn=state.pickShape===s0.kind && !!state.ghost;
-      state.pickShape=s0.kind;
-      state.ghost={x:null,y:null}; state.selected=null; renderGhost(); syncUI();
+      if(!state.ghost){ state.ghost={x:null,y:null}; }
       let dragged=false;
       const mv=(e)=>{
         const p=pt(e);
-        if(state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
+        if(state.ghost){ state.pickShape=s0.kind; state.ghost.x=p.x; state.ghost.y=p.y; dragged=true; renderGhost(); }
       };
       const up=()=>{
         document.removeEventListener("pointermove",mv);
         document.removeEventListener("pointerup",up);
         if(dragged && state.ghost && state.ghost.x!=null && state.ghost.x>=0 && state.ghost.x<=STAGE && state.ghost.y>=0 && state.ghost.y<=STAGE){
           addShapeAt(state.ghost.x,state.ghost.y);
-        } else if(!dragged && wasOn){
-          state.ghost=null; renderGhost(); syncUI();
         }
       };
       document.addEventListener("pointermove",mv);
@@ -1131,10 +1129,7 @@ function renderEditor(){
       box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
       bodyEl.appendChild(box);
     } else if(t==="shape"){
-      const grid=html("div",{class:"shape-grid"});
-      SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,false)));
-      bodyEl.appendChild(grid);
-      bodyEl.appendChild(html("div",{class:"note"},"点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；再点同形状取消。" ));
+      bodyEl.appendChild(html("div",{class:"note"},"点左侧形状，浮动图形跟随；点画布放置或拖到画布放下；再点同形状取消。" ));
     }
   }
   buildToolBody();
@@ -1797,7 +1792,7 @@ async function runOnlineTest(){
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
     [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
-    [...document.querySelectorAll("#toolbody button")].find(b=>b.title==="圆形").click();
+    [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形").click();
     const srect=ed.svg.getBoundingClientRect();
     ed.svg.dispatchEvent(new PointerEvent("pointerdown",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
     ed.svg.dispatchEvent(new PointerEvent("pointerup",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
