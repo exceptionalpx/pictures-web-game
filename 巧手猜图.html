@@ -215,8 +215,8 @@ const STAGE = 480;                 // 画布逻辑尺寸
 const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
 const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
 const TOOLS = [
-  {id:"shape", name:"形状", hint:"点下方形状，再点击画布或拖到画布放置；点元素可拖动/缩放/旋转/改色"},
-  {id:"pen",   name:"画笔", hint:"细线画笔：在画布上按住拖动，画细节或点睛"}
+  {id:"shape", name:"形状", hint:"点左侧形状，浮动图形跟手；点画布或拖到画布放置；再点同形状取消"},
+  {id:"pen",   name:"画笔", hint:"在画布上按住拖动绘制细线，用形状拼主体，画笔只做点睛"}
 ];
 const SHAPES = [
   {kind:"circle",     name:"圆形",   w:90,  h:90},
@@ -373,7 +373,6 @@ function renderHome(){
       <li>朋友在入口页输入房间码，或直接在<b>在线房间列表点击加入</b>。</li>
       <li>房主点“开始游戏”，按加入顺序每人出题一轮，每轮换一张新目标。</li>
     </ol>
-    <div class="note">本地运行：先启动服务端 <code>node server.js</code>（默认 http://localhost:4000），再打开本页面；部署到线上时前端会自动改用 wss 连接。</div>
   </div>`;
   w.querySelector("#go-online").addEventListener("click",()=>location.hash="#/online");
   w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
@@ -401,14 +400,6 @@ function renderPuzzleEditor(){
         <svg class="stage" id="stage"></svg>
       </div>
       <div class="hint" id="hint"></div>
-      <div class="tool-bar panel">
-        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
-        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
-        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
-        <div class="tb-group" id="toolbody"></div>
-        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-        <div class="note tb-note">点形状后会出现浮动图形：点画布放置，或按住拖到画布放下；点元素可拖动/缩放/旋转。画完点右上角「发布谜题」，把链接发给朋友猜。</div>
-      </div>
       <div class="canvas-ops">
         <button id="up">置顶</button>
         <button id="down">置底</button>
@@ -416,6 +407,13 @@ function renderPuzzleEditor(){
         <button id="undo">↩ 撤销</button>
         <button id="redo">↪ 重做</button>
         <button id="clear">清空</button>
+      </div>
+      <div class="tool-bar panel">
+        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
+        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
+        <div class="tb-group" id="toolbody"></div>
+        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       </div>
     </div>
   </div>`;
@@ -443,7 +441,7 @@ function renderPuzzleEditor(){
   renderRail();
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;renderGhost();syncUI();};
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
     tabsEl.appendChild(b);
   });
   COLORS.forEach(col=>{
@@ -488,10 +486,18 @@ function renderPuzzleEditor(){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
     if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+    document.removeEventListener("pointermove",followGhost);
+  }
+  function followGhost(e){
+    if(!state.ghost) return;
+    const p=pt(e);
+    state.ghost.x=Math.max(0,Math.min(STAGE,p.x));
+    state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
+    renderGhost();
   }
   function togglePick(kind){
-    if(state.pickShape===kind && state.ghost){ state.ghost=null; }
-    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; }
+    if(state.pickShape===kind && state.ghost){ state.ghost=null; document.removeEventListener("pointermove",followGhost); }
+    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; document.addEventListener("pointermove",followGhost); }
     state.selected=null; renderGhost(); syncUI();
   }
   function makeShapeBtn(s0, inFloat){
@@ -524,15 +530,6 @@ function renderPuzzleEditor(){
   }
   function buildToolBody(){
     bodyEl.innerHTML="";
-    const t=state.tool;
-    if(t==="pen"){
-      const box=html("div",{});
-      box.innerHTML=`<h3>细线画笔</h3>`;
-      box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
-      bodyEl.appendChild(box);
-    } else if(t==="shape"){
-      bodyEl.appendChild(html("div",{class:"note"},"点左侧形状，浮动图形跟随；点画布放置或拖到画布放下；再点同形状取消。" ));
-    }
   }
   buildToolBody();
   const origSync=syncUI;
@@ -859,6 +856,12 @@ async function runPuzzleTest(){
     log(!!document.querySelector(".rail-grid button[title=水滴]"),"水滴图标在左列可点");
     const rtb=document.querySelector(".tool-bar");
     log(!!rtb && !!rtb.querySelector("#tabs") && !!rtb.querySelector("#swatches") && !!rtb.querySelector("#opacity"),"画布下方功能条（工具/颜色/不透明度）");
+    log(document.querySelector("#hint").nextElementSibling===document.querySelector(".canvas-ops") && document.querySelector(".canvas-ops").nextElementSibling===rtb,"操作组位于画布与颜色区之间");
+    log(document.querySelector("#toolbody").children.length===0,"提示语统一到画布下方（功能条无说明文字）");
+    const hintEl0=document.querySelector("#hint");
+    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="画笔").click(); await sleep(20);
+    log(document.querySelector("#hint")===hintEl0 && document.querySelector("#hint").textContent.includes("画笔"),"画笔提示在画布下方同一位置");
+    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="形状").click(); await sleep(20);
     const defaultTool=[...document.querySelectorAll("#tabs button")].find(b=>b.className==="on");
     log(!!defaultTool && defaultTool.textContent==="形状","默认工具=形状");
     // 浮动放置：click 圆形 → 浮动出现 → 点画布放置
@@ -981,14 +984,6 @@ function renderEditor(){
         <svg class="stage" id="stage"></svg>
       </div>
       <div class="hint" id="hint"></div>
-      <div class="tool-bar panel">
-        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
-        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
-        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
-        <div class="tb-group" id="toolbody"></div>
-        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-        <div class="note tb-note">点选元素后拖动移动；拖角点缩放、拖顶部圆点旋转。Delete 删除，Ctrl+Z 撤销。</div>
-      </div>
       <div class="canvas-ops">
         <button id="up">置顶</button>
         <button id="down">置底</button>
@@ -996,6 +991,13 @@ function renderEditor(){
         <button id="undo">↩ 撤销</button>
         <button id="redo">↪ 重做</button>
         <button id="clear">清空</button>
+      </div>
+      <div class="tool-bar panel">
+        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
+        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
+        <div class="tb-group" id="toolbody"></div>
+        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       </div>
     </div>
   </div>
@@ -1038,7 +1040,7 @@ function renderEditor(){
   /* 工具 tabs */
   TOOLS.forEach(t=>{
     const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;renderGhost();syncUI();};
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
     tabsEl.appendChild(b);
   });
   /* 颜色 */
@@ -1085,10 +1087,18 @@ function renderEditor(){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
     if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
+    document.removeEventListener("pointermove",followGhost);
+  }
+  function followGhost(e){
+    if(!state.ghost) return;
+    const p=pt(e);
+    state.ghost.x=Math.max(0,Math.min(STAGE,p.x));
+    state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
+    renderGhost();
   }
   function togglePick(kind){
-    if(state.pickShape===kind && state.ghost){ state.ghost=null; }
-    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; }
+    if(state.pickShape===kind && state.ghost){ state.ghost=null; document.removeEventListener("pointermove",followGhost); }
+    else { state.pickShape=kind; state.ghost={x:STAGE/2,y:STAGE/2}; document.addEventListener("pointermove",followGhost); }
     state.selected=null; renderGhost(); syncUI();
   }
   /* 工具内容 */
@@ -1122,15 +1132,6 @@ function renderEditor(){
   }
   function buildToolBody(){
     bodyEl.innerHTML="";
-    const t=state.tool;
-    if(t==="pen"){
-      const box=html("div",{});
-      box.innerHTML=`<h3>细线画笔</h3>`;
-      box.appendChild(html("div",{class:"note"},"在画布上按住拖动绘制细线。用形状拼主体，画笔只做点睛。" ));
-      bodyEl.appendChild(box);
-    } else if(t==="shape"){
-      bodyEl.appendChild(html("div",{class:"note"},"点左侧形状，浮动图形跟随；点画布放置或拖到画布放下；再点同形状取消。" ));
-    }
   }
   buildToolBody();
   const origSync=syncUI;
