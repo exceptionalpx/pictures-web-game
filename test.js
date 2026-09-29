@@ -893,7 +893,7 @@ test("e2e：房间列表只列等待中房间", async () => {
   await new Promise(res => server.close(res));
 });
 
-/* ================= 设备身份 / 开局图库模式 / 房间共享图库 ================= */
+/* ================= 设备身份 / 开局图库模式 / 房间自定义图库 ================= */
 
 test("设备身份：同 device 退出重进复用原席位（昵称变化也不丢身份）", () => {
   const mgr = new RoomManager();
@@ -920,13 +920,13 @@ test("设备身份：同 device 活跃连接再进 → 复用并标记踢旧（�
   assert.equal(r.room.players.length, 1, "人数不增");
 });
 
-test("图库模式：default 只抽默认 64 图 / custom 抽共享图库 / 不足 16 张自动补齐", () => {
+test("图库模式：default 只抽默认 64 图 / custom 抽自定义图库 / 不足 16 张自动补齐", () => {
   const mgr = new RoomManager();
   const imgs = [];
   for(let i=0;i<20;i++) imgs.push({ zh:"自"+i, img:"data:image/jpeg;base64,AA"+i, exact:"词"+i, keywords:["联"+i], aliases:[], category_word:"类" });
   const r = mgr.create("房主", imgs, "devH");
   const host = r.pid;
-  assert.equal(r.room.customImages.length, 20, "20 张入共享库");
+  assert.equal(r.room.customImages.length, 20, "20 张入自定义图库");
 
   // default：墙内全为默认 64 图
   assert.equal(r.room.setPoolMode(host, "default").ok, true);
@@ -970,7 +970,7 @@ test("图库模式权限与锁定：非房主/非法模式拒绝；开局后锁�
   assert.equal(r.room.setPoolMode(host, "default").err, "not_lobby", "开局后锁定");
 });
 
-test("房间共享图库：全员上传 / 上限 32 / 去重 / 贡献者 / 开局锁定 / 房主移除", () => {
+test("房间自定义图库：全员上传 / 上限 32 / 去重 / 贡献者 / 开局锁定 / 房主移除", () => {
   const mgr = new RoomManager();
   const r = mgr.create("房主", null, "d1");
   const host = r.pid;
@@ -1023,7 +1023,7 @@ test("建房携带图上限 32：40 张只入 32", () => {
   assert.equal(ids.size, 32, "id 唯一");
 });
 
-test("e2e：图库模式/共享图库/顶号消息走网络层", async () => {
+test("e2e：图库模式/自定义图库/顶号消息走网络层", async () => {
   const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
   await ready;
   const port = server.address().port;
@@ -1034,7 +1034,7 @@ test("e2e：图库模式/共享图库/顶号消息走网络层", async () => {
   a.send({ t:"create", nickname:"房主甲", device:"devA" });
   const r1 = await a.waitFor(m => m.t === "created");
   assert.equal(r1.poolMode, "mixed", "created 携带默认图库模式");
-  assert.ok(Array.isArray(r1.customImgs), "created 携带共享库元信息");
+  assert.ok(Array.isArray(r1.customImgs), "created 携带自定义图库元信息");
 
   b.send({ t:"join", room_id: r1.room_id, nickname:"小红", device:"devB" });
   await a.waitFor(m => m.t === "player_joined");
@@ -1043,7 +1043,7 @@ test("e2e：图库模式/共享图库/顶号消息走网络层", async () => {
   b.send({ t:"add_img", zh:"恐龙", img:"data:image/jpeg;base64,AAAA", exact:"恐龙", keywords:["远古"], aliases:[], category_word:"动物" });
   const added = await a.waitFor(m => m.t === "img_added");
   assert.equal(added.img.contributor, "小红", "贡献者广播");
-  assert.equal(added.list.length, 1, "共享库 1 张");
+  assert.equal(added.list.length, 1, "自定义图库 1 张");
 
   // 房主 set_mode → 全房间广播
   a.send({ t:"set_mode", mode:"custom" });
@@ -1086,7 +1086,7 @@ test("房主让位：房主离线自动转移给第一个在线玩家，回归�
   r.room.players[0].connected = true;
   assert.equal(r.room.hostPlayer().pid, b, "A 回归不自动收回房主权");
   assert.equal(r.room.setPoolMode(a, "default").err, "not_host", "A 回归后仍非房主");
-  assert.equal(r.room.removeImg(a, "x").err, "not_host", "A 回归后不能移除共享图");
+  assert.equal(r.room.removeImg(a, "x").err, "not_host", "A 回归后不能移除自定义图");
   // B 离线 → 房主转移给第一个在线玩家（A 已回归在线，按席位顺序 A 在前 → A 成为房主）
   r.room.removePlayer(b);
   assert.equal(r.room.hostPlayer().pid, a, "B 离线后 A（已回归在线）成为房主");

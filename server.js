@@ -85,9 +85,9 @@ class Room {
     this.hostPid = null;              // 房主（建房者；离线自动转移给第一个在线玩家，回归不自动收回）
     this.drawerIdx = -1;
     this.wall = [];               // 每轮从图池（64 图 + 房主自定义图）随机抽 16 张（对象）
-    this.customImages = [];       // 房间共享自定义图库（全房间可上传；{id,img,imgUrl,zh,category,exact,keywords,aliases,category_word,contributor}）
-    this.poolMode = "mixed";      // 图库模式：default(64图) | custom(我的图库) | mixed(混合)，房主开局前选择
-    this.customCap = 32;          // 房间共享图库上限（开局后从中随机抽 16 张）
+    this.customImages = [];       // 房间自定义图库（全房间可上传；{id,img,imgUrl,zh,category,exact,keywords,aliases,category_word,contributor}）
+    this.poolMode = "mixed";      // 图库模式：default(64图) | custom(自定义图库) | mixed(混合)，房主开局前选择
+    this.customCap = 32;          // 房间自定义图库上限（开局后从中随机抽 16 张）
     this._imgSeq = 0;             // 共享图 id 递增序列
     this.target = -1;             // 服务端权威秘密目标（wall 内索引）
     this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
@@ -184,13 +184,13 @@ class Room {
     return { ok: true };
   }
 
-  /** 所有玩家在开局前可上传图片进房间共享图库（上限 customCap，按 dataURL 去重） */
+  /** 所有玩家在开局前可上传图片进房间自定义图库（上限 customCap，按 dataURL 去重） */
   addImg(pid, c){
     if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能上传图片" };
     const exact = normalizeWord(c.exact);
     const img = String(c.img||"").trim();
     if(!exact || !img || img.length > 1.5e6) return { err: "invalid", msg: "图片或准确词不合法" };
-    if(this.customImages.length >= this.customCap) return { err: "room_full", msg: "共享图库已满（"+this.customCap+" 张）" };
+    if(this.customImages.length >= this.customCap) return { err: "room_full", msg: "自定义图库已满（"+this.customCap+" 张）" };
     if(this.customImages.some(x => x.img === img)) return { err: "dup", msg: "这张图已经上传过了" };
     const p = this.findPlayer(pid);
     this._imgSeq++;
@@ -211,7 +211,7 @@ class Room {
     return { ok: true, item };
   }
 
-  /** 房主移除共享图库中的一张图（开局前） */
+  /** 房主移除自定义图库中的一张图（开局前） */
   removeImg(pid, imgId){
     if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能移除图片" };
     if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以移除图片" };
@@ -222,7 +222,7 @@ class Room {
     return { ok: true };
   }
 
-  /** 共享图库元信息（不含 dataURL 与词条答案），用于大厅展示与广播 */
+  /** 自定义图库元信息（不含 dataURL 与词条答案），用于大厅展示与广播 */
   customMeta(){
     return this.customImages.map(c => ({ id:c.id, zh:c.zh, category:c.category||"自定义", contributor:c.contributor||"", imgUrl:c.imgUrl }));
   }

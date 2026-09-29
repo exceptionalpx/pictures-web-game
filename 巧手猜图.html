@@ -355,8 +355,8 @@ function renderHome(){
   w.innerHTML=`
   <div class="hero">
     <h1>巧手猜图 · 网页版</h1>
-    <div class="sub">系统从 64 张真实照片里抽 16 张，你秘密抽到其中 1 张——用一套“不够像”的材料把它抽象地画出来，让朋友实时猜</div>
-    <div class="ruleset">ruleset_id: ${RULESET_ID} · 2–6 人 · 64 张写实照片 · 每轮 16 张随机</div>
+    <div class="sub">系统从照片库抽 16 张（房主可选默认图库 / 自定义图库 / 混合），你秘密抽到其中 1 张——用一套“不够像”的材料把它抽象地画出来，让朋友实时猜</div>
+    <div class="ruleset">2–6 人 · 64 张写实照片 · 每轮 16 张随机</div>
   </div>
   <div class="hero-actions">
     <button class="primary" id="go-online" style="min-width:220px">🕹️ 进入联机对战</button>
@@ -366,17 +366,17 @@ function renderHome(){
     <div class="rule-card">
       <div class="big">🎨</div>
       <h3>出题人 · 看目标照片作画</h3>
-      <span class="sub">你看到目标照片（如“大象”），用<b>12 种半透明形状 + 细线画笔</b>把它<b>抽象地</b>拼出来，不能临摹——90 秒倒计时，画布实时同步给所有人。</span>
+      <span class="sub">你看到目标照片（如“大象”），用<b>12 种半透明形状 + 细线画笔</b>把它<b>抽象地</b>拼出来，不能临摹——120 秒倒计时，画布实时同步给所有人。</span>
     </div>
     <div class="rule-card">
       <div class="big">✍️</div>
-      <h3>猜题人 · 前 30 秒文字竞猜</h3>
-      <span class="sub">照片墙隐藏，只凭画布无限次文字竞猜：<b>准确词 +5 / 联想词 +2 / 类别词 +1</b>，可与选图分叠加；有人命中会广播层级（不含答案词）。</span>
+      <h3>猜题人 · 前 45 秒文字竞猜</h3>
+      <span class="sub">照片墙隐藏，只凭画布无限次文字竞猜：<b>准确词 +5 / 联想词 +2 / 类别词 +1</b>，可与选图分叠加。</span>
     </div>
     <div class="rule-card">
       <div class="big">🖼️</div>
-      <h3>30 秒后 · 照片墙开放选图</h3>
-      <span class="sub">16 张真实照片出现在文字框下方，点选不限次数：猜错该格标 ✗ 并进入 10 秒冷却，<b>首答对 +3 / 后答对 +1</b>；出题人被猜中每人 +1，轮流出题，总分最高者胜。</span>
+      <h3>45 秒后 · 照片墙开放选图</h3>
+      <span class="sub">16 张照片出现在文字框下方，点选不限次数：猜错该格标 ✗ 并进入 10 秒冷却，<b>首答对 +3 / 后答对 +1</b>；轮流出题，总分最高者胜。</span>
     </div>
   </div>
   <div class="card">
@@ -787,7 +787,7 @@ function renderPuzzleEditor(){
         <div class="row"><input type="file" id="my-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="my-upload">选择图片</button></div>
         <div id="my-preview" style="display:none;margin-top:8px">
           <img id="my-pvimg" alt="预览" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:block">
-          <div class="note" style="margin-top:6px">自动压缩到 512px。填写词条后点「保存到我的图库」：</div>
+          <div class="note" style="margin-top:6px">自动压缩到 512px。填写词条后点「保存到自定义图库」：</div>
           <input id="my-name" placeholder="图片名称（猜题人可见）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
           <input id="my-cat" placeholder="类别词（必填，如：动物）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
           <input id="my-kw1" placeholder="联想词1（如：草原）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
@@ -795,7 +795,7 @@ function renderPuzzleEditor(){
           <input id="my-exact" placeholder="准确词（必填，如：长颈鹿）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
           <input id="my-al1" placeholder="别名1（可选，猜中也算联想分）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
           <input id="my-al2" placeholder="别名2（可选）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <button class="primary" id="my-save" style="width:100%;margin-top:8px">保存到我的图库</button>
+          <button class="primary" id="my-save" style="width:100%;margin-top:8px">保存到自定义图库</button>
         </div>
         <div class="note" style="margin-top:8px">已保存（最多 30 张），点击缩略图作为答案：</div>
         <div class="img-grid" id="my-grid" style="max-height:200px;overflow:auto"></div>
@@ -848,7 +848,7 @@ function renderPuzzleEditor(){
         aliases:[String(mask.querySelector("#my-al1").value||"").trim(),String(mask.querySelector("#my-al2").value||"").trim()].filter(Boolean).slice(0,2),
         exact, createdAt:Date.now()
       };
-      await customPut(item); toast("已保存到我的图库");
+      await customPut(item); toast("已保存到自定义图库");
       myRaw=""; myPrev.style.display="none"; myFile.value="";
       mask.querySelector("#my-name").value=""; mask.querySelector("#my-cat").value=""; mask.querySelector("#my-kw1").value=""; mask.querySelector("#my-kw2").value=""; mask.querySelector("#my-exact").value=""; mask.querySelector("#my-al1").value=""; mask.querySelector("#my-al2").value="";
       drawMy();
@@ -1776,7 +1776,7 @@ function renderOnline(){
   const card=html("div",{class:"card",style:"max-width:520px;margin:0 auto"});
   card.innerHTML=`
     <h1>联机对战</h1>
-    <div class="sub">2–6 人同房：一人看目标照片作画，其他人实时观看。前 30 秒隐藏照片墙，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），出题人被猜中 +1，轮流出题。</div>
+    <div class="sub">2–6 人同房：一人看目标照片作画，其他人实时观看。前 45 秒隐藏照片墙，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），轮流出题。</div>
     <h3>你的昵称</h3>
     <input id="pw-nick" placeholder="随便填，如：阿明" value="${esc(nickMemo())}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
     <h3>创建新房间</h3>
@@ -1873,8 +1873,8 @@ function pwConnect(action){
 /* ---- 大厅 ---- */
 function modeLabel(m){
   if(m==="default") return "照片墙只从默认 64 图里随机抽 16 张。";
-  if(m==="custom") return "照片墙只从房间共享图库抽；不足 16 张时自动用默认图补齐。";
-  return "默认 64 图 + 共享图库混合随机抽 16 张。";
+  if(m==="custom") return "照片墙只从房间自定义图库抽；不足 16 张时自动用默认图补齐。";
+  return "默认 64 图 + 自定义图库混合随机抽 16 张。";
 }
 function renderOnlineLobby(){
   if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
@@ -1893,15 +1893,15 @@ function renderOnlineLobby(){
     <h3>照片墙图库 <span class="sub">${isHost?"房主选择":"等待房主选择"} · 开局后锁定</span></h3>
     <div id="pw-poolmode" style="display:flex;gap:6px">
       <button class="pm ${__PW.poolMode==="default"?"pm-on":""}" data-mode="default" ${isHost?"":"disabled title='仅房主可设置'"}>默认图库</button>
-      <button class="pm ${__PW.poolMode==="custom"?"pm-on":""}" data-mode="custom" ${isHost?"":"disabled title='仅房主可设置'"}>我的图库</button>
+      <button class="pm ${__PW.poolMode==="custom"?"pm-on":""}" data-mode="custom" ${isHost?"":"disabled title='仅房主可设置'"}>自定义图库</button>
       <button class="pm ${__PW.poolMode==="mixed"?"pm-on":""}" data-mode="mixed" ${isHost?"":"disabled title='仅房主可设置'"}>混合图库</button>
     </div>
     <div class="sub" id="pw-mode-note" style="margin-top:6px">${modeLabel(__PW.poolMode)}</div>
-    <h3>共享图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
+    <h3>自定义图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
     <div id="pw-shared" class="img-grid"></div>
     <button class="primary" id="pw-upload" style="width:100%;margin-top:8px">上传图片到房间</button>
     ${isHost?'<button class="accent" id="pw-start" style="width:100%;margin-top:14px">开始游戏</button>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
-    <div class="note">规则：每轮一人出题 90 秒，看目标照片抽象作画；前 30 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1、出题人被猜中 +1；轮流出题，总分最高者胜。</div>
+    <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 45 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
     <div class="foot-actions"><button class="ghost" onclick="pwLeave()">离开房间</button></div>`;
   w.appendChild(card);$app.appendChild(w);
   const pl=card.querySelector("#pw-players");
@@ -1917,7 +1917,7 @@ function renderOnlineLobby(){
   card.querySelectorAll("#pw-poolmode .pm").forEach(btn=>{
     btn.onclick=()=>{ __PW.send({t:"set_mode",mode:btn.dataset.mode}); };
   });
-  /* 共享图库：缩略图 + 贡献者 + 房主移除 */
+  /* 自定义图库：缩略图 + 贡献者 + 房主移除 */
   const sh=card.querySelector("#pw-shared");
   if(!shared.length){
     sh.innerHTML='<div class="note" style="grid-column:1/-1">还没有图片，上传或建房时携带的图片会显示在这里（最多 32 张）</div>';
@@ -1929,11 +1929,11 @@ function renderOnlineLobby(){
       if(isHost) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
     });
   }
-  /* 上传图片到共享图库（全员可用，开局前） */
+  /* 上传图片到自定义图库（全员可用，开局前） */
   card.querySelector("#pw-upload").onclick=()=>{
     const mk=html("div",{class:"mask"});
     mk.innerHTML=`<div class="pop" style="max-width:480px">
-      <h3>上传图片到房间共享图库</h3>
+      <h3>上传图片到房间自定义图库</h3>
       <div class="sub">自动压缩到 512px；上传后实时同步给全房间，同时存入你的个人图库。开局后锁定。</div>
       <input type="file" id="sh-file" accept="image/*" style="width:100%;margin:8px 0">
       <div id="sh-preview" class="sub" style="text-align:center"></div>
@@ -1989,7 +1989,7 @@ function renderOnlineGuess(){
       <button class="primary" id="pw-wordsend">猜！</button>
     </div>
     <div id="pw-records" style="margin-top:8px"></div>
-    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 30 秒后开放</span></div>
+    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 45 秒后开放</span></div>
     <div id="pw-photo-holder"></div>`;
   w.appendChild(card);$app.appendChild(w);
   const svg=card.querySelector("#pw-gstage"), wallHolder=card.querySelector("#pw-photo-holder"),
@@ -2416,7 +2416,7 @@ async function runOnlineTest(){
     await sleep(60);
     rec("空列表提示", (document.querySelector("#pw-rooms").textContent||"").includes("暂无"),"");
 
-    /* 13. 设备身份 + 大厅图库模式 + 房间共享图库 */
+    /* 13. 设备身份 + 大厅图库模式 + 房间自定义图库 */
     const dev1=getDeviceId(), dev2=getDeviceId();
     rec("设备ID持久且唯一", dev1===dev2 && !!localStorage.getItem("pw_device") && dev1.length>=10,"");
     saveNickMemo("测试昵称");
@@ -2426,13 +2426,13 @@ async function runOnlineTest(){
     await sleep(50);
     rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
     rec("混合模式默认高亮", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
-    rec("共享图库渲染贡献者", ((document.querySelector("#pw-shared").textContent||"").includes("恐龙"))&&((document.querySelector("#pw-shared").textContent||"").includes("甲")),"");
-    rec("房主可移除共享图", !!document.querySelector("#pw-shared .mini-del"),"");
-    rec("共享上传入口存在", !!document.querySelector("#pw-upload"),"");
+    rec("自定义图库渲染贡献者", ((document.querySelector("#pw-shared").textContent||"").includes("恐龙"))&&((document.querySelector("#pw-shared").textContent||"").includes("甲")),"");
+    rec("房主可移除自定义图", !!document.querySelector("#pw-shared .mini-del"),"");
+    rec("自定义上传入口存在", !!document.querySelector("#pw-upload"),"");
     __PW.handle({t:"mode_set",mode:"custom"});
     await sleep(50);
     rec("set_mode 广播后高亮切换", (document.querySelector('#pw-poolmode [data-mode="custom"]').className||"").includes("pm-on"),"");
-    rec("图库模式说明切换", (document.querySelector("#pw-mode-note").textContent||"").includes("共享图库"),"");
+    rec("图库模式说明切换", (document.querySelector("#pw-mode-note").textContent||"").includes("自定义图库"),"");
     __PW.pid="pB";
     __PW.handle({t:"player_joined",pid:"pB",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true},{pid:"pB",nickname:"小红",score:0,connected:true}]});
     await sleep(50);
@@ -2440,7 +2440,7 @@ async function runOnlineTest(){
     rec("非房主无移除按钮", !document.querySelector("#pw-shared .mini-del"),"");
     __PW.handle({t:"img_added",img:{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"},list:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"},{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"}]});
     await sleep(50);
-    rec("img_added 广播更新共享库", document.querySelector("#pw-shared").children.length===2,"");
+    rec("img_added 广播更新自定义图库", document.querySelector("#pw-shared").children.length===2,"");
     __PW.handle({t:"img_removed",list:[{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"}]});
     await sleep(50);
     rec("img_removed 广播同步", document.querySelector("#pw-shared").children.length===1,"");
