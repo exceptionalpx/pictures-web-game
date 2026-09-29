@@ -51,8 +51,9 @@ a{color:var(--brand-d)}
 .img-cell span{font-size:10px;color:#495057}
 .img-cell.on{border-color:var(--brand);background:#EDF1FF}
 .pm{flex:1;border:1.5px solid var(--line);background:#FCFBF8;border-radius:10px;padding:8px 4px;font-size:13px;color:var(--ink);cursor:pointer}
+.pm:not(:disabled):hover{border-color:var(--brand);color:var(--brand)}
 .pm-on{border-color:var(--brand);background:var(--brand);color:#fff;font-weight:700}
-.pm:disabled{opacity:.55;cursor:not-allowed}
+.pm:disabled{opacity:.45;cursor:not-allowed;background:#F1EEE6}
 .mini-del{position:absolute;right:2px;top:2px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--bad);cursor:pointer;z-index:2}
 #pw-shared .img-cell{position:relative}
 .pw-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;margin-top:6px;background:#FCFBF8;color:var(--ink)}
@@ -1605,8 +1606,12 @@ const __PW = window.__pwOnline = {
   round:0, maxRounds:0, drawer:{pid:"",nickname:""},
   createSeconds:90, lockSeconds:30, answered:0, total:0,
   poolMode:"mixed", customImgs:[],
-  players:[], reveal:null, over:null, _connFailed:false,
-  send(o){ if(this.ws&&this.ws.readyState===1) this.ws.send(JSON.stringify(o)); },
+  hostPid:"", players:[], reveal:null, over:null, _connFailed:false,
+  send(o){
+    if(this.ws&&this.ws.readyState===1){ this.ws.send(JSON.stringify(o)); return; }
+    const now=Date.now();
+    if(!this._sendWarnAt||now-this._sendWarnAt>3000){ this._sendWarnAt=now; toast("连接未就绪，正在重连…"); }
+  },
   connect(onOpen){
     const self=this; this._connFailed=false;
     try{ this.ws=new WebSocket(PW_WS_URL); }
@@ -1631,6 +1636,7 @@ const __PW = window.__pwOnline = {
       case "created":
         this.roomId=m.room_id; this.pid=m.pid; this.nickname=m.nickname;
         this.players=m.players; this.wall=m.wall||[]; this.status="lobby";
+        this.hostPid=m.hostPid||m.pid;
         this.createSeconds=m.rules.createSeconds; this.lockSeconds=m.rules.lockSeconds;
         this.poolMode=m.poolMode||"mixed"; this.customImgs=m.customImgs||[];
         this.reconnectAt=Date.now(); this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
@@ -1638,7 +1644,7 @@ const __PW = window.__pwOnline = {
         renderOnlineLobby(); break;
       case "joined":
         this.roomId=m.room_id; this.pid=m.pid;
-        this.players=m.players; this.wall=m.wall||[]; this.canvas=(m.canvas&&m.canvas.els)||[]; this.canvasBg=(m.canvas&&m.canvas.bg)||"#FFFFFF";
+        this.players=m.players; this.hostPid=m.hostPid||""; this.wall=m.wall||[]; this.canvas=(m.canvas&&m.canvas.els)||[]; this.canvasBg=(m.canvas&&m.canvas.bg)||"#FFFFFF";
         this.round=m.round; this.maxRounds=m.maxRounds; this.deadline=m.deadline;
         this.createSeconds=m.createSeconds; this.lockSeconds=m.lockSeconds;
         this.target=m.target; this.status=m.status; this.reconnectAt=Date.now();
@@ -1651,7 +1657,7 @@ const __PW = window.__pwOnline = {
         else renderOnlineReveal();
         break;
       case "player_joined":
-        this.players=m.players;
+        this.players=m.players; this.hostPid=m.hostPid||this.hostPid;
         if(this.status==="lobby") renderOnlineLobby();
         break;
       case "round_start":
@@ -1708,17 +1714,22 @@ const __PW = window.__pwOnline = {
       case "kicked":
         toast(m.msg||"你的账号已在另一处进入该房间");
         clearSession();
-        Object.assign(this,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
+        Object.assign(this,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
         if(location.hash.indexOf("onlinetest")<0 && location.hash.indexOf("puzzletest")<0) location.hash="#/online";
         break;
       case "room_reset":
-        this.players=m.players; this.status="lobby"; this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
+        this.players=m.players; this.hostPid=m.hostPid||""; this.status="lobby"; this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
         saveSession();
         renderOnlineLobby(); break;
       case "error":
         if(m.err==="cooldown" && window.__pwCooldownMsg) window.__pwCooldownMsg(m.remain);
         else if(m.err==="tried") toast(m.msg||"这张照片试过了");
-        else if(m.err==="not_found"){ clearSession(); toast(m.msg||"房间已关闭或身份失效，请重新加入"); }
+        else if(m.err==="not_found"){
+          clearSession();
+          Object.assign(this,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
+          toast(m.msg||"房间已关闭或身份失效，请重新加入");
+          if(location.hash.indexOf("onlinetest")<0 && location.hash.indexOf("puzzletest")<0) location.hash="#/online";
+        }
         else toast(m.msg||"操作失败"); break;
     }
   }
@@ -1729,7 +1740,7 @@ function pwLeave(){
   if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
   clearSession();
-  Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
+  Object.assign(__PW,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
   location.hash="#/";
 }
 function saveSession(){
@@ -1746,7 +1757,7 @@ function pwReset(){
   if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
   clearSession();
-  Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
+  Object.assign(__PW,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
 }
 /* 持久设备身份：同一浏览器/玩家退出后再进，服务端据此复用原席位（昵称变化也不丢身份） */
 function getDeviceId(){
@@ -1870,7 +1881,7 @@ function renderOnlineLobby(){
   $app.innerHTML="";
   const w=html("div",{class:"wrap"});
   const card=html("div",{class:"card",style:"max-width:600px;margin:0 auto"});
-  const isHost=__PW.players.length>0&&__PW.players[0].pid===__PW.pid;
+  const isHost=!!__PW.hostPid && __PW.hostPid===__PW.pid;
   const shared=__PW.customImgs||[];
   card.innerHTML=`
     <h1>房间 ${__PW.roomId}</h1>
@@ -1881,9 +1892,9 @@ function renderOnlineLobby(){
     <div id="pw-players"></div>
     <h3>照片墙图库 <span class="sub">${isHost?"房主选择":"等待房主选择"} · 开局后锁定</span></h3>
     <div id="pw-poolmode" style="display:flex;gap:6px">
-      <button class="pm ${__PW.poolMode==="default"?"pm-on":""}" data-mode="default" ${isHost?"":"disabled"}>默认图库</button>
-      <button class="pm ${__PW.poolMode==="custom"?"pm-on":""}" data-mode="custom" ${isHost?"":"disabled"}>我的图库</button>
-      <button class="pm ${__PW.poolMode==="mixed"?"pm-on":""}" data-mode="mixed" ${isHost?"":"disabled"}>混合图库</button>
+      <button class="pm ${__PW.poolMode==="default"?"pm-on":""}" data-mode="default" ${isHost?"":"disabled title='仅房主可设置'"}>默认图库</button>
+      <button class="pm ${__PW.poolMode==="custom"?"pm-on":""}" data-mode="custom" ${isHost?"":"disabled title='仅房主可设置'"}>我的图库</button>
+      <button class="pm ${__PW.poolMode==="mixed"?"pm-on":""}" data-mode="mixed" ${isHost?"":"disabled title='仅房主可设置'"}>混合图库</button>
     </div>
     <div class="sub" id="pw-mode-note" style="margin-top:6px">${modeLabel(__PW.poolMode)}</div>
     <h3>共享图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
@@ -1896,7 +1907,7 @@ function renderOnlineLobby(){
   const pl=card.querySelector("#pw-players");
   __PW.players.forEach(p=>{
     const row=html("div",{class:"review-item"});
-    row.innerHTML=`<div><b>${p.nickname}</b>${p.pid===__PW.pid?'<span class="tag" style="margin-left:6px">你</span>':''}${p.pid===__PW.players[0].pid?'<span class="tag" style="margin-left:6px">房主</span>':''}</div><span class="res sub">${p.connected?"在线":"离线"}</span>`;
+    row.innerHTML=`<div><b>${p.nickname}</b>${p.pid===__PW.pid?'<span class="tag" style="margin-left:6px">你</span>':''}${p.pid===__PW.hostPid?'<span class="tag" style="margin-left:6px">房主</span>':''}</div><span class="res sub">${p.connected?"在线":"离线"}</span>`;
     pl.appendChild(row);
   });
   const link=location.origin+location.pathname+"#/online?room="+__PW.roomId;
@@ -2137,7 +2148,7 @@ function renderOnlineReveal(){
     if(rev.answerImg) inner+=`<div class="answer-img"><img src="${rev.answerImg}" alt="答案照片"></div>`;
   }
   inner+=`<h3>本轮结算</h3><div id="pw-results"></div><h3>总分榜</h3><div id="pw-scores"></div>`;
-  const isHost=__PW.players.length>0&&__PW.players[0].pid===__PW.pid;
+  const isHost=!!__PW.hostPid && __PW.hostPid===__PW.pid;
   if(!over) inner+=`<div class="foot-actions"><button class="accent" id="pw-next">开始下一轮</button></div>`;
   else if(isHost) inner+=`<div class="foot-actions"><button class="primary" id="pw-again">再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
   else inner+=`<div class="foot-actions"><button class="primary" id="pw-again" disabled>等待房主再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
@@ -2199,7 +2210,7 @@ async function runOnlineTest(){
     rec("入口页携带我的图片按钮", !!document.querySelector("#pw-pick-custom"),"");
     rec("携带图片上限 16 张文案", (document.body.textContent||"").includes("最多 16 张"),"");
     /* 1. 创建房间 → 大厅 */
-    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",
+    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
       players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
       wall:WALL16, rules:{createSeconds:90,lockSeconds:30}});
     rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
@@ -2207,7 +2218,7 @@ async function runOnlineTest(){
     rec("房间码展示", (document.querySelector("h1").textContent||"").includes("AB12"),"");
 
     /* 2. 玩家加入 */
-    __PW.handle({t:"player_joined",players:[
+    __PW.handle({t:"player_joined",hostPid:"pA",players:[
       {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
       {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
     rec("加入后列表 2 人", document.querySelector("#pw-players").children.length===2,"");
@@ -2387,7 +2398,7 @@ async function runOnlineTest(){
     renderOnlineReveal(); await sleep(40);
     const agHost=document.querySelector("#pw-again");
     rec("房主再来一局可点", !!agHost && !agHost.disabled && (agHost.textContent||"").includes("再来一局"),"");
-    __PW.handle({t:"room_reset",room_id:"AB12",players:[
+    __PW.handle({t:"room_reset",room_id:"AB12",hostPid:"pA",players:[
       {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
       {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
     await sleep(40);
@@ -2411,7 +2422,7 @@ async function runOnlineTest(){
     saveNickMemo("测试昵称");
     renderOnline(); await sleep(50);
     rec("昵称记忆预填", (document.querySelector("#pw-nick").value||"").trim()==="测试昵称","");
-    __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
+    __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
     await sleep(50);
     rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
     rec("混合模式默认高亮", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
@@ -2423,7 +2434,7 @@ async function runOnlineTest(){
     rec("set_mode 广播后高亮切换", (document.querySelector('#pw-poolmode [data-mode="custom"]').className||"").includes("pm-on"),"");
     rec("图库模式说明切换", (document.querySelector("#pw-mode-note").textContent||"").includes("共享图库"),"");
     __PW.pid="pB";
-    __PW.handle({t:"player_joined",pid:"pB",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true},{pid:"pB",nickname:"小红",score:0,connected:true}]});
+    __PW.handle({t:"player_joined",pid:"pB",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true},{pid:"pB",nickname:"小红",score:0,connected:true}]});
     await sleep(50);
     rec("非房主图库按钮禁用", !!document.querySelector('#pw-poolmode .pm[disabled]'),"");
     rec("非房主无移除按钮", !document.querySelector("#pw-shared .mini-del"),"");
@@ -2433,11 +2444,16 @@ async function runOnlineTest(){
     __PW.handle({t:"img_removed",list:[{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"}]});
     await sleep(50);
     rec("img_removed 广播同步", document.querySelector("#pw-shared").children.length===1,"");
+    /* 房主离线让位：A 离线 → hostPid 转移到 B，B 可开始、房主标签跟随 */
+    __PW.handle({t:"player_joined",pid:"pA",hostPid:"pB",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:false},{pid:"pB",nickname:"小红",score:0,connected:true}]});
+    await sleep(50);
+    rec("房主让位：B 变为房主可点开始", !!document.querySelector("#pw-start"),"");
+    rec("房主标签跟随 B", (document.querySelector("#pw-players").children[1].textContent||"").includes("房主"),"");
     __PW.handle({t:"kicked",msg:"你的账号已在另一处进入该房间"});
     await sleep(50);
     rec("被踢后清身份", __PW.roomId==="" && !localStorage.getItem("pw_session"),"");
     rec("被踢后设备ID保留", !!localStorage.getItem("pw_device"),"");
-    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",players:[{pid:"pA",nickname:"阿明",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30}});
+    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",players:[{pid:"pA",nickname:"阿明",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30}});
     await sleep(50);
     rec("默认图库模式回退", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
 

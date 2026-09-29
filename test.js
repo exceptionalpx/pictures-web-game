@@ -1068,3 +1068,81 @@ test("e2e：图库模式/共享图库/顶号消息走网络层", async () => {
   await new Promise(res => server.close(res));
 });
 
+/* ================= 房主让位 / 顶号离线修复 ================= */
+
+test("房主让位：房主离线自动转移给第一个在线玩家，回归不自动收回", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("房主A", null, "dA");
+  const a = r.pid;
+  assert.equal(r.room.hostPlayer().pid, a, "建房者为房主");
+  const b = r.room.addPlayer("玩家B", "dB").pid;
+  const c = r.room.addPlayer("玩家C", "dC").pid;
+  // A 离线 → 房主转移给 B
+  r.room.removePlayer(a);
+  assert.equal(r.room.hostPlayer().pid, b, "A 离线后 B 成为房主");
+  assert.equal(r.room.setPoolMode(a, "custom").err, "not_host", "旧房主 A 无权设图库");
+  assert.equal(r.room.setPoolMode(b, "custom").ok, true, "新房主 B 有权设图库");
+  // A 回归（复用原席位）→ 不自动收回房主权
+  r.room.players[0].connected = true;
+  assert.equal(r.room.hostPlayer().pid, b, "A 回归不自动收回房主权");
+  assert.equal(r.room.setPoolMode(a, "default").err, "not_host", "A 回归后仍非房主");
+  assert.equal(r.room.removeImg(a, "x").err, "not_host", "A 回归后不能移除共享图");
+  // B 离线 → 房主转移给第一个在线玩家（A 已回归在线，按席位顺序 A 在前 → A 成为房主）
+  r.room.removePlayer(b);
+  assert.equal(r.room.hostPlayer().pid, a, "B 离线后 A（已回归在线）成为房主");
+  // C 离线 → A 仍在线，房主不变
+  r.room.removePlayer(c);
+  assert.equal(r.room.hostPlayer().pid, a, "C 离线后 A 仍是房主");
+  // 全部离线 → 房主回落席位首位（房间空闲待清理）
+  r.room.removePlayer(a);
+  assert.ok(r.room.hostPlayer(), "全员离线仍有房主占位");
+});
+
+test("房主让位后：开始游戏/再来一局按当前房主判定（e2e 网络层）", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
+  await ready;
+  const port = server.address().port;
+  const base = `ws://127.0.0.1:${port}/ws`;
+  const a = wsClient(base); await a.ready;
+  const b = wsClient(base); await b.ready;
+  a.send({ t:"create", nickname:"房主A", device:"dA" });
+  const r1 = await a.waitFor(m => m.t === "created");
+  assert.equal(r1.hostPid, r1.pid, "created 带 hostPid");
+  b.send({ t:"join", room_id: r1.room_id, nickname:"玩家B", device:"dB" });
+  const jb = await b.waitFor(m => m.t === "joined");
+  await a.waitFor(m => m.t === "player_joined");
+  // 房主 A 退出 → 服务端广播玩家列表，B 变房主
+  a.ws.close();
+  const pj = await b.waitFor(m => m.t === "player_joined");
+  assert.equal(pj.hostPid, jb.pid, "A 退出后 B 成为房主（广播同步）");
+  assert.equal(pj.players.find(p => p.pid === r1.pid).connected, false, "A 在玩家列表中显示离线");
+  // B 开始游戏成功
+  b.send({ t:"start" });
+  const rs = await b.waitFor(m => m.t === "round_start");
+  assert.ok(rs.round >= 1, "新房主 B 可以开始游戏");
+  manager.disposeAll(); b.ws.close(); wss.close();
+  await new Promise(res => server.close(res));
+});
+
+test("e2e：顶号后新连接不被旧连接关闭误标离线", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
+  await ready;
+  const port = server.address().port;
+  const base = `ws://127.0.0.1:${port}/ws`;
+  const a = wsClient(base); await a.ready;
+  a.send({ t:"create", nickname:"A", device:"devA" });
+  const r1 = await a.waitFor(m => m.t === "created");
+  // 同设备第二连接顶号
+  const b = wsClient(base); await b.ready;
+  b.send({ t:"join", room_id: r1.room_id, nickname:"A", device:"devA" });
+  await a.waitFor(m => m.t === "kicked");
+  const joined = await b.waitFor(m => m.t === "joined");
+  await sleep(200);   // 等旧连接 close 处理完成
+  const room = manager.rooms.get(r1.room_id);
+  const p = room.findPlayer(joined.pid);
+  assert.equal(p.connected, true, "顶号后新连接保持在线（不被旧连接 close 误标离线）");
+  assert.equal(room.hostPlayer().pid, r1.pid, "房主仍是原玩家");
+  manager.disposeAll(); b.ws.close(); wss.close();
+  await new Promise(res => server.close(res));
+});
+

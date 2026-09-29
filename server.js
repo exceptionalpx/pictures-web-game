@@ -82,6 +82,7 @@ class Room {
     this.round = 0;
     this.maxRounds = 0;               // 开局后 = 人数（每人出题一轮）
     this.players = [];                // {pid,nickname,score,connected,guessed}
+    this.hostPid = null;              // 房主（建房者；离线自动转移给第一个在线玩家，回归不自动收回）
     this.drawerIdx = -1;
     this.wall = [];               // 每轮从图池（64 图 + 房主自定义图）随机抽 16 张（对象）
     this.customImages = [];       // 房间共享自定义图库（全房间可上传；{id,img,imgUrl,zh,category,exact,keywords,aliases,category_word,contributor}）
@@ -106,6 +107,7 @@ class Room {
     nickname = (nickname||"").toString().trim().slice(0,12) || ("玩家" + (this.players.length+1));
     const pid = genId();
     this.players.push({ pid, nickname, device: String(device||"").slice(0,40), score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", wordScored: [], tried: [], lastWrongAt: 0 });
+    if(!this.hostPid) this.hostPid = pid;   // 房间第一个玩家（建房者）为房主
     this.touch();
     return { pid };
   }
@@ -114,7 +116,18 @@ class Room {
     const i = this.players.findIndex(p => p.pid === pid);
     if(i < 0) return;
     this.players[i].connected = false;
+    if(this.hostPid === pid) this.hostPlayer();   // 房主离线 → 立即让位给第一个在线玩家
     this.touch();
+  }
+
+  /** 当前房主：hostPid 在线则为其；否则自动转移给第一个在线玩家（惰性转移，幂等） */
+  hostPlayer(){
+    const cur = this.players.find(p => p.pid === this.hostPid);
+    if(cur && cur.connected) return cur;
+    const next = this.players.find(p => p.connected);
+    if(next){ this.hostPid = next.pid; }
+    else if(this.players.length){ this.hostPid = this.players[0].pid; }
+    return this.players.find(p => p.pid === this.hostPid) || null;
   }
 
   findPlayer(pid){ return this.players.find(p => p.pid === pid); }
@@ -164,7 +177,7 @@ class Room {
   /** 房主开局前选择图库模式（default/custom/mixed），开局后锁定 */
   setPoolMode(pid, mode){
     if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能修改图库" };
-    if((this.players[0]||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以设置图库" };
+    if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以设置图库" };
     if(!["default","custom","mixed"].includes(mode)) return { err: "invalid_mode" };
     this.poolMode = mode;
     this.touch();
@@ -201,7 +214,7 @@ class Room {
   /** 房主移除共享图库中的一张图（开局前） */
   removeImg(pid, imgId){
     if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能移除图片" };
-    if((this.players[0]||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以移除图片" };
+    if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以移除图片" };
     const i = this.customImages.findIndex(c => c.id === String(imgId||""));
     if(i < 0) return { err: "not_found", msg: "图片不存在" };
     this.customImages.splice(i,1);
@@ -378,6 +391,7 @@ class Room {
       round: this.round,
       maxRounds: this.maxRounds,
       players: this.players.map(p => ({ pid: p.pid, nickname: p.nickname, score: p.score, connected: p.connected, guessed: p.guessed, wordHit: p.wordHit, tried: p.tried||[] })),
+      hostPid: (this.hostPlayer()||{}).pid || "",
       drawerIdx: this.drawerIdx,
       wall: this.wall,
       canvas: this.canvas,
@@ -653,7 +667,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
       if(t === "list"){
         const rooms = [...manager.rooms.values()]
           .filter(rm => rm.status === "lobby" && rm.players.length < ONLINE.maxPlayers)
-          .map(rm => ({ room_id: rm.id, host: (rm.players[0]||{}).nickname || "", players: rm.players.length, max: ONLINE.maxPlayers }));
+          .map(rm => ({ room_id: rm.id, host: (rm.hostPlayer()||{}).nickname || "", players: rm.players.length, max: ONLINE.maxPlayers }));
         return send({ t:"list", rooms });
       }
       if(t === "create"){
@@ -662,7 +676,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         ctx = { room: r.room, pid: r.pid };
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
-        return send({ t:"created", room_id: r.room.id, pid: r.pid, nickname: r.room.players[0].nickname, players: r.room.players, wall: r.room.wall, rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
+        return send({ t:"created", room_id: r.room.id, pid: r.pid, nickname: r.room.players[0].nickname, players: r.room.players, wall: r.room.wall, rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta(), hostPid: (r.room.hostPlayer()||{}).pid || "" });
       }
       if(t === "join"){
         const r = manager.join(m.room_id, m.nickname, m.device);
@@ -672,7 +686,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
         send({ t:"joined", room_id: r.room.id, pid: r.pid, resumed: !!r.resumed, ...r.room.snapshotFor(r.pid), rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
-        return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) }, r.pid);
+        return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})), hostPid: (r.room.hostPlayer()||{}).pid || "" }, r.pid);
       }
       if(t === "rejoin"){
         const r = manager.rejoin(m.room_id, m.pid);
@@ -682,7 +696,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
         send({ t:"joined", room_id: r.room.id, pid: r.pid, resumed: true, ...r.room.snapshotFor(r.pid), rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
-        return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) }, r.pid);
+        return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})), hostPid: (r.room.hostPlayer()||{}).pid || "" }, r.pid);
       }
       if(!ctx) return;
 
@@ -706,7 +720,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
       }
       if(t === "start"){
         if(!room.canStart()) return send({ t:"error", err:"not_ready", msg:"至少 2 人才能开始" });
-        if(room.players[0].pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以开始" });
+        if((room.hostPlayer()||{}).pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以开始" });
         room.maxRounds = room.players.length;
         const r = room.startRound();
         if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
@@ -752,9 +766,9 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         return;
       }
       if(t === "again"){
-        if(room.players[0].pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以再来一局" });
+        if((room.hostPlayer()||{}).pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以再来一局" });
         room.resetForAgain();
-        return broadcast(room, { t:"room_reset", room_id: room.id, players: room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) });
+        return broadcast(room, { t:"room_reset", room_id: room.id, players: room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})), hostPid: (room.hostPlayer()||{}).pid || "" });
       }
       if(t === "next"){
         const r = room.nextRound();
@@ -774,7 +788,17 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
     });
 
     ws.on("close", () => {
-      if(ctx){ ctx.room.removePlayer(ctx.pid); }
+      // 用 ws.ctx：被踢（kickConnections 已置 null）或未入房时不做离线标记，避免顶号误伤新连接
+      if(!ws.ctx) return;
+      const room = ws.ctx.room;
+      const pid = ws.ctx.pid;
+      room.removePlayer(pid);   // 内部会处理房主离线让位
+      // 向房间内其他玩家广播最新玩家列表与房主（离线/让位实时可见）
+      broadcast(room, {
+        t:"player_joined", pid,
+        players: room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})),
+        hostPid: (room.hostPlayer()||{}).pid || ""
+      }, pid);
     });
   });
 
