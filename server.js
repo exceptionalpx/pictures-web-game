@@ -84,7 +84,10 @@ class Room {
     this.players = [];                // {pid,nickname,score,connected,guessed}
     this.drawerIdx = -1;
     this.wall = [];               // 每轮从图池（64 图 + 房主自定义图）随机抽 16 张（对象）
-    this.customImages = [];       // 房主建房时携带的自定义图片（{id,img,zh,category,exact,keywords,aliases,category_word}）
+    this.customImages = [];       // 房间共享自定义图库（全房间可上传；{id,img,imgUrl,zh,category,exact,keywords,aliases,category_word,contributor}）
+    this.poolMode = "mixed";      // 图库模式：default(64图) | custom(我的图库) | mixed(混合)，房主开局前选择
+    this.customCap = 32;          // 房间共享图库上限（开局后从中随机抽 16 张）
+    this._imgSeq = 0;             // 共享图 id 递增序列
     this.target = -1;             // 服务端权威秘密目标（wall 内索引）
     this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.roundStart = 0;
@@ -97,12 +100,12 @@ class Room {
 
   dispose(){ clearTimeout(this._revealTimer); this._revealTimer = null; }
 
-  addPlayer(nickname){
+  addPlayer(nickname, device){
     if(this.status !== "lobby") return { err: "game_started", msg: "游戏已开始，无法再加入" };
     if(this.players.length >= ONLINE.maxPlayers) return { err: "room_full", msg: "房间已满" };
     nickname = (nickname||"").toString().trim().slice(0,12) || ("玩家" + (this.players.length+1));
     const pid = genId();
-    this.players.push({ pid, nickname, score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", wordScored: [], tried: [], lastWrongAt: 0 });
+    this.players.push({ pid, nickname, device: String(device||"").slice(0,40), score: 0, connected: true, guessed: null, wordHit: false, wordPts: 0, wordLevel: "", wordScored: [], tried: [], lastWrongAt: 0 });
     this.touch();
     return { pid };
   }
@@ -128,8 +131,23 @@ class Room {
     if(this.round >= this.maxRounds) return { err: "game_over" };
     this.round++;
     this.drawerIdx = (this.round - 1) % this.players.length;
-    const pool = IMAGES.concat(this.customImages.map(c => ({ ...c, img: c.imgUrl })));
-    this.wall = shuffle(pool).slice(0,16);   // 每轮从图池（64+自定义）随机抽 16 张
+    // 图池按房主选择的图库模式构建；自定义不足 16 张时全部进墙、默认图补足剩余格，保证照片墙 16 格完整
+    let pool;
+    if(this.poolMode === "default"){
+      pool = IMAGES.slice();
+    } else if(this.poolMode === "custom"){
+      const cus = this.customImages.map(c => ({ ...c, img: c.imgUrl }));
+      if(cus.length >= 16){
+        pool = shuffle(cus);                                // 自定义足够：随机抽 16
+      } else {
+        const need = 16 - cus.length;
+        const fill = shuffle(IMAGES).slice(0, need);        // 不足：自定义全进 + 默认图补足（不重复）
+        pool = cus.concat(fill);
+      }
+    } else {
+      pool = IMAGES.concat(this.customImages.map(c => ({ ...c, img: c.imgUrl })));
+    }
+    this.wall = shuffle(pool).slice(0,16);   // 每轮从所选图池随机抽 16 张
     this.target = Math.floor(Math.random()*this.wall.length);
     this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.wordScored = []; p.tried = []; p.lastWrongAt = 0; });
@@ -141,6 +159,59 @@ class Room {
     this._revealTimer = setTimeout(() => { if(self.status === "playing") self.reveal(); }, this.opts.createMs);
     this.touch();
     return { ok: true };
+  }
+
+  /** 房主开局前选择图库模式（default/custom/mixed），开局后锁定 */
+  setPoolMode(pid, mode){
+    if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能修改图库" };
+    if((this.players[0]||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以设置图库" };
+    if(!["default","custom","mixed"].includes(mode)) return { err: "invalid_mode" };
+    this.poolMode = mode;
+    this.touch();
+    return { ok: true };
+  }
+
+  /** 所有玩家在开局前可上传图片进房间共享图库（上限 customCap，按 dataURL 去重） */
+  addImg(pid, c){
+    if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能上传图片" };
+    const exact = normalizeWord(c.exact);
+    const img = String(c.img||"").trim();
+    if(!exact || !img || img.length > 1.5e6) return { err: "invalid", msg: "图片或准确词不合法" };
+    if(this.customImages.length >= this.customCap) return { err: "room_full", msg: "共享图库已满（"+this.customCap+" 张）" };
+    if(this.customImages.some(x => x.img === img)) return { err: "dup", msg: "这张图已经上传过了" };
+    const p = this.findPlayer(pid);
+    this._imgSeq++;
+    const item = {
+      id: "cu-"+this._imgSeq,
+      img,
+      imgUrl: "/room-img/"+this.id+"/cu-"+this._imgSeq,
+      zh: String(c.zh||c.exact||"我的图片").trim().slice(0,12)||"我的图片",
+      category: String(c.category_word||"自定义").trim().slice(0,8)||"自定义",
+      exact,
+      keywords: (c.keywords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
+      aliases: (c.aliases||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
+      category_word: normalizeWord(c.category_word),
+      contributor: p ? p.nickname : ""
+    };
+    this.customImages.push(item);
+    this.touch();
+    return { ok: true, item };
+  }
+
+  /** 房主移除共享图库中的一张图（开局前） */
+  removeImg(pid, imgId){
+    if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能移除图片" };
+    if((this.players[0]||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以移除图片" };
+    const i = this.customImages.findIndex(c => c.id === String(imgId||""));
+    if(i < 0) return { err: "not_found", msg: "图片不存在" };
+    this.customImages.splice(i,1);
+    this.touch();
+    return { ok: true };
+  }
+
+  /** 共享图库元信息（不含 dataURL 与词条答案），用于大厅展示与广播 */
+  customMeta(){
+    return this.customImages.map(c => ({ id:c.id, zh:c.zh, category:c.category||"自定义", contributor:c.contributor||"", imgUrl:c.imgUrl }));
   }
 
   /** 出题人更新画布（元素 + 背景色）；仅出题人、元素数合法、背景色在白名单时生效 */
@@ -325,25 +396,28 @@ class RoomManager {
     this.rooms = new Map();
     this.roomOpts = roomOpts;   // 测试注入 {lockMs, createMs}
   }
-  create(nickname, customImages){
+  create(nickname, customImages, device){
     const room = new Room(genRoom(), this.roomOpts);
-    const r = room.addPlayer(nickname);
+    const r = room.addPlayer(nickname, device);
     if(r.err) return r;
     if(Array.isArray(customImages)){
       const ok=[];
-      for(const c of customImages.slice(0,16)){
+      for(const c of customImages.slice(0,room.customCap)){
         const exact=normalizeWord(c.exact);
         if(!exact || !String(c.img||"").trim() || String(c.img).length>1.5e6) continue;
+        if(ok.some(x => x.img === String(c.img))) continue;
+        room._imgSeq++;
         ok.push({
-          id:"cu-"+(ok.length+1),
+          id:"cu-"+room._imgSeq,
           img:String(c.img),
-          imgUrl:"/room-img/"+room.id+"/"+ok.length,
+          imgUrl:"/room-img/"+room.id+"/cu-"+room._imgSeq,
           zh:String(c.zh||c.exact||"我的图片").trim().slice(0,12)||"我的图片",
           category:String(c.category_word||"自定义").trim().slice(0,8)||"自定义",
           exact,
           keywords:(c.keywords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
           aliases:(c.aliases||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
-          category_word:normalizeWord(c.category_word)
+          category_word:normalizeWord(c.category_word),
+          contributor:String(nickname||"").slice(0,12)
         });
       }
       room.customImages=ok;
@@ -351,16 +425,28 @@ class RoomManager {
     this.rooms.set(room.id, room);
     return { room, pid: r.pid };
   }
-  join(roomId, nickname){
+  join(roomId, nickname, device){
     const room = this.rooms.get(String(roomId||"").toUpperCase());
     if(!room) return { err: "not_found", msg: "房间不存在" };
-    // 断线玩家用同昵称重新进入 → 复用原席位，不新增人数
     const nm = (nickname||"").toString().trim().slice(0,12);
+    const dev = String(device||"").slice(0,40);
+    // 同一设备（同一浏览器/人）优先复用原席位：昵称变化也不丢身份；若旧连接仍在线则标记踢出
+    if(dev){
+      const same = room.players.find(p => p.device === dev);
+      if(same){
+        const kicked = same.connected;
+        same.connected = true;
+        if(nm) same.nickname = nm;
+        room.touch();
+        return { room, pid: same.pid, resumed: true, kicked };
+      }
+    }
+    // 断线玩家用同昵称重新进入 → 复用原席位，不新增人数
     if(nm){
       const off = room.players.find(p => p.nickname === nm && !p.connected);
       if(off){ off.connected = true; room.touch(); return { room, pid: off.pid, resumed: true }; }
     }
-    const r = room.addPlayer(nickname);
+    const r = room.addPlayer(nickname, device);
     if(r.err) return r;
     return { room, pid: r.pid };
   }
@@ -369,8 +455,9 @@ class RoomManager {
     if(!room) return { err: "not_found", msg: "房间不存在" };
     const p = room.findPlayer(pid);
     if(!p) return { err: "not_found", msg: "身份已失效" };
+    const kicked = p.connected;
     p.connected = true;
-    return { room, pid };
+    return { room, pid, kicked };
   }
   cleanup(now = Date.now()){
     for(const [id, room] of this.rooms){
@@ -513,10 +600,9 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
     res.json(r);
   });
   // 房间素材图（自定义图）HTTP 加载：不广播 dataURL，加入者按 URL 拉取
-  app.get("/room-img/:roomId/:idx", (req, res) => {
+  app.get("/room-img/:roomId/:imgId", (req, res) => {
     const room = manager.rooms.get(String(req.params.roomId||"").toUpperCase());
-    const i = parseInt(req.params.idx, 10);
-    const item = room && room.customImages[i];
+    const item = room && room.customImages.find(c => c.id === String(req.params.imgId||""));
     if(!room || !item || !item.img){
       return res.status(404).end();
     }
@@ -550,6 +636,15 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         if(c.ctx && c.ctx.room === room && c.ctx.pid === pid) c.send(JSON.stringify(obj));
       }
     };
+    const kickConnections = (room, pid) => {
+      for(const c of wss.clients){
+        if(c.ctx && c.ctx.room === room && c.ctx.pid === pid){
+          try{ c.send(JSON.stringify({ t:"kicked", msg:"你的账号已在另一处进入该房间" })); }catch(_){}
+          c.ctx = null;
+          try{ c.close(); }catch(_){}
+        }
+      }
+    };
 
     ws.on("message", (raw) => {
       let m; try{ m = JSON.parse(raw); }catch(e){ return; }
@@ -562,35 +657,53 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         return send({ t:"list", rooms });
       }
       if(t === "create"){
-        const r = manager.create(m.nickname, m.customImages);
+        const r = manager.create(m.nickname, m.customImages, m.device);
         if(r.err){ return send({ t:"error", err: r.err, msg: r.msg }); }
         ctx = { room: r.room, pid: r.pid };
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
-        return send({ t:"created", room_id: r.room.id, pid: r.pid, nickname: r.room.players[0].nickname, players: r.room.players, wall: r.room.wall, rules: ONLINE });
+        return send({ t:"created", room_id: r.room.id, pid: r.pid, nickname: r.room.players[0].nickname, players: r.room.players, wall: r.room.wall, rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
       }
       if(t === "join"){
-        const r = manager.join(m.room_id, m.nickname);
+        const r = manager.join(m.room_id, m.nickname, m.device);
         if(r.err){ return send({ t:"error", err: r.err, msg: r.msg }); }
+        if(r.kicked) kickConnections(r.room, r.pid);
         ctx = { room: r.room, pid: r.pid };
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
-        send({ t:"joined", room_id: r.room.id, pid: r.pid, ...r.room.snapshotFor(r.pid), rules: ONLINE });
+        send({ t:"joined", room_id: r.room.id, pid: r.pid, resumed: !!r.resumed, ...r.room.snapshotFor(r.pid), rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
         return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) }, r.pid);
       }
       if(t === "rejoin"){
         const r = manager.rejoin(m.room_id, m.pid);
         if(r.err){ return send({ t:"error", err: r.err, msg: r.msg }); }
+        if(r.kicked) kickConnections(r.room, r.pid);
         ctx = { room: r.room, pid: r.pid };
         ws.ctx = ctx;
         ctx.room.onReveal = (rev) => broadcast(ctx.room, { t:"reveal", ...rev });
-        send({ t:"joined", room_id: r.room.id, pid: r.pid, ...r.room.snapshotFor(r.pid), rules: ONLINE });
+        send({ t:"joined", room_id: r.room.id, pid: r.pid, resumed: true, ...r.room.snapshotFor(r.pid), rules: ONLINE, poolMode: r.room.poolMode, customImgs: r.room.customMeta() });
         return broadcast(r.room, { t:"player_joined", pid: r.pid, players: r.room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) }, r.pid);
       }
       if(!ctx) return;
 
       const { room, pid } = ctx;
 
+      if(t === "set_mode"){
+        const r = room.setPoolMode(pid, m.mode);
+        if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
+        return broadcast(room, { t:"mode_set", mode: room.poolMode });
+      }
+      if(t === "add_img"){
+        const r = room.addImg(pid, m);
+        if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
+        const meta = room.customMeta();
+        return broadcast(room, { t:"img_added", img: meta[meta.length-1], list: meta });
+      }
+      if(t === "del_img"){
+        const r = room.removeImg(pid, m.id);
+        if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
+        return broadcast(room, { t:"img_removed", list: room.customMeta() });
+      }
       if(t === "start"){
         if(!room.canStart()) return send({ t:"error", err:"not_ready", msg:"至少 2 人才能开始" });
         if(room.players[0].pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以开始" });

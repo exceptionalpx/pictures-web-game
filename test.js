@@ -507,13 +507,13 @@ test("断线重连：同昵称 join 复用原席位，不新增人数", () => {
   assert.equal(r.room.players.length, 2);
 });
 
-test("素材图 16 张上限 + imgUrl 化：墙内自定义图为 HTTP 路径而非 dataURL", () => {
+test("素材图携带入池 + imgUrl 化：墙内自定义图为 HTTP 路径而非 dataURL", () => {
   const mgr = new RoomManager();
   const imgs = [];
   for(let i=0;i<16;i++) imgs.push({ zh:"图"+i, img:"data:image/jpeg;base64,AA"+i, exact:"词"+i, keywords:["联"+i], aliases:[], category_word:"类" });
   const r = mgr.create("房主", imgs);
   assert.equal(r.room.customImages.length, 16, "16 张全部入池");
-  assert.equal(r.room.customImages[0].imgUrl, "/room-img/"+r.room.id+"/0", "imgUrl 路径");
+  assert.equal(r.room.customImages[0].imgUrl, "/room-img/"+r.room.id+"/cu-1", "imgUrl 路径（按 id）");
   r.room.addPlayer("甲"); r.room.maxRounds = 2; r.room.startRound();
   const ci = r.room.wall.filter(g => String(g.id).indexOf("cu-")===0);
   assert.ok(ci.length >= 1 && ci.length <= 16, "墙内含自定义图");
@@ -892,3 +892,134 @@ test("e2e：房间列表只列等待中房间", async () => {
   manager.disposeAll(); a.ws.close(); b.ws.close(); c.ws.close(); wss.close();
   await new Promise(res => server.close(res));
 });
+
+/* ================= 设备身份 / 开局图库模式 / 房间共享图库 ================= */
+
+test("设备身份：同 device 退出重进复用原席位（昵称变化也不丢身份）", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("阿明", null, "dev-1");
+  const pid = r.pid;
+  r.room.addPlayer("小红", "dev-2");
+  assert.equal(r.room.players.length, 2);
+  r.room.removePlayer(pid);                       // 退出房间 → 断线标记
+  const rj = mgr.join(r.room.id, "小明", "dev-1"); // 换昵称重进
+  assert.equal(rj.resumed, true, "同设备复用");
+  assert.equal(rj.pid, pid, "pid 不变");
+  assert.equal(r.room.players.length, 2, "人数不增");
+  assert.equal(r.room.players[0].nickname, "小明", "昵称跟随最新输入");
+  assert.equal(r.room.players[0].connected, true, "恢复在线");
+});
+
+test("设备身份：同 device 活跃连接再进 → 复用并标记踢旧（防顶号/无限加人）", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("阿明", null, "devA");
+  const pid = r.pid;
+  const rj = mgr.join(r.room.id, "阿明", "devA");
+  assert.equal(rj.pid, pid, "复用同一席位");
+  assert.equal(rj.kicked, true, "旧连接仍在线 → 标记踢出");
+  assert.equal(r.room.players.length, 1, "人数不增");
+});
+
+test("图库模式：default 只抽默认 64 图 / custom 抽共享图库 / 不足 16 张自动补齐", () => {
+  const mgr = new RoomManager();
+  const imgs = [];
+  for(let i=0;i<20;i++) imgs.push({ zh:"自"+i, img:"data:image/jpeg;base64,AA"+i, exact:"词"+i, keywords:["联"+i], aliases:[], category_word:"类" });
+  const r = mgr.create("房主", imgs, "devH");
+  const host = r.pid;
+  assert.equal(r.room.customImages.length, 20, "20 张入共享库");
+
+  // default：墙内全为默认 64 图
+  assert.equal(r.room.setPoolMode(host, "default").ok, true);
+  r.room.addPlayer("甲"); r.room.maxRounds = 2; r.room.startRound();
+  assert.equal(r.room.wall.length, 16, "照片墙 16 格");
+  assert.equal(r.room.wall.filter(g => String(g.id).indexOf("cu-")===0).length, 0, "default 模式不含自定义图");
+
+  // custom（20 张足够）：墙内 16 张全自定义
+  r.room.resetForAgain();
+  assert.equal(r.room.setPoolMode(host, "custom").ok, true);
+  r.room.maxRounds = 2;
+  r.room.startRound();
+  const wallCus = r.room.wall.filter(g => String(g.id).indexOf("cu-")===0);
+  assert.equal(wallCus.length, 16, "custom 模式墙内 16 张全自定义");
+  assert.equal(r.room.wall.length, 16, "总数仍 16");
+
+  // custom 不足 16：5 张自定义 + 自动补齐默认图
+  const r2 = mgr.create("房主2", imgs.slice(0,5), "devH2");
+  const h2 = r2.pid;
+  assert.equal(r2.room.setPoolMode(h2, "custom").ok, true);
+  r2.room.addPlayer("乙"); r2.room.maxRounds = 2; r2.room.startRound();
+  const cus5 = r2.room.wall.filter(g => String(g.id).indexOf("cu-")===0);
+  assert.equal(cus5.length, 5, "5 张自定义全部进墙");
+  assert.equal(r2.room.wall.length, 16, "不足 16 用默认图补齐到 16 格");
+
+  // mixed（默认）：同时含默认与自定义
+  const r3 = mgr.create("房主3", imgs.slice(0,20), "devH3");
+  r3.room.addPlayer("丙"); r3.room.maxRounds = 2; r3.room.startRound();
+  const wallMix = r3.room.wall.filter(g => String(g.id).indexOf("cu-")===0);
+  assert.ok(wallMix.length >= 1 && wallMix.length <= 16, "混合模式墙内含自定义图");
+});
+
+test("图库模式权限与锁定：非房主/非法模式拒绝；开局后锁定", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("房主", null, "d1");
+  const host = r.pid;
+  const guest = r.room.addPlayer("甲");
+  assert.equal(r.room.setPoolMode(guest.pid, "default").err, "not_host", "非房主拒绝");
+  assert.equal(r.room.setPoolMode(host, "weird").err, "invalid_mode", "非法模式拒绝");
+  r.room.maxRounds = 2; r.room.startRound();
+  assert.equal(r.room.setPoolMode(host, "default").err, "not_lobby", "开局后锁定");
+});
+
+test("房间共享图库：全员上传 / 上限 32 / 去重 / 贡献者 / 开局锁定 / 房主移除", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("房主", null, "d1");
+  const host = r.pid;
+  const g1 = r.room.addPlayer("甲").pid;
+  const g2 = r.room.addPlayer("乙").pid;
+
+  // 非房主也能上传
+  const up = r.room.addImg(g1, { img:"data:image/jpeg;base64,AA1", zh:"我的图", exact:"恐龙", keywords:["远古"], aliases:[], category_word:"动物" });
+  assert.equal(up.ok, true, "玩家甲上传成功");
+  assert.equal(up.item.contributor, "甲", "记录贡献者");
+  assert.equal(r.room.customImages.length, 1);
+  const meta = r.room.customMeta()[0];
+  assert.equal("exact" in meta, false, "元信息不含答案词");
+  assert.equal(meta.imgUrl, "/room-img/"+r.room.id+"/cu-1", "元信息含 imgUrl");
+  assert.equal(meta.zh, "我的图");
+
+  // 去重
+  assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,AA1", exact:"恐龙" }).err, "dup", "同图去重");
+  assert.equal(r.room.customImages.length, 1);
+
+  // 上限 32
+  for(let i=0;i<31;i++) r.room.addImg(g2, { img:"data:image/jpeg;base64,BB"+i, exact:"词"+i });
+  assert.equal(r.room.customImages.length, 32, "满 32");
+  const over = r.room.addImg(g2, { img:"data:image/jpeg;base64,CC", exact:"超限" });
+  assert.equal(over.err, "room_full", "第 33 张拒绝");
+
+  // 非法上传
+  assert.equal(r.room.addImg(g2, { img:"", exact:"词" }).err, "invalid", "空图拒绝");
+  assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,DD", exact:"  " }).err, "invalid", "空准确词拒绝");
+
+  // 房主移除 + 权限
+  assert.equal(r.room.removeImg(g1, "cu-1").err, "not_host", "非房主不能移除");
+  assert.equal(r.room.removeImg(host, "cu-1").ok, true, "房主移除成功");
+  assert.equal(r.room.customImages.length, 31);
+  assert.equal(r.room.removeImg(host, "cu-999").err, "not_found", "不存在拒绝");
+
+  // 开局锁定
+  r.room.maxRounds = 2; r.room.startRound();
+  assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,EE", exact:"词" }).err, "not_lobby", "开局后不能上传");
+  assert.equal(r.room.removeImg(host, "cu-2").err, "not_lobby", "开局后不能移除");
+});
+
+test("建房携带图上限 32：40 张只入 32", () => {
+  const mgr = new RoomManager();
+  const imgs = [];
+  for(let i=0;i<40;i++) imgs.push({ zh:"图"+i, img:"data:image/jpeg;base64,AA"+i, exact:"词"+i, keywords:[], aliases:[], category_word:"类" });
+  const r = mgr.create("房主", imgs);
+  assert.equal(r.room.customImages.length, 32, "携带图截断到 32");
+  const ids = new Set(r.room.customImages.map(c => c.id));
+  assert.equal(ids.size, 32, "id 唯一");
+});
+
