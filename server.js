@@ -21,8 +21,8 @@ const { WebSocketServer } = require("ws");
 /* ================= 权威参数（服务端，前端只读展示） ================= */
 const ONLINE = {
   ruleset_id: "pictures-web-online-v1",
-  createSeconds: 90,          // 每轮作画倒计时
-  lockSeconds: 30,            // 作画开始后前 N 秒作答锁定
+  createSeconds: 120,          // 每轮作画倒计时
+  lockSeconds: 45,            // 作画开始后前 N 秒作答锁定
   elementCap: 60,             // 画布元素上限
   minPlayers: 2,
   maxPlayers: 6,
@@ -35,6 +35,8 @@ const ONLINE = {
 };
 
 const STAGE = 480;
+/** 画布背景色预设（出题人可选，作为画布属性随 canvas 消息同步） */
+const CANVAS_BGS = ["#FFFFFF","#BFE3F7","#C6EFCE","#FFF3BF","#FFD6E0","#E6D5F5","#DDEBF7","#FCE8D5"];
 
 /* ================= 64 图图库（v4-photo 写实照片版，词表来自 image-pack-64.json） ================= */
 const PACK = JSON.parse(fs.readFileSync(path.join(__dirname, "image-pack-64.json"), "utf8"));
@@ -84,7 +86,7 @@ class Room {
     this.wall = [];               // 每轮从图池（64 图 + 房主自定义图）随机抽 16 张（对象）
     this.customImages = [];       // 房主建房时携带的自定义图片（{id,img,zh,category,exact,keywords,aliases,category_word}）
     this.target = -1;             // 服务端权威秘密目标（wall 内索引）
-    this.canvas = { els: [], ver: 0 };
+    this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.roundStart = 0;
     this.deadline = 0;
     this.lastActive = Date.now();
@@ -126,10 +128,10 @@ class Room {
     if(this.round >= this.maxRounds) return { err: "game_over" };
     this.round++;
     this.drawerIdx = (this.round - 1) % this.players.length;
-    const pool = IMAGES.concat(this.customImages);
+    const pool = IMAGES.concat(this.customImages.map(c => ({ ...c, img: c.imgUrl })));
     this.wall = shuffle(pool).slice(0,16);   // 每轮从图池（64+自定义）随机抽 16 张
     this.target = Math.floor(Math.random()*this.wall.length);
-    this.canvas = { els: [], ver: 0 };
+    this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.wordScored = []; p.tried = []; p.lastWrongAt = 0; });
     this.roundStart = Date.now();
     this.deadline = this.roundStart + this.opts.createMs;
@@ -141,14 +143,15 @@ class Room {
     return { ok: true };
   }
 
-  /** 出题人更新画布；仅出题人、元素数合法时生效 */
-  setCanvas(pid, els){
+  /** 出题人更新画布（元素 + 背景色）；仅出题人、元素数合法、背景色在白名单时生效 */
+  setCanvas(pid, els, bg){
     const d = this.drawer();
     if(this.status !== "playing" || !d || d.pid !== pid) return { err: "not_drawer" };
     if(!Array.isArray(els) || els.length > ONLINE.elementCap) return { err: "invalid" };
-    this.canvas = { els, ver: this.canvas.ver + 1 };
+    const b = CANVAS_BGS.includes(bg) ? bg : this.canvas.bg;
+    this.canvas = { els, bg: b, ver: this.canvas.ver + 1 };
     this.touch();
-    return { ok: true, ver: this.canvas.ver };
+    return { ok: true, ver: this.canvas.ver, bg: b };
   }
 
   /**
@@ -259,6 +262,26 @@ class Room {
     return rev;
   }
 
+  /** 再来一局：保留成员与房间号，清空分数/轮次/画布，回到大厅 */
+  resetForAgain(){
+    clearTimeout(this._revealTimer);
+    this._revealTimer = null;
+    this.status = "lobby";
+    this.round = 0;
+    this.maxRounds = 0;
+    this.drawerIdx = -1;
+    this.wall = [];
+    this.target = -1;
+    this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
+    this.roundStart = 0;
+    this.deadline = 0;
+    this.players.forEach(p => {
+      p.score = 0; p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.wordScored = []; p.tried = []; p.lastWrongAt = 0; p.connected = true;
+    });
+    this.touch();
+    return { ok: true };
+  }
+
   /** 进入下一轮（揭晓后）或结算整局 */
   nextRound(){
     if(this.status === "game_over"){
@@ -308,12 +331,13 @@ class RoomManager {
     if(r.err) return r;
     if(Array.isArray(customImages)){
       const ok=[];
-      for(const c of customImages.slice(0,8)){
+      for(const c of customImages.slice(0,16)){
         const exact=normalizeWord(c.exact);
         if(!exact || !String(c.img||"").trim() || String(c.img).length>1.5e6) continue;
         ok.push({
           id:"cu-"+(ok.length+1),
           img:String(c.img),
+          imgUrl:"/room-img/"+room.id+"/"+ok.length,
           zh:String(c.zh||c.exact||"我的图片").trim().slice(0,12)||"我的图片",
           category:String(c.category_word||"自定义").trim().slice(0,8)||"自定义",
           exact,
@@ -330,6 +354,12 @@ class RoomManager {
   join(roomId, nickname){
     const room = this.rooms.get(String(roomId||"").toUpperCase());
     if(!room) return { err: "not_found", msg: "房间不存在" };
+    // 断线玩家用同昵称重新进入 → 复用原席位，不新增人数
+    const nm = (nickname||"").toString().trim().slice(0,12);
+    if(nm){
+      const off = room.players.find(p => p.nickname === nm && !p.connected);
+      if(off){ off.connected = true; room.touch(); return { room, pid: off.pid, resumed: true }; }
+    }
     const r = room.addPlayer(nickname);
     if(r.err) return r;
     return { room, pid: r.pid };
@@ -368,13 +398,14 @@ const PuzzleStore = {
     for(let i=0;i<6;i++) s += this.CODE[Math.floor(Math.random()*this.CODE.length)];
     return s;
   },
-  create({canvas, answerMode, imageId, customWords, words, img}){
+  create({canvas, answerMode, imageId, customWords, words, img, bg}){
     if(!Array.isArray(canvas) || canvas.length===0 || canvas.length>ONLINE.elementCap) return { err:"invalid_canvas" };
+    const bgOk = CANVAS_BGS.includes(bg) ? bg : "#FFFFFF";
     if(answerMode === "image"){
       const img = IMAGES.find(g=>g.id===imageId) || IMAGES.find(g=>g.exact===String(imageId||"").trim());
       if(!img) return { err:"invalid_image" };
       let id; do{ id=this.genId(); }while(this.map.has(id));
-      this.map.set(id, { id, canvas, answerMode:"image", imageId:img.id, createdAt:Date.now() });
+      this.map.set(id, { id, canvas, bg:bgOk, answerMode:"image", imageId:img.id, createdAt:Date.now() });
       this.cleanup();
       return { ok:true, id };
     }
@@ -382,7 +413,7 @@ const PuzzleStore = {
       const words = (customWords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean);
       if(words.length===0) return { err:"invalid_words" };
       let id; do{ id=this.genId(); }while(this.map.has(id));
-      this.map.set(id, { id, canvas, answerMode:"custom", words, createdAt:Date.now() });
+      this.map.set(id, { id, canvas, bg:bgOk, answerMode:"custom", words, createdAt:Date.now() });
       this.cleanup();
       return { ok:true, id };
     }
@@ -399,7 +430,7 @@ const PuzzleStore = {
         category_word:normalizeWord(w.category_word)
       };
       let id; do{ id=this.genId(); }while(this.map.has(id));
-      this.map.set(id, { id, canvas, answerMode:"custom_image", words:entry, img:imgData, createdAt:Date.now() });
+      this.map.set(id, { id, canvas, bg:bgOk, answerMode:"custom_image", words:entry, img:imgData, createdAt:Date.now() });
       this.cleanup();
       return { ok:true, id };
     }
@@ -419,26 +450,43 @@ const PuzzleStore = {
       for(const [k] of oldest.slice(0, this.map.size - this.cap)) this.map.delete(k);
     }
   },
-  guess(id, text){
+  /**
+   * 猜词判定（支持三关引导）：
+   *  stage: category(1) → keyword(2) → exact(3)；命中层级 ≥ 当前关即过关（前进一关或通关），
+   *  命中更高层级直接放行（如第 1 关输联想词直接跳进准确关、输准确词直接通关）；
+   *  命中更低层级返回 hint 提示不放行。缺省 stage 时保持原自由猜行为。
+   */
+  guess(id, text, stage){
     const p = this.get(id);
     if(!p) return { err:"not_found" };
     const t = normalizeWord(String(text||"").trim());
     if(!t) return { ok:true, correct:false };
+    if(p.answerMode === "custom"){
+      const hit = p.words.find(w => t.includes(w));
+      if(!hit) return { ok:true, correct:false };
+      return { ok:true, correct:true, level:"exact", word:hit, pts:5, answer:{ mode:"custom", words:p.words } };
+    }
+    const stLv = stage==="exact" ? 3 : (stage==="keyword" ? 2 : 1);
+    let img, m;
     if(p.answerMode === "image"){
-      const img = IMAGES.find(g=>g.id===p.imageId);
+      img = IMAGES.find(g=>g.id===p.imageId);
       if(!img) return { ok:true, correct:false };
-      const m = matchLevel(t, img);
-      if(!m.hit) return { ok:true, correct:false };
-      return { ok:true, correct:true, level:m.level, word:m.word, pts:m.pts, answer:{ mode:"image", zh:img.zh, category:img.category, exact:img.exact } };
+      m = matchLevel(t, img);
+    } else {
+      img = { exact:p.words.exact, keywords:p.words.keywords||[], aliases:p.words.aliases||[], category_word:p.words.category_word||"" };
+      m = matchLevel(t, img);
     }
-    if(p.answerMode === "custom_image"){
-      const m = matchLevel(t, { exact:p.words.exact, keywords:p.words.keywords||[], aliases:p.words.aliases||[], category_word:p.words.category_word||"" });
-      if(!m.hit) return { ok:true, correct:false };
-      return { ok:true, correct:true, level:m.level, word:m.word, pts:m.pts, answer:{ mode:"custom_image", exact:p.words.exact } };
+    if(!m.hit) return { ok:true, correct:false };
+    const mLv = m.level==="exact" ? 3 : (m.level==="keyword" ? 2 : 1);
+    if(mLv < stLv) return { ok:true, correct:false, hint:m.level };
+    if(mLv === 3){
+      const answer = p.answerMode === "image"
+        ? { mode:"image", zh:img.zh, category:img.category, exact:img.exact, img:img.img }
+        : { mode:"custom_image", exact:p.words.exact, img:p.img };
+      return { ok:true, correct:true, done:true, level:"exact", word:m.word, pts:5, answer };
     }
-    const hit = p.words.find(w => t.includes(w));
-    if(!hit) return { ok:true, correct:false };
-    return { ok:true, correct:true, level:"exact", word:hit, pts:5, answer:{ mode:"custom", words:p.words } };
+    const next = mLv === 2 ? "exact" : "keyword";
+    return { ok:true, correct:true, passed:true, next, level:m.level, word:m.word, pts:m.pts };
   }
 };
 
@@ -457,12 +505,26 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
   app.get("/api/puzzle/:id", (req, res) => {
     const p = PuzzleStore.get(req.params.id);
     if(!p) return res.status(404).json({ err:"not_found" });
-    res.json({ ok:true, canvas:p.canvas, answerMode:p.answerMode, img:p.img||null });
+    res.json({ ok:true, canvas:p.canvas, bg:p.bg||"#FFFFFF", answerMode:p.answerMode, img:p.img||null });
   });
   app.post("/api/puzzle/:id/guess", (req, res) => {
-    const r = PuzzleStore.guess(req.params.id, (req.body||{}).text);
+    const r = PuzzleStore.guess(req.params.id, (req.body||{}).text, (req.body||{}).stage);
     if(r.err) return res.status(404).json({ err:r.err });
     res.json(r);
+  });
+  // 房间素材图（自定义图）HTTP 加载：不广播 dataURL，加入者按 URL 拉取
+  app.get("/room-img/:roomId/:idx", (req, res) => {
+    const room = manager.rooms.get(String(req.params.roomId||"").toUpperCase());
+    const i = parseInt(req.params.idx, 10);
+    const item = room && room.customImages[i];
+    if(!room || !item || !item.img){
+      return res.status(404).end();
+    }
+    const mime = /^data:([\w/+-]+);base64,/.exec(item.img);
+    const buf = Buffer.from(item.img.split(",")[1]||"", "base64");
+    res.set("Content-Type", mime ? mime[1] : "image/jpeg")
+       .set("Cache-Control", "public, max-age=3600")
+       .send(buf);
   });
   // 照片墙缩略图与大图长缓存；其余静态文件不缓存（保证 HTML 实时更新）
   app.use("/images-thumb", express.static(path.join(__dirname, "images-thumb"), { maxAge: "1d" }));
@@ -545,8 +607,8 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         return;
       }
       if(t === "canvas"){
-        const r = room.setCanvas(pid, m.els);
-        if(r.ok) broadcast(room, { t:"canvas", els: m.els, ver: r.ver }, pid);
+        const r = room.setCanvas(pid, m.els, m.bg);
+        if(r.ok) broadcast(room, { t:"canvas", els: m.els, bg: r.bg, ver: r.ver }, pid);
         return;
       }
       if(t === "word"){
@@ -575,6 +637,11 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         }
         if(room.allAnswered()) room.reveal();   // 自动揭晓（onReveal 广播）
         return;
+      }
+      if(t === "again"){
+        if(room.players[0].pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以再来一局" });
+        room.resetForAgain();
+        return broadcast(room, { t:"room_reset", room_id: room.id, players: room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})) });
       }
       if(t === "next"){
         const r = room.nextRound();

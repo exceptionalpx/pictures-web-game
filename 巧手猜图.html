@@ -57,6 +57,11 @@ a{color:var(--brand-d)}
 .guess-fb{margin-top:10px;font-size:14px}
 .guess-fb .fb.hit{background:#E9FBF2;border:1px solid #B2F2C8;color:#2B8A3E;border-radius:10px;padding:10px 12px}
 .guess-fb .fb.miss{background:#FFF5F5;border:1px solid #FFC9C9;color:#C92A2A;border-radius:10px;padding:10px 12px}
+.pz-progress{display:flex;gap:6px;margin:10px 0 8px}
+.pz-seg{flex:1;text-align:center;padding:8px 4px;border-radius:10px;background:#F1F0EB;color:#868E96;font-size:13px;font-weight:700}
+.pz-seg.cur{background:#3B5BDB;color:#fff}
+.pz-seg.done{background:#B2F2C8;color:#2B8A3E}
+.pz-stage{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px}
 .test-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
 .test-tbl td{border:1px solid var(--line);padding:6px 8px;text-align:left}
 .test-tbl tr.pass td:first-child{color:#2B8A3E;font-weight:700}
@@ -214,6 +219,7 @@ const RULES = {
 const STAGE = 480;                 // 画布逻辑尺寸
 const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
 const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
+const CANVAS_BGS = ["#FFFFFF","#BFE3F7","#C6EFCE","#FFF3BF","#FFD6E0","#E6D5F5","#DDEBF7","#FCE8D5"];
 const TOOLS = [
   {id:"shape", name:"形状", hint:"点左侧形状，浮动图形跟手；点画布或拖到画布放置；再点同形状取消"},
   {id:"pen",   name:"画笔", hint:"在画布上按住拖动绘制细线，用形状拼主体，画笔只做点睛"}
@@ -424,7 +430,7 @@ function compressImage(dataURL, maxSide, quality){
 
 /* ================= 单人谜题（画好→分享链接→朋友猜） ================= */
 function renderPuzzleEditor(){
-  const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null};
+  const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null,bg:"#FFFFFF"};
   $app.innerHTML="";
   const wrap=html("div",{class:"wrap"});
   wrap.innerHTML=`
@@ -453,6 +459,7 @@ function renderPuzzleEditor(){
       <div class="tool-bar panel">
         <div class="tb-group"><div class="tabs" id="tabs"></div></div>
         <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>背景</h3><div class="swatches" id="bgswatches"></div></div>
         <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
         <div class="tb-group" id="toolbody"></div>
         <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
@@ -492,6 +499,14 @@ function renderPuzzleEditor(){
     s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
     swEl.appendChild(s);
   });
+  const bgSwEl=wrap.querySelector("#bgswatches");
+  CANVAS_BGS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.bg===col?" on":""),"data-bg":col});
+    s.style.background=col;
+    if(col==="#FFFFFF"){ s.style.border="1.5px dashed #ccc"; s.title="白色"; }
+    s.onclick=()=>{state.bg=col;syncUI();};
+    bgSwEl.appendChild(s);
+  });
   const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
   opEl.addEventListener("input",()=>{
     state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
@@ -504,6 +519,7 @@ function renderPuzzleEditor(){
   function syncUI(){
     [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
     [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
+    [...(bgSwEl?bgSwEl.children:[])].forEach(s=>s.className="swatch"+(s.dataset.bg===state.bg?" on":""));
     hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
     cntEl.textContent=state.els.length;
     if(state.selected!=null && state.els[state.selected]){
@@ -527,9 +543,12 @@ function renderPuzzleEditor(){
   function addShapeAt(x,y){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
-    if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
-    state.ghostShape=null;
+    // 一次一放：放置后清除选中形状与浮动图形，需重新选形状才能再放
+    state.selected=null;
+    state.pickShape=null;
+    state.ghost=null; state.ghostShape=null;
     document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
   }
   function followGhost(e){
     if(!state.ghost) return;
@@ -594,7 +613,7 @@ function renderPuzzleEditor(){
   const NS="http://www.w3.org/2000/svg";
   let ghostG=null;
   function draw(){
-    renderArtwork(svg,state.els);
+    renderArtwork(svg,state.els,{bg:state.bg});
     if(state.selected!=null && state.els[state.selected]){
       const e=state.els[state.selected];
       const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
@@ -651,7 +670,7 @@ function renderPuzzleEditor(){
       } else if(state.tool==="pen"){
         commit();
         drag={type:"draw",pts:[[p.x,p.y]]};
-      } else if(state.tool==="shape"){
+      } else if(state.tool==="shape" && state.pickShape){
         addShapeAt(p.x,p.y);
       } else {
         state.selected=null; draw();
@@ -661,7 +680,7 @@ function renderPuzzleEditor(){
   svg.addEventListener("pointermove",ev=>{
     const p=pt(ev);
     if(!drag){
-      if(state.tool==="shape" && state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
+      if(state.tool==="shape" && state.ghost && state.pickShape){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
       return;
     }
     if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
@@ -858,7 +877,7 @@ function renderPuzzleEditor(){
     mask.querySelector("#cancel").onclick=()=>mask.remove();
     mask.querySelector("#confirm").onclick=async()=>{
       const btn=mask.querySelector("#confirm"); btn.disabled=true; btn.textContent="发布中…";
-      const body={canvas:state.els,answerMode:mode};
+      const body={canvas:state.els,answerMode:mode,bg:state.bg||"#FFFFFF"};
       if(mode==="image"){
         if(!pickedImage){toast("请从图库选择一张答案照片");btn.disabled=false;btn.textContent="确认发布";return;}
         body.imageId=pickedImage.id;
@@ -918,6 +937,8 @@ async function renderPuzzleGuess(id){
     <div class="hint" id="hint">看看这幅画，猜猜作者画的是什么</div>
   </div>
   <div class="card" style="max-width:560px;margin:12px auto">
+    <div class="pz-progress" id="pz-progress"></div>
+    <div class="pz-stage" id="pz-stage"></div>
     <div class="row" id="guess-row">
       <input id="guess-input" placeholder="输入你的猜测…" autocomplete="off">
       <button class="primary" id="guess-send">猜</button>
@@ -927,6 +948,7 @@ async function renderPuzzleGuess(id){
   $app.appendChild(wrap);
   wrap.querySelector("#back").onclick=()=>location.hash="#/";
   const fbEl=wrap.querySelector("#guess-fb");
+  const progressEl=wrap.querySelector("#pz-progress"), stageEl=wrap.querySelector("#pz-stage");
   let data=null;
   try{
     const r=await fetch("/api/puzzle/"+encodeURIComponent(id));
@@ -934,32 +956,62 @@ async function renderPuzzleGuess(id){
     data=await r.json();
   }catch(e){ fbEl.innerHTML=`<div class="fb miss">加载失败，请检查网络后刷新。</div>`; return; }
   const svg=wrap.querySelector("#stage");
-  renderArtwork(svg,data.canvas);
+  renderArtwork(svg,data.canvas,{bg:data.bg||"#FFFFFF"});
   const hint=wrap.querySelector("#hint");
-  hint.textContent=`作者画了 ${data.canvas.length} 个元素 · 猜中答案即可看到谜底`;
+  hint.textContent=`作者画了 ${data.canvas.length} 个元素 · 三关猜谜：类别 → 联想 → 准确`;
   const input=wrap.querySelector("#guess-input"), send=wrap.querySelector("#guess-send");
+  const STAGES=["category","keyword","exact"];
+  const STAGE_LABEL={category:"类别",keyword:"联想",exact:"准确"};
+  const STAGE_PLACEHOLDER={category:"先猜它属于哪一类，如：动物",keyword:"很棒！再猜一个联想词，如：草原",exact:"快接近了！猜出准确名字，如：长颈鹿"};
+  let stage=0, done=false;
+  function renderProgress(){
+    progressEl.innerHTML="";
+    STAGES.forEach((st,i)=>{
+      const seg=html("div",{class:"pz-seg"+(i<stage?" done":"")+(i===stage?" cur":"")});
+      seg.textContent=i<stage?"✓ "+STAGE_LABEL[st]:STAGE_LABEL[st];
+      progressEl.appendChild(seg);
+    });
+    stageEl.textContent=done?"🎉 恭喜通关！":`第 ${stage+1} 关 · 猜${STAGE_LABEL[STAGES[stage]]}`;
+    input.placeholder=done?"已通关":STAGE_PLACEHOLDER[STAGES[stage]];
+    input.disabled=done; send.disabled=done;
+    send.textContent=done?"已通关":"猜";
+  }
   function doGuess(){
     const text=input.value.trim();
-    if(!text) return;
+    if(!text||done) return;
     send.disabled=true;
-    fetch("/api/puzzle/"+encodeURIComponent(id)+"/guess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})})
+    fetch("/api/puzzle/"+encodeURIComponent(id)+"/guess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,stage:STAGES[stage]})})
       .then(r=>r.json()).then(j=>{
         send.disabled=false;
         if(j.err){ fbEl.innerHTML=`<div class="fb miss">谜题不存在或已过期。</div>`; return; }
-        if(j.correct){
+        if(j.done || (j.correct&&j.answer)){
+          done=true;
           let ansText="";
           if(j.answer && j.answer.mode==="image") ansText=`谜底是「${j.answer.zh}」（${j.answer.category}）`;
           else if(j.answer && j.answer.mode==="custom_image") ansText=`谜底是「${j.answer.exact}」（自定义图片）`;
           else if(j.answer && j.answer.mode==="custom") ansText=`谜底是「${j.answer.words.join(" / ")}」`;
           else ansText="答对了";
           let imgHtml="";
-          if(j.answer && j.answer.mode==="custom_image" && j.answer.img) imgHtml=`<img src="${j.answer.img}" alt="谜底照片" style="width:100%;max-width:280px;border-radius:12px;margin-top:10px;display:block">`;
+          if(j.answer && j.answer.img) imgHtml=`<img src="${j.answer.img}" alt="谜底照片" style="width:100%;max-width:300px;border-radius:12px;margin-top:10px;display:block">`;
           fbEl.innerHTML=`<div class="fb hit">🎉 答对了！${ansText}${imgHtml}</div>`;
-        } else {
-          fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
+          stage=3; renderProgress();
+          return;
         }
+        if(j.passed){
+          const ni=STAGES.indexOf(j.next);
+          stage=ni>=0?ni:stage+1;
+          fbEl.innerHTML=`<div class="fb hit">🎯 命中${STAGE_LABEL[j.level]||""}「${esc(j.word)}」！进入下一关</div>`;
+          renderProgress();
+          return;
+        }
+        if(j.hint){
+          fbEl.innerHTML=`<div class="fb miss">${j.hint==="category"?"这只是类别，再具体一点！":"接近了！这属于联想词，想想它的准确名字"}</div>`;
+          return;
+        }
+        fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
       }).catch(()=>{ send.disabled=false; fbEl.innerHTML=`<div class="fb miss">网络错误，请重试。</div>`; });
   }
+  renderProgress();
   send.onclick=doGuess;
   input.addEventListener("keydown",e=>{ if(e.key==="Enter") doGuess(); });
 }
@@ -974,11 +1026,14 @@ async function runPuzzleTest(){
     const u=String(url);
     if(opts && opts.method==="POST" && u.includes("/guess")){
       const body=JSON.parse(opts.body||"{}");
-      if(String(body.text||"").includes("大象")) return {status:200,ok:true,json:async()=>({ok:true,correct:true,level:"exact",word:"大象",pts:5,answer:{mode:"image",zh:"大象",category:"动物"}})};
+      const t=String(body.text||"");
+      if(t.includes("大象")) return {status:200,ok:true,json:async()=>({ok:true,done:true,correct:true,level:"exact",word:"大象",pts:5,answer:{mode:"image",zh:"大象",category:"动物",img:"/images/ani-elephant.png"}})};
+      if(t.includes("动物")) return {status:200,ok:true,json:async()=>({ok:true,passed:true,next:"keyword",level:"category",word:"动物",pts:1})};
+      if(t.includes("草原")) return {status:200,ok:true,json:async()=>({ok:true,passed:true,next:"exact",level:"keyword",word:"草原",pts:2})};
       return {status:200,ok:true,json:async()=>({ok:true,correct:false})};
     }
     if(opts && opts.method==="POST" && u.includes("/api/puzzle")) return {status:200,ok:true,json:async()=>({ok:true,id:"ABCDEF",url:"/巧手猜图.html#/puzzle/ABCDEF"})};
-    if(u.includes("/api/puzzle/") && u.endsWith("mock1")) return {status:200,ok:true,json:async()=>({ok:true,canvas:[{kind:"circle",x:10,y:10,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],answerMode:"image"})};
+    if(u.includes("/api/puzzle/") && u.endsWith("mock1")) return {status:200,ok:true,json:async()=>({ok:true,canvas:[{kind:"circle",x:10,y:10,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],bg:"#C6EFCE",answerMode:"image"})};
     if(u.endsWith("image-pack-64.json")) return {status:200,ok:true,json:async()=>({images:[{id:"ani-elephant",category:"动物",zh:"大象",exact:"大象",keywords:["森林","鼻子"],aliases:["象"],category_word:"动物"},{id:"ani-giraffe",category:"动物",zh:"长颈鹿",exact:"长颈鹿",keywords:["草原","脖子"],aliases:["鹿"],category_word:"动物"}]})};
     return {status:200,ok:true,json:async()=>({ok:true})};
   };
@@ -1060,8 +1115,15 @@ async function runPuzzleTest(){
     await sleep(30);
     const starG=document.querySelector("#stage g[data-kind=star]:not([data-ghost])");
     log(!!starG && !!starG.querySelector("path") && (starG.querySelector("path").getAttribute("d")||"").includes("Z"),"五角星路径渲染");
+    log(![...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="五角星").classList.contains("sel"),"一次一放后形状栏取消选中");
+    // 真实用户路径：点选画布上的五角星 → 删除
+    const starS=document.querySelector("#stage g[data-kind=star]:not([data-ghost])");
+    const sr=starS.getBoundingClientRect();
+    starS.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:sr.left+sr.width/2,clientY:sr.top+sr.height/2,pointerId:22}));
+    starS.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:sr.left+sr.width/2,clientY:sr.top+sr.height/2,pointerId:22}));
+    await sleep(30);
     document.querySelector("#del").click(); await sleep(20);
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"删除按钮清掉五角星");
+    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"点选后删除按钮清掉五角星");
     const rail=document.querySelector("#shape-rail");
     log(!!rail && rail.classList.contains("open") && rail.querySelectorAll(".rail-grid button").length===12,"窄屏画布左侧形状栏展开（12 图标）");
     log(!rail.querySelector("button b"),"形状栏仅图标无文字");
@@ -1095,15 +1157,25 @@ async function runPuzzleTest(){
     }catch(e){ idbOk=false; }
     log(idbOk,"自定义图 IndexedDB 保存/读取/删除");
     document.querySelector("#cancel").click(); await sleep(20);
-    // 猜题页
+    // 猜题页（三关引导：类别→联想→准确）
     location.hash="#/puzzle/mock1"; route(); await sleep(80);
     log(document.querySelectorAll("#stage g[data-kind]").length===1,"猜题页渲染只读画布 1 元素");
+    const bgR=document.querySelector("#stage rect");
+    log(!!bgR && bgR.getAttribute("fill")==="#C6EFCE","猜题页画布背景同步");
     log(!!document.querySelector("#guess-input"),"猜题页有输入框");
+    log(document.querySelectorAll("#pz-progress .pz-seg").length===3,"三关进度条 3 段");
+    log((document.querySelector("#pz-stage").textContent||"").includes("类别"),"第 1 关为猜类别");
     const input=document.querySelector("#guess-input"), send=document.querySelector("#guess-send");
-    input.value="大象"; send.click(); await sleep(60);
-    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("答对了"),"猜中显示答对+谜底");
     input.value="猫"; send.click(); await sleep(60);
     log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("不对"),"未中显示不对");
+    input.value="动物"; send.click(); await sleep(60);
+    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("进入下一关"),"类别命中进下一关");
+    log(document.querySelectorAll("#pz-progress .pz-seg.cur").length===1,"当前关高亮 1 段");
+    input.value="草原"; send.click(); await sleep(60);
+    log((document.querySelector("#pz-stage").textContent||"").includes("准确"),"联想命中跳到准确关");
+    input.value="大象"; send.click(); await sleep(60);
+    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("答对了"),"准确命中通关");
+    log(((document.querySelector("#guess-fb").querySelector("img"))||{}).src.includes("ani-elephant"),"通关显示谜底照片");
     // 发布成功视图（直接调 showPublished 需要 context，跳过——用 POST stub 走创作页 confirm）
   }catch(e){ log(false,"异常: "+e.message); }
   window.fetch=origFetch;
@@ -1121,7 +1193,7 @@ function renderEditor(){
   const target=__PW.target;
   const state={
     wall, target, els:[], selected:null, tool:"shape", pickShape:"circle",
-    color:COLORS[0], opacity:0.7, strokeW:3, history:[], future:[], finished:false
+    color:COLORS[0], opacity:0.7, strokeW:3, history:[], future:[], finished:false, bg:"#FFFFFF"
   };
   let timerId=null;
   $app.innerHTML="";
@@ -1158,6 +1230,7 @@ function renderEditor(){
       <div class="tool-bar panel">
         <div class="tb-group"><div class="tabs" id="tabs"></div></div>
         <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>背景</h3><div class="swatches" id="bgswatches"></div></div>
         <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
         <div class="tb-group" id="toolbody"></div>
         <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
@@ -1213,6 +1286,14 @@ function renderEditor(){
     s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
     swEl.appendChild(s);
   });
+  const bgSwEl=wrap.querySelector("#bgswatches");
+  CANVAS_BGS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.bg===col?" on":""),"data-bg":col});
+    s.style.background=col;
+    if(col==="#FFFFFF"){ s.style.border="1.5px dashed #ccc"; s.title="白色"; }
+    s.onclick=()=>{state.bg=col;syncUI();};
+    bgSwEl.appendChild(s);
+  });
   const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
   opEl.addEventListener("input",()=>{
     state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
@@ -1226,6 +1307,7 @@ function renderEditor(){
   function syncUI(){
     [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
     [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
+    [...(bgSwEl?bgSwEl.children:[])].forEach(s=>s.className="swatch"+(s.dataset.bg===state.bg?" on":""));
     hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
     cntEl.textContent=state.els.length;
     if(state.selected!=null && state.els[state.selected]){
@@ -1249,9 +1331,12 @@ function renderEditor(){
   function addShapeAt(x,y){
     const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
     addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
-    if(state.ghost){ state.ghost.x=null; state.ghost.y=null; }
-    state.ghostShape=null;
+    // 一次一放：放置后清除选中形状与浮动图形，需重新选形状才能再放
+    state.selected=null;
+    state.pickShape=null;
+    state.ghost=null; state.ghostShape=null;
     document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
   }
   function followGhost(e){
     if(!state.ghost) return;
@@ -1318,10 +1403,10 @@ function renderEditor(){
   /* ---------- SVG 绘制与交互 ---------- */
   const NS="http://www.w3.org/2000/svg";
   let canvasTimer=null;
-  function scheduleCanvas(){ if(canvasTimer)return; canvasTimer=setTimeout(()=>{canvasTimer=null; __PW.send({t:"canvas",els:state.els});},200); }
+  function scheduleCanvas(){ if(canvasTimer)return; canvasTimer=setTimeout(()=>{canvasTimer=null; __PW.send({t:"canvas",els:state.els,bg:state.bg});},200); }
   let ghostG=null;
   function draw(){
-    renderArtwork(svg,state.els);
+    renderArtwork(svg,state.els,{bg:state.bg});
     if(state.selected!=null && state.els[state.selected]){
       const e=state.els[state.selected];
       const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
@@ -1381,7 +1466,7 @@ function renderEditor(){
       } else if(state.tool==="pen"){
         commit();
         drag={type:"draw",pts:[[p.x,p.y]]};
-      } else if(state.tool==="shape"){
+      } else if(state.tool==="shape" && state.pickShape){
         addShapeAt(p.x,p.y);
       } else {
         state.selected=null; draw();
@@ -1391,7 +1476,7 @@ function renderEditor(){
   svg.addEventListener("pointermove",ev=>{
     const p=pt(ev);
     if(!drag){
-      if(state.tool==="shape" && state.ghost){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
+      if(state.tool==="shape" && state.ghost && state.pickShape){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
       return;
     }
     if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
@@ -1510,7 +1595,7 @@ function renderEditor(){
 const PW_WS_URL = (location.protocol==="file:" ? "ws://localhost:4000/ws" : (location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 const __PW = window.__pwOnline = {
   ws:null, roomId:"", pid:"", nickname:"", status:"lobby", role:"",
-  wall:[], target:-1, deadline:0, canvas:[], scores:{},
+  wall:[], target:-1, deadline:0, canvas:[], canvasBg:"#FFFFFF", scores:{},
   round:0, maxRounds:0, drawer:{pid:"",nickname:""},
   createSeconds:90, lockSeconds:30, answered:0, total:0,
   players:[], reveal:null, over:null, _connFailed:false,
@@ -1520,7 +1605,9 @@ const __PW = window.__pwOnline = {
     try{ this.ws=new WebSocket(PW_WS_URL); }
     catch(e){ if(!this._connFailed){this._connFailed=true; toast("无法连接服务器："+PW_WS_URL);} return; }
     this.ws.onopen=()=>{
-      if(self.reconnectAt && self.roomId){ self.send({t:"rejoin",room_id:self.roomId,pid:self.pid}); }
+      const s=restoreSession();
+      if(s && !self.roomId){ self.roomId=s.roomId; self.pid=s.pid; self.nickname=s.nickname||""; }
+      if(self.roomId && self.pid){ self.send({t:"rejoin",room_id:self.roomId,pid:self.pid}); }
       else if(onOpen) onOpen();
     };
     this.ws.onmessage=(ev)=>{ let m; try{ m=JSON.parse(ev.data); }catch(_){ return; } self.handle(m); };
@@ -1538,15 +1625,17 @@ const __PW = window.__pwOnline = {
         this.roomId=m.room_id; this.pid=m.pid; this.nickname=m.nickname;
         this.players=m.players; this.wall=m.wall||[]; this.status="lobby";
         this.createSeconds=m.rules.createSeconds; this.lockSeconds=m.rules.lockSeconds;
-        this.reconnectAt=Date.now(); this.reveal=null; this.over=null;
+        this.reconnectAt=Date.now(); this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
+        saveSession();
         renderOnlineLobby(); break;
       case "joined":
         this.roomId=m.room_id; this.pid=m.pid;
-        this.players=m.players; this.wall=m.wall||[]; this.canvas=(m.canvas&&m.canvas.els)||[];
+        this.players=m.players; this.wall=m.wall||[]; this.canvas=(m.canvas&&m.canvas.els)||[]; this.canvasBg=(m.canvas&&m.canvas.bg)||"#FFFFFF";
         this.round=m.round; this.maxRounds=m.maxRounds; this.deadline=m.deadline;
         this.createSeconds=m.createSeconds; this.lockSeconds=m.lockSeconds;
         this.target=m.target; this.status=m.status; this.reconnectAt=Date.now();
         this.drawer=(m.drawerIdx>=0&&m.players[m.drawerIdx])?{pid:m.players[m.drawerIdx].pid,nickname:m.players[m.drawerIdx].nickname}:{pid:"",nickname:""};
+        saveSession();
         if(this.status==="lobby") renderOnlineLobby();
         else if(this.status==="playing"){ preloadThumbs(this.wall); renderOnlineRoom(); }
         else renderOnlineReveal();
@@ -1558,11 +1647,12 @@ const __PW = window.__pwOnline = {
       case "round_start":
         this.round=m.round; this.deadline=m.deadline; this.createSeconds=m.createSeconds;
         this.lockSeconds=m.lockSeconds; this.drawer=m.drawer; this.status="playing";
-        this.wall=m.wall||[]; this.target=m.target; this.reveal=null; this.over=null; this.answered=0; this.canvas=[];
+        this.wall=m.wall||[]; this.target=m.target; this.reveal=null; this.over=null; this.answered=0; this.canvas=[]; this.canvasBg="#FFFFFF";
         preloadThumbs(this.wall);
         renderOnlineRoom(); break;
       case "canvas":
         this.canvas=m.els||[];
+        if(m.bg) this.canvasBg=m.bg;
         if(window.__pwGuessUpdate) window.__pwGuessUpdate();
         break;
       case "guess_status":
@@ -1596,6 +1686,10 @@ const __PW = window.__pwOnline = {
         this.reveal=m; this.status=m.state; renderOnlineReveal(); break;
       case "game_over":
         this.over=m; this.status="game_over"; renderOnlineReveal(); break;
+      case "room_reset":
+        this.players=m.players; this.status="lobby"; this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
+        saveSession();
+        renderOnlineLobby(); break;
       case "error":
         if(m.err==="cooldown" && window.__pwCooldownMsg) window.__pwCooldownMsg(m.remain);
         else if(m.err==="tried") toast(m.msg||"这张照片试过了");
@@ -1608,12 +1702,24 @@ window.__pwDrawerStatus = (m)=>{ toast(`有人已作答（${m.answered}/${m.tota
 function pwLeave(){
   if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
+  clearSession();
   Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
   location.hash="#/";
+}
+function saveSession(){
+  try{ localStorage.setItem("pw_session", JSON.stringify({roomId:__PW.roomId,pid:__PW.pid,nickname:__PW.nickname})); }catch(_){}
+}
+function clearSession(){
+  try{ localStorage.removeItem("pw_session"); }catch(_){}
+}
+function restoreSession(){
+  try{ const s=JSON.parse(localStorage.getItem("pw_session")||"null"); if(s&&s.roomId&&s.pid) return s; }catch(_){}
+  return null;
 }
 function pwReset(){
   if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
   try{ __PW.ws&&__PW.ws.close(); }catch(_){}
+  clearSession();
   Object.assign(__PW,{roomId:"",pid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
 }
 
@@ -1637,11 +1743,11 @@ function renderOnline(){
     <h3>在线房间 · 点击加入</h3>
     <div id="pw-rooms"><div class="note">连接后自动加载…</div></div>
     ${__PW.roomId?`<div style="margin-top:10px"><button class="accent" id="pw-back" style="width:100%">回到当前房间（${__PW.roomId}）</button></div>`:""}
-    <button class="ghost" id="pw-pick-custom" style="width:100%;margin-top:6px">携带我的图片（最多 8 张，可设词条）</button>
+    <button class="ghost" id="pw-pick-custom" style="width:100%;margin-top:6px">携带我的图片（最多 16 张，可设词条）</button>
     <div id="pw-custom-picked" class="sub" style="margin-top:4px"></div>
     <div class="foot-actions"><button class="ghost" onclick="location.hash='#/'">回首页</button></div>`;
   w.appendChild(card); $app.appendChild(w);
-  if(card.querySelector("#pw-back")) card.querySelector("#pw-back").onclick=()=>renderOnlineRoom();
+  if(card.querySelector("#pw-back")) card.querySelector("#pw-back").onclick=()=>{ pwConnect(()=>__PW.send({t:"rejoin",room_id:__PW.roomId,pid:__PW.pid})); };
   const nick=()=>card.querySelector("#pw-nick").value.trim();
   window.__pwCustomSel=[];
   card.querySelector("#pw-pick-custom").onclick=async()=>{
@@ -1649,7 +1755,7 @@ function renderOnline(){
     if(!list.length){ toast("图库还没有图片，先在单人谜题里上传"); return; }
     const mk=html("div",{class:"mask"});
     mk.innerHTML=`<div class="pop" style="max-width:520px">
-      <h3>携带我的图片</h3><div class="sub">勾选后随房间发给队友（最多 8 张，会成为照片墙的候选题）</div>
+      <h3>携带我的图片</h3><div class="sub">勾选后随房间发给队友（最多 16 张，会成为照片墙的候选题）</div>
       <div id="cw-grid" class="img-grid" style="max-height:320px;overflow:auto"></div>
       <div class="row" style="margin-top:12px"><button class="primary" id="cw-ok" style="flex:1">确定（0 张）</button><button class="ghost" id="cw-cancel">取消</button></div>
     </div>`;
@@ -1672,7 +1778,7 @@ function renderOnline(){
     drawCw();
     mk.querySelector("#cw-cancel").onclick=()=>mk.remove();
     okBtn.onclick=()=>{
-      window.__pwCustomSel=list.filter(g=>picked.has(g.id)).slice(0,8);
+      window.__pwCustomSel=list.filter(g=>picked.has(g.id)).slice(0,16);
       mk.remove();
       card.querySelector("#pw-custom-picked").textContent=window.__pwCustomSel.length?`已携带 ${window.__pwCustomSel.length} 张：${window.__pwCustomSel.map(g=>g.name||g.exact).join("、")}`:"";
     };
@@ -1774,11 +1880,11 @@ function renderOnlineGuess(){
   const svg=card.querySelector("#pw-gstage"), wallHolder=card.querySelector("#pw-photo-holder"),
     bar=card.querySelector("#pw-gbar"), recEl=card.querySelector("#pw-records");
   const wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
-  renderArtwork(svg,__PW.canvas);
+  renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"});
   let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
   const triedSet=new Set(__PW.myTried||[]);
   window.__pwCooldownMs = window.__pwCooldownMs || 10000;
-  window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas); };
+  window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"}); };
 
   function addRecord(text, mode){
     const row=html("div",{class:"guess-record "+mode});
@@ -1927,8 +2033,10 @@ function renderOnlineReveal(){
     if(rev.answerImg) inner+=`<div class="answer-img"><img src="${rev.answerImg}" alt="答案照片"></div>`;
   }
   inner+=`<h3>本轮结算</h3><div id="pw-results"></div><h3>总分榜</h3><div id="pw-scores"></div>`;
+  const isHost=__PW.players.length>0&&__PW.players[0].pid===__PW.pid;
   if(!over) inner+=`<div class="foot-actions"><button class="accent" id="pw-next">开始下一轮</button></div>`;
-  else inner+=`<div class="foot-actions"><button class="primary" id="pw-again">再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
+  else if(isHost) inner+=`<div class="foot-actions"><button class="primary" id="pw-again">再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
+  else inner+=`<div class="foot-actions"><button class="primary" id="pw-again" disabled>等待房主再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
   card.innerHTML=inner;
   w.appendChild(card);$app.appendChild(w);
   const resEl=card.querySelector("#pw-results");
@@ -1949,7 +2057,7 @@ function renderOnlineReveal(){
   const nt=card.querySelector("#pw-next");
   if(nt) nt.onclick=()=>__PW.send({t:"next"});
   const ag=card.querySelector("#pw-again");
-  if(ag) ag.onclick=()=>{ pwReset(); location.hash="#/online"; };
+  if(ag && !ag.disabled) ag.onclick=()=>{ __PW.send({t:"again"}); toast("已发起再来一局，等大家回房间…"); };
   const hm=card.querySelector("#pw-home");
   if(hm) hm.onclick=()=>{ pwReset(); location.hash="#/"; };
 }
@@ -1982,9 +2090,10 @@ async function runOnlineTest(){
   window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
   window.__pwCooldownMs=60;           // 自检内冷却缩短
   try{
-    /* 0. 入口页：建房携带自定义图入口 */
+    /* 0. 入口页：建房携带自定义图入口（上限 16 张） */
     renderOnline(); await sleep(60);
     rec("入口页携带我的图片按钮", !!document.querySelector("#pw-pick-custom"),"");
+    rec("携带图片上限 16 张文案", (document.body.textContent||"").includes("最多 16 张"),"");
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",
       players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
@@ -2110,6 +2219,10 @@ async function runOnlineTest(){
     __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7},{kind:"crescent",x:30,y:40,w:90,h:90,rot:45,color:"#2980B9",opacity:0.5},{kind:"arrow",x:50,y:60,w:100,h:90,rot:0,color:"#2F9E44",opacity:1}]});
     await sleep(60);
     rec("猜题人画布同步(12形状)", document.querySelector("#pw-gstage").querySelectorAll("g[data-kind]").length>=2,"");
+    __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],bg:"#BFE3F7"});
+    await sleep(60);
+    const bgRect=document.querySelector("#pw-gstage rect");
+    rec("猜题人画布背景同步", !!bgRect && bgRect.getAttribute("fill")==="#BFE3F7","");
 
     /* 7. 解锁：照片墙出现在文字框下方 */
     __PW.deadline=Date.now()+500;
@@ -2158,11 +2271,24 @@ async function runOnlineTest(){
     rec("揭晓含文字命中层级", (document.querySelector("#pw-results").textContent||"").includes("文字命中 +5"),"");
     rec("揭晓含下一轮按钮", !!document.querySelector("#pw-next"),"");
 
-    /* 10. 终局 */
+    /* 10. 终局 + 再来一局（房主/非房主）+ 回大厅 */
     __PW.handle({t:"game_over",scores:{pA:1,pB:8},winner:{pid:"pB",nickname:"小红",score:8}});
     rec("终局标题", (document.querySelector("h1").textContent||"").includes("对局结束"),"");
     rec("赢家显示", (document.querySelector(".score-big").textContent||"").includes("小红"),"");
-    rec("终局含再来一局", !!document.querySelector("#pw-again"),"");
+    __PW.pid="pB";
+    renderOnlineReveal(); await sleep(40);
+    const agNon=document.querySelector("#pw-again");
+    rec("非房主再来一局为等待态", !!agNon && agNon.disabled && (agNon.textContent||"").includes("等待房主"),"");
+    __PW.pid="pA";
+    renderOnlineReveal(); await sleep(40);
+    const agHost=document.querySelector("#pw-again");
+    rec("房主再来一局可点", !!agHost && !agHost.disabled && (agHost.textContent||"").includes("再来一局"),"");
+    __PW.handle({t:"room_reset",room_id:"AB12",players:[
+      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
+      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
+    await sleep(40);
+    rec("再来一局回大厅", !!document.querySelector("#pw-start") && (document.querySelector("h1").textContent||"").includes("AB12"),"");
+    rec("回大厅人数保留", document.querySelector("#pw-players").children.length===2,"");
 
     /* 11. 在线房间列表（自检内不真实连接，模拟 list 消息） */
     renderOnline();

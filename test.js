@@ -7,7 +7,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { WebSocket } = require("ws");
-const { Room, RoomManager, startServer, IMAGES, PACK, matchLevel, normalizeWord, PuzzleStore } = require("./server.js");
+const { ONLINE, Room, RoomManager, startServer, IMAGES, PACK, matchLevel, normalizeWord, PuzzleStore } = require("./server.js");
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -428,7 +428,104 @@ test("房间：房主携带自定义图 → 图池含自定义目标 → 文字�
   assert.equal(g2.correct, true, "选图命中自定义目标");
 });
 
+test("三关引导：类别→联想→准确逐关推进，提前命中直接放行，低层级只提示不放行", () => {
+  const p1 = PuzzleStore.create({canvas:[{kind:"circle",x:1,y:2,w:90,h:90,rot:0,color:"#000"}], answerMode:"image", imageId:"ani-elephant"});
+  const c1 = PuzzleStore.guess(p1.id, "动物", "category");
+  assert.equal(c1.correct, true); assert.equal(c1.passed, true); assert.equal(c1.next, "keyword", "类别关命中→进联想关");
+  const c2 = PuzzleStore.guess(p1.id, "非洲", "category");
+  assert.equal(c2.correct, true); assert.equal(c2.next, "exact", "类别关提前命中联想词→直接跳准确关");
+  const c3 = PuzzleStore.guess(p1.id, "大象", "keyword");
+  assert.equal(c3.correct, true); assert.equal(c3.done, true, "准确关命中→通关");
+  assert.equal(c3.answer.mode, "image"); assert.equal(c3.answer.zh, "大象"); assert.ok(c3.answer.img, "通关后含谜底照片");
+  const c4 = PuzzleStore.guess(p1.id, "动物", "keyword");
+  assert.equal(c4.correct, false); assert.equal(c4.hint, "category", "联想关输类别词→提示不放行");
+  const c5 = PuzzleStore.guess(p1.id, "非洲", "exact");
+  assert.equal(c5.correct, false); assert.equal(c5.hint, "keyword", "准确关输联想词→提示不放行");
+  const c6 = PuzzleStore.guess(p1.id, "大象", "category");
+  assert.equal(c6.correct, true); assert.equal(c6.done, true, "类别关直接输准确词→直接通关");
+  const c7 = PuzzleStore.guess(p1.id, "飞机", "category");
+  assert.equal(c7.correct, false, "完全未中");
+  const p2 = PuzzleStore.create({canvas:[{kind:"circle",x:1,y:2,w:90,h:90,rot:0,color:"#000"}], answerMode:"custom_image", img:"data:image/jpeg;base64,AAAA", words:{exact:"长颈鹿", keywords:["草原"], aliases:["鹿"], category_word:"动物"}});
+  const d1 = PuzzleStore.guess(p2.id, "草原", "category");
+  assert.equal(d1.passed, true); assert.equal(d1.next, "exact", "自定义图：类别关命中联想→跳准确关");
+  const d2 = PuzzleStore.guess(p2.id, "鹿", "keyword");
+  assert.equal(d2.passed, true); assert.equal(d2.next, "exact", "别名命中→进准确关");
+  const d3 = PuzzleStore.guess(p2.id, "长颈鹿", "exact");
+  assert.equal(d3.done, true); assert.equal(d3.answer.mode, "custom_image"); assert.equal(d3.answer.img, "data:image/jpeg;base64,AAAA", "通关含谜底图");
+});
+
+test("画布背景色：白名单生效/非法忽略/开始轮重置", () => {
+  const room = new Room("BGC", { lockMs: 50, createMs: 100000 });
+  room.addPlayer("A"); room.addPlayer("B"); room.maxRounds = 2; room.startRound();
+  const a = room.players[0].pid;
+  const r1 = room.setCanvas(a, [], "#BFE3F7");
+  assert.equal(r1.ok, true); assert.equal(r1.bg, "#BFE3F7", "合法背景生效");
+  assert.equal(room.canvas.bg, "#BFE3F7");
+  const r2 = room.setCanvas(a, [], "not-a-color");
+  assert.equal(r2.ok, true); assert.equal(room.canvas.bg, "#BFE3F7", "非法背景保持原值");
+  const r3 = room.setCanvas(a, [], undefined);
+  assert.equal(room.canvas.bg, "#BFE3F7", "缺省背景保持原值");
+  room.startRound();
+  assert.equal(room.canvas.bg, "#FFFFFF", "新一轮重置为白色");
+  assert.equal(room.canvas.els.length, 0);
+});
+
+test("再来一局：保留成员，清空分数/轮次/画布回大厅", () => {
+  const room = new Room("AGN", { lockMs: 50, createMs: 100000 });
+  room.addPlayer("A"); room.addPlayer("B"); room.maxRounds = 2; room.startRound();
+  const a = room.players[0].pid, b = room.players[1].pid;
+  room.setCanvas(a, [{kind:"circle",x:1,y:2,w:9,h:9,rot:0,color:"#000"}], "#C6EFCE");
+  room.submitWord(b, "动物"); room.reveal();
+  assert.equal(room.status, "round_end", "揭晓后 round_end");
+  room.resetForAgain();
+  assert.equal(room.status, "lobby", "回到大厅");
+  assert.equal(room.round, 0); assert.equal(room.maxRounds, 0);
+  assert.equal(room.players.length, 2, "成员保留");
+  assert.equal(room.players[0].score, 0, "分数清零");
+  assert.equal(room.canvas.els.length, 0); assert.equal(room.canvas.bg, "#FFFFFF");
+  assert.equal(room.canStart(), true, "可重新开始");
+});
+
+test("断线重连：同昵称 join 复用原席位，不新增人数", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("阿明");
+  const pid = r.pid;
+  const b = r.room.addPlayer("小红");
+  assert.equal(r.room.players.length, 2);
+  r.room.removePlayer(pid);
+  assert.equal(r.room.players[0].connected, false, "断线标记");
+  const rj = mgr.join(r.room.id, "阿明");
+  assert.equal(rj.resumed, true, "同昵称复用");
+  assert.equal(rj.pid, pid, "pid 不变");
+  assert.equal(r.room.players.length, 2, "人数不增");
+  assert.equal(r.room.players[0].connected, true, "恢复在线");
+  const b2 = r.room.players[1].pid;
+  r.room.removePlayer(b2);
+  const rj2 = mgr.join(r.room.id, "小红");
+  assert.equal(rj2.resumed, true, "另一断线玩家同样复用");
+  assert.equal(rj2.pid, b2, "pid 复用");
+  assert.equal(r.room.players.length, 2);
+});
+
+test("素材图 16 张上限 + imgUrl 化：墙内自定义图为 HTTP 路径而非 dataURL", () => {
+  const mgr = new RoomManager();
+  const imgs = [];
+  for(let i=0;i<16;i++) imgs.push({ zh:"图"+i, img:"data:image/jpeg;base64,AA"+i, exact:"词"+i, keywords:["联"+i], aliases:[], category_word:"类" });
+  const r = mgr.create("房主", imgs);
+  assert.equal(r.room.customImages.length, 16, "16 张全部入池");
+  assert.equal(r.room.customImages[0].imgUrl, "/room-img/"+r.room.id+"/0", "imgUrl 路径");
+  r.room.addPlayer("甲"); r.room.maxRounds = 2; r.room.startRound();
+  const ci = r.room.wall.filter(g => String(g.id).indexOf("cu-")===0);
+  assert.ok(ci.length >= 1 && ci.length <= 16, "墙内含自定义图");
+  for(const g of ci){
+    assert.equal(String(g.img).indexOf("data:"), -1, "墙内自定义图不含 dataURL");
+    assert.ok(String(g.img).indexOf("/room-img/")===0, "墙内自定义图为 HTTP 路径");
+  }
+});
+
 test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {
+  assert.equal(ONLINE.createSeconds, 120, "作画 120 秒");
+  assert.equal(ONLINE.lockSeconds, 45, "文字竞猜 45 秒");
   assert.equal(IMAGES.length, 64, "64 张图");
   assert.equal(PACK.scoring.category_word, 1, "类别词 1 分");
   assert.equal(PACK.scoring.keyword, 2, "联想词 2 分");
