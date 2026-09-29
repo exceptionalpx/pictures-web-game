@@ -1023,3 +1023,48 @@ test("建房携带图上限 32：40 张只入 32", () => {
   assert.equal(ids.size, 32, "id 唯一");
 });
 
+test("e2e：图库模式/共享图库/顶号消息走网络层", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
+  await ready;
+  const port = server.address().port;
+  const base = `ws://127.0.0.1:${port}/ws`;
+  const a = wsClient(base); await a.ready;
+  const b = wsClient(base); await b.ready;
+
+  a.send({ t:"create", nickname:"房主甲", device:"devA" });
+  const r1 = await a.waitFor(m => m.t === "created");
+  assert.equal(r1.poolMode, "mixed", "created 携带默认图库模式");
+  assert.ok(Array.isArray(r1.customImgs), "created 携带共享库元信息");
+
+  b.send({ t:"join", room_id: r1.room_id, nickname:"小红", device:"devB" });
+  await a.waitFor(m => m.t === "player_joined");
+
+  // 非房主上传 → img_added 广播
+  b.send({ t:"add_img", zh:"恐龙", img:"data:image/jpeg;base64,AAAA", exact:"恐龙", keywords:["远古"], aliases:[], category_word:"动物" });
+  const added = await a.waitFor(m => m.t === "img_added");
+  assert.equal(added.img.contributor, "小红", "贡献者广播");
+  assert.equal(added.list.length, 1, "共享库 1 张");
+
+  // 房主 set_mode → 全房间广播
+  a.send({ t:"set_mode", mode:"custom" });
+  const ms = await b.waitFor(m => m.t === "mode_set");
+  assert.equal(ms.mode, "custom", "mode_set 广播");
+
+  // 房主移除 → img_removed 广播
+  a.send({ t:"del_img", id: added.img.id });
+  const rm = await b.waitFor(m => m.t === "img_removed");
+  assert.equal(rm.list.length, 0, "img_removed 广播");
+
+  // 同 device 活跃连接再进 → 复用席位 + 旧连接被踢
+  const c = wsClient(base); await c.ready;
+  c.send({ t:"join", room_id: r1.room_id, nickname:"房主甲", device:"devA" });
+  const kicked = await a.waitFor(m => m.t === "kicked");
+  assert.ok(kicked, "旧连接收到 kicked");
+  const joined = await c.waitFor(m => m.t === "joined");
+  assert.equal(joined.pid, r1.pid, "同设备复用同一席位");
+  assert.equal(joined.resumed, true, "标记恢复身份");
+
+  manager.disposeAll(); b.ws.close(); c.ws.close(); wss.close();
+  await new Promise(res => server.close(res));
+});
+
