@@ -136,8 +136,7 @@ a{color:var(--brand-d)}
 .feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px;max-width:640px;width:100%}
 .feed-panel h2{font-size:15px;margin-bottom:8px}
 .feed{display:flex;flex-direction:column;gap:4px;max-height:148px;overflow-y:auto}
-.feed-progress{display:flex;gap:8px;align-items:center;justify-content:center;background:#FFF3D6;border:1.5px solid #F2C94C;color:#7A5C00;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;width:100%;max-width:640px;position:sticky;top:56px;z-index:6;box-shadow:var(--shadow)}
-@media (min-width:768px){ .feed-progress{display:none} }
+.feed-progress-inline{display:flex;gap:6px;align-items:center;justify-content:center;background:#FFF3D6;border:1.5px solid #F2C94C;color:#7A5C00;border-radius:10px;padding:5px 10px;font-size:13px;font-weight:700;margin:0 0 8px;white-space:nowrap}
 @media (max-width:767px){ .feed-panel{margin-top:8px;padding:8px 10px} .feed{max-height:110px} }
 .mvp-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
 .mvp-badge{background:#FFF3D6;border:1.5px solid #F2C94C;color:#7A5C00;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700}
@@ -248,6 +247,14 @@ th{background:#F3EFE5}
   .add-grid{gap:5px}
   .row{gap:5px}
   .row button{font-size:12px;padding:8px 6px}
+}
+/* 联机出题人桌面两列：左列目标卡+作答动态，右列画布+工具（一屏零滚动） */
+@media (min-width:861px){
+  .editor.drawer-layout{grid-template-columns:240px minmax(0,1fr);justify-items:stretch;align-items:start}
+  .editor.drawer-layout .wall-panel{grid-column:1;grid-row:1}
+  .editor.drawer-layout .feed-panel{grid-column:1;grid-row:2;margin-top:10px;max-width:none;width:100%}
+  .editor.drawer-layout .stage-wrap{grid-column:2;grid-row:1 / span 2;min-width:0}
+  .editor.drawer-layout .feed{max-height:calc(100vh - 600px);min-height:130px}
 }
 </style>
 </head>
@@ -963,7 +970,7 @@ function renderPuzzleEditor(){
   $app.appendChild(wrap);
   wrap.querySelector("#back").onclick=()=>location.hash="#/";
   const svg=wrap.querySelector("#stage");
-  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
+  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
   const tabsEl=wrap.querySelector("#tabs");
   const swEl=wrap.querySelector("#swatches");
   const bodyEl=wrap.querySelector("#toolbody");
@@ -1721,9 +1728,9 @@ function renderEditor(){
   $app.innerHTML="";
   const wrap=html("div",{class:"wrap"});
   const isNarrow = !!__PW.forceNarrow || window.matchMedia("(max-width:767px)").matches;
-  const progressHtml = isNarrow ? `<div class="feed-progress" id="feed-progress">🎯 准确词命中 <b>0/0</b></div>` : "";
-  const narrowFeed = isNarrow ? `<div class="feed-panel"><h2>作答动态</h2><div class="feed" id="feed"></div></div>` : "";
-  const desktopFeed = isNarrow ? "" : `<div class="feed-panel"><h2>作答动态</h2><div class="feed" id="feed"></div></div>`;
+  const feedPanel = `<div class="feed-panel"><h2>作答动态</h2><div class="feed-progress-inline">🎯 准确词命中 <b>0/0</b></div><div class="feed" id="feed"></div></div>`;
+  const narrowFeed = isNarrow ? feedPanel : "";
+  const desktopFeed = isNarrow ? "" : feedPanel;
   wrap.innerHTML=`
   <div class="topbar">
     <button class="ghost" id="back">← 首页</button>
@@ -1733,12 +1740,12 @@ function renderEditor(){
     <span class="timer" id="timer">--:--</span>
     <button class="primary" id="submit">等待揭晓…</button>
   </div>
-  <div class="editor">
-    ${progressHtml}
+  <div class="editor drawer-layout">
     <div class="panel wall-panel">
       <h2>🎯 目标照片</h2>
       <div class="target-card" id="target-card"></div>
     </div>
+    ${desktopFeed}
     <div class="stage-wrap">
       <div class="stage-row">
         <div class="shape-rail" id="shape-rail"></div>
@@ -1765,8 +1772,7 @@ function renderEditor(){
         <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       </div>
     </div>
-  </div>
-  ${desktopFeed}`;
+  </div>`;
   $app.appendChild(wrap);
   wrap.querySelector("#back").onclick=()=>{if(timerId)clearInterval(timerId);location.hash="#/";};
   const submitEl=wrap.querySelector("#submit"); submitEl.textContent="等待揭晓…"; submitEl.disabled=true;
@@ -1785,7 +1791,7 @@ function renderEditor(){
   }
   railMini.onclick=()=>{railCollapsed=false;renderRail();syncUI();};
   renderRail();
-  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} svg.style.height=svg.getBoundingClientRect().width+"px"; draw(); });
+  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
   const tabsEl=wrap.querySelector("#tabs");
   const swEl=wrap.querySelector("#swatches");
   const bodyEl=wrap.querySelector("#toolbody");
@@ -2094,7 +2100,7 @@ function renderEditor(){
   },1000);
   /* 作答动态：出题人实时看到每个猜词与选图对错（word_view/guess_view 仅发给出题人） */
   function renderFeedProgress(){
-    const el=document.querySelector("#feed-progress"); if(!el) return;
+    const el=document.querySelector(".feed-progress-inline"); if(!el) return;
     const total=Math.max(0,(__PW.players||[]).length-1);
     el.innerHTML=`🎯 准确词命中 <b>${(__PW.exactHits||[]).length}/${total}</b>`;
   }
@@ -2125,8 +2131,9 @@ function renderEditor(){
   };
   window.__pwDrawerGuess=(m)=>{
     const cell=coordLabel(m.cell);
-    if(m.correct){ addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✓${m.first?" 首答":""}</span>`,"ok"); sfx(m.first?"win":"pick"); }
-    else { addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✗</span>`,"no"); sfx("miss"); }
+    const g=wall[m.cell]; const gname=g?g.zh:"";
+    if(m.correct){ addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ${gname} ✓${m.first?" 首答":""}</span>`,"ok"); sfx(m.first?"win":"pick"); }
+    else { addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ${gname} ✗</span>`,"no"); sfx("miss"); }
   };
   syncUI();
   window.__pwEditor={state,svg,wrap,draw};
@@ -2858,6 +2865,7 @@ function renderOnlineReveal(){
   const w=html("div",{class:"wrap"});
   const card=html("div",{class:"card",style:"max-width:620px;margin:0 auto"});
   let inner=`<h1>${over?"🏆 对局结束":`第 ${rev.round} 轮揭晓`}</h1>`;
+  if(!over) inner+=`<div class="sub" style="text-align:center;color:var(--muted)">本轮 ${rev.round} / ${rev.maxRounds||"?"}</div>`;
   if(over){
     inner+=`<div class="score-big">${over.winner.nickname} 获胜 · ${over.winner.score} 分</div>`;
     const mvp=over.mvp||{};
@@ -2873,7 +2881,11 @@ function renderOnlineReveal(){
   }
   inner+=`<h3>本轮结算</h3><div id="pw-results"></div><h3>总分榜</h3><div id="pw-scores"></div>`;
   const isHost=!!__PW.hostPid && __PW.hostPid===__PW.pid;
-  if(!over) inner+=`<div class="foot-actions"><button class="accent" id="pw-next">开始下一轮</button></div>`;
+  if(!over){
+    const lastRound=!!rev.isLast;
+    inner+=`<div class="sub auto-next-tip" id="pw-next-tip" style="text-align:center;margin-top:12px;color:var(--muted)">${lastRound?"10 秒后自动进入结算":"6 秒后自动开始下一轮"}</div>`;
+    inner+=`<div class="foot-actions"><button class="accent" id="pw-next">${lastRound?"查看结算":"开始下一轮"}</button></div>`;
+  }
   else if(isHost) inner+=`<div class="foot-actions"><button class="primary" id="pw-again">再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
   else inner+=`<div class="foot-actions"><button class="primary" id="pw-again" disabled>等待房主再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
   card.innerHTML=inner;
@@ -2894,7 +2906,16 @@ function renderOnlineReveal(){
     scEl.appendChild(row);
   });
   const nt=card.querySelector("#pw-next");
-  if(nt) nt.onclick=()=>__PW.send({t:"next"});
+  let nextTimer=null;
+  if(nt){
+    const lastRound=!!rev.isLast;
+    let left=lastRound?10:6;
+    const tip=card.querySelector("#pw-next-tip");
+    const tickT=()=>{ if(tip) tip.textContent=`${left} 秒后自动${lastRound?"进入结算":"开始下一轮"}`; };
+    tickT();
+    nextTimer=setInterval(()=>{ left--; if(left<=0){ clearInterval(nextTimer); __PW.send({t:"next"}); } else tickT(); },1000);
+    nt.onclick=()=>{ if(nextTimer) clearInterval(nextTimer); __PW.send({t:"next"}); };
+  }
   const ag=card.querySelector("#pw-again");
   if(ag && !ag.disabled) ag.onclick=()=>{ __PW.send({t:"again"}); toast("已发起再来一局，等大家回房间…"); };
   const hm=card.querySelector("#pw-home");
@@ -2969,7 +2990,8 @@ async function runOnlineTest(){
     rec("画布最后30秒警示浮标", !!document.querySelector(".timer-hint"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
-    rec("手机端出题人进度条", !!document.querySelector("#feed-progress")&&/\d+\/\d+/.test(document.querySelector("#feed-progress").textContent||""),"");
+    rec("手机端出题人进度条", !!document.querySelector(".feed-progress-inline")&&/\d+\/\d+/.test(document.querySelector(".feed-progress-inline").textContent||""),"");
+    rec("出题人编辑器桌面两列类", document.querySelector(".editor").className.includes("drawer-layout"),"");
     [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
     [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形").click();
     const srect=ed.svg.getBoundingClientRect();
@@ -3012,10 +3034,10 @@ async function runOnlineTest(){
     await sleep(30);
     rec("出题人见命中词+层级", (document.querySelector("#feed").textContent||"").includes("准确词")&&(document.querySelector("#feed").textContent||"").includes("+5"),"");
     rec("出题人feed无重复分数", (document.querySelector("#feed").textContent||"").includes("准确词 +5") && !(document.querySelector("#feed").textContent||"").includes("+5 +5"),"");
-    rec("进度条随准确命中+1", (document.querySelector("#feed-progress").textContent||"").includes("1/1"),"");
+    rec("进度条随准确命中+1", (document.querySelector(".feed-progress-inline").textContent||"").includes("1/1"),"");
     __PW.handle({t:"guess_view",pid:"pB",nickname:"小红",cell:3,correct:true,first:true});
     await sleep(30);
-    rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
+    rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("鲨鱼")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
     __PW.handle({t:"guess_view",pid:"pC",nickname:"小刚",cell:0,correct:false,first:false});
     await sleep(30);
     rec("出题人见选图未中", (document.querySelector("#feed").textContent||"").includes("A1")&&(document.querySelector("#feed").textContent||"").includes("✗"),"");
@@ -3121,12 +3143,25 @@ async function runOnlineTest(){
       results:[
         {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1},
         {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,attempts:2,wordHit:true,wordPts:5,points:8}],
-      scores:{pA:1,pB:8},isLast:false});
+      scores:{pA:1,pB:8},isLast:false,maxRounds:2});
     rec("揭晓结果行 2 条", !!document.querySelector("#pw-results")&&document.querySelector("#pw-results").children.length===2,"");
     rec("揭晓答案显示", (document.querySelector("h1").textContent||"").includes("第 1 轮揭晓"),"");
     rec("揭晓答案照片", !!document.querySelector(".answer-img img"),"");
     rec("揭晓含文字命中层级", (document.querySelector("#pw-results").textContent||"").includes("文字命中 +5"),"");
     rec("揭晓含下一轮按钮", !!document.querySelector("#pw-next"),"");
+    rec("本轮X/N显示", (document.querySelector("#app").textContent||"").includes("本轮 1 / 2"),"");
+    rec("非最后轮按钮文案", (document.querySelector("#pw-next").textContent||"").includes("开始下一轮"),"");
+    rec("自动倒计时提示", !!document.querySelector("#pw-next-tip")&&(document.querySelector("#pw-next-tip").textContent||"").includes("6 秒"),"");
+    /* 最后轮揭晓：按钮变查看结算 + 10 秒自动跳转 */
+    __PW.handle({t:"reveal",state:"round_end",round:2,answer:3,answerLabel:"B1 鲨鱼",answerImg:"/images/ani-elephant.png",maxRounds:2,isLast:true,
+      drawer:{pid:"pA",nickname:"阿明"},
+      results:[
+        {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1},
+        {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,attempts:2,wordHit:true,wordPts:5,points:8}],
+      scores:{pA:1,pB:8}});
+    await sleep(40);
+    rec("最后轮按钮为查看结算", (document.querySelector("#pw-next").textContent||"").includes("查看结算"),"");
+    rec("最后轮10秒自动提示", (document.querySelector("#pw-next-tip").textContent||"").includes("10 秒"),"");
 
     /* 10. 终局 + 再来一局（房主/非房主）+ 回大厅 */
     __PW.handle({t:"game_over",scores:{pA:1,pB:8},winner:{pid:"pB",nickname:"小红",score:8},mvp:{score:"pB",firstExact:"pB",drawer:"pA"}});

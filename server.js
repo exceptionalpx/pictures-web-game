@@ -371,6 +371,7 @@ class Room {
     const rev = {
       state: this.status,
       round: this.round,
+      maxRounds: this.maxRounds,
       answer: this.target,
       answerLabel: coordLabel(this.target) + " " + this.wall[this.target].zh,
       answerImg: this.wall[this.target].img,
@@ -836,7 +837,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         const r = room.nextRound();
         if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
         if(r.state === "game_over"){
-          return broadcast(room, { t:"game_over", scores: r.scores, winner: r.winner });
+          return broadcast(room, { t:"game_over", scores: r.scores, winner: r.winner, mvp: r.mvp });
         }
         for(const c of wss.clients){
           if(c.ctx && c.ctx.room === room){
