@@ -61,6 +61,23 @@ a{color:var(--brand-d)}
 .pop .pw-in{border-color:#C7BCA4;background:#FFFEFA}
 .file-drop{display:block;border:2px dashed #C7BCA4;border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;margin-top:10px;background:#FFFDF6}
 .file-drop:hover{border-color:var(--brand);background:#FAF7F0}
+.pop{background:#FFFDFA;border:1px solid #EFE9DC;border-radius:16px;padding:18px;box-shadow:0 12px 40px rgba(24,28,41,.28);max-height:85vh;overflow:auto;box-sizing:border-box}
+.pop .row{margin-top:14px}
+.pt-tab{padding:6px 14px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+.pt-tab.on{background:#FFF8E6;border-color:var(--gold);font-weight:600}
+.img-broken{position:absolute;left:4px;right:4px;bottom:26px;background:rgba(193,39,45,.88);color:#fff;font-size:10px;text-align:center;border-radius:5px;padding:1px 2px;pointer-events:none;z-index:3}
+.img-cell.is-up{opacity:.55}
+.img-done{position:absolute;left:4px;top:4px;background:rgba(34,139,34,.88);color:#fff;font-size:10px;border-radius:5px;padding:1px 5px;pointer-events:none;z-index:3}
+.cw-del{position:absolute;right:2px;top:2px;background:rgba(255,255,255,.95);border:1px solid #E3DDD0;border-radius:6px;font-size:11px;padding:1px 6px;color:#C1272D;cursor:pointer;z-index:4;display:none}
+.img-cell.on .cw-del{display:block}
+.cw-confirm{position:absolute;inset:0;background:rgba(24,28,41,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:5;border-radius:6px}
+.cw-confirm span{color:#fff;font-size:11px}
+.target-strip{display:flex;align-items:center;gap:10px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px;margin:10px 0}
+.target-strip .tp-photo{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;background:#fff;border:1px solid #E3DDD0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden}
+.target-strip .tp-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.target-strip .tp-meta{flex:1;min-width:0}
+.target-strip .tp-meta b{font-size:14px}
+.target-strip .tp-meta .sub{font-size:12px;word-break:break-all}
 .img-picked{font-size:12px;color:var(--brand);margin:6px 0;min-height:16px}
 .puzzle-code{font-size:34px;font-weight:800;letter-spacing:6px;text-align:center;color:var(--brand);margin:10px 0;font-variant-numeric:tabular-nums}
 .link-box{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;color:#343A40;background:#F8F9FA}
@@ -411,6 +428,9 @@ async function customList(){
   return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readonly").objectStore(CUSTOM_STORE).getAll(); tx.onsuccess=()=>res(tx.result||[]); tx.onerror=()=>rej(tx.error); });
 }
 async function customPut(item){
+  /* 写入校验：图片必须是合法的 data:image URL，防止坏记录进图库 */
+  const img=String(item&&item.img||"");
+  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
   const db=await idbOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
 }
@@ -458,6 +478,11 @@ function renderPuzzleEditor(){
     <span class="title">单人出题 · 自由创作</span>
     <span class="spacer"></span>
     <button class="primary" id="publish">发布谜题</button>
+  </div>
+  <div class="target-strip" id="target-strip">
+    <div class="tp-photo" id="tp-photo">🖼️</div>
+    <div class="tp-meta"><b id="tp-name">尚未选择目标照片</b><div class="sub" id="tp-sub">从 64 图选一张，或上传自己的照片（发布时作为答案）</div></div>
+    <button class="ghost" id="tp-pick" style="flex:none">选择</button>
   </div>
   <div class="editor">
     <div class="stage-wrap">
@@ -776,97 +801,49 @@ function renderPuzzleEditor(){
     if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
   });
 
-  /* ---- 发布谜题 ---- */
-  let packCache=null;
-  async function loadPack(){ if(!packCache){ const r=await fetch("image-pack-64.json"); packCache=await r.json(); } return packCache; }
-  wrap.querySelector("#publish").onclick=()=>{ if(state.els.length===0){ toast("先画点什么再发布吧"); return; } openPublish(); };
-  async function openPublish(){
-    const pack=await loadPack();
-    const cats=[...new Set(pack.images.map(g=>g.category))];
-    let pickedImage=null, mode="image";
-    const mask=html("div",{class:"mask"});
-    mask.innerHTML=`
-    <div class="modal">
-      <h2>发布谜题 · 设置答案</h2>
-      <label class="radio-line"><input type="radio" name="ansmode" value="image" checked> 从图库选一张作为答案</label>
-      <div class="cat-tabs" id="cat-tabs"></div>
-      <div class="img-grid" id="img-grid"></div>
-      <div class="img-picked" id="img-picked">尚未选择照片</div>
-      <label class="radio-line"><input type="radio" name="ansmode" value="custom"> 自定义答案词（多个用逗号分隔，猜中任意一个即对）</label>
-      <input id="custom-words" placeholder="例如：帆船, 小船, 海" style="display:none;width:100%;box-sizing:border-box;margin-top:6px">
-      <label class="radio-line"><input type="radio" name="ansmode" value="custom_image"> 我的图片（上传照片 + 设置类别/联想/准确词）</label>
-      <div id="mypanel" style="display:none;margin-top:8px">
-        <div class="row"><input type="file" id="my-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="my-upload">选择图片</button></div>
-        <div id="my-preview" style="display:none;margin-top:8px">
-          <img id="my-pvimg" alt="预览" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:block">
-          <div class="note" style="margin-top:6px">自动压缩到 512px。填写词条后点「保存到自定义图库」：</div>
-          <input id="my-name" placeholder="图片名称（猜题人可见）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-cat" placeholder="类别词（必填，如：动物）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-kw1" placeholder="联想词1（如：草原）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-kw2" placeholder="联想词2（可选）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-exact" placeholder="准确词（必填，如：长颈鹿）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-al1" placeholder="别名1（可选，猜中也算联想分）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <input id="my-al2" placeholder="别名2（可选）" style="width:100%;box-sizing:border-box;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;background:#FCFBF8;color:var(--ink)">
-          <button class="primary" id="my-save" style="width:100%;margin-top:8px">保存到自定义图库</button>
-        </div>
-        <div class="note" style="margin-top:8px">已保存（最多 30 张），点击缩略图作为答案：</div>
-        <div class="img-grid" id="my-grid" style="max-height:200px;overflow:auto"></div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button class="ghost" id="cancel">取消</button>
-        <button class="primary" id="confirm">确认发布</button>
-      </div>
-    </div>`;
-    $app.appendChild(mask);
-    const catTabs=mask.querySelector("#cat-tabs"), imgGrid=mask.querySelector("#img-grid"), pickedEl=mask.querySelector("#img-picked"), customEl=mask.querySelector("#custom-words"), myPanel=mask.querySelector("#mypanel");
-    let cat=cats[0], myPicked=null, myRaw="";
-    function drawMy(){
-      customList().then(list=>{
-        const grid=mask.querySelector("#my-grid"); if(!grid) return;
-        grid.innerHTML="";
-        list.forEach(g=>{
-          const b=html("button",{class:"img-cell"+(myPicked&&myPicked.id===g.id?" on":"")});
-          b.innerHTML=`<img src="${g.img}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>`;
-          b.onclick=()=>{myPicked=g;drawMy();pickedEl.textContent=`已选：${g.name||g.exact}（自定义图片）`;};
-          grid.appendChild(b);
-          const del=html("button",{class:"ghost",style:"position:absolute;right:2px;top:2px;font-size:11px;padding:2px 6px",title:"删除"},"✕");
-          del.onclick=(ev)=>{ev.stopPropagation();customDel(g.id).then(()=>{ if(myPicked&&myPicked.id===g.id) myPicked=null; drawMy(); });};
-          b.appendChild(del);
-        });
-      });
+  /* ---- 目标照片：从系统图库选 / 上传自己的图（发布时作为答案） ---- */
+  let target=null;   // {kind:"pack",g} | {kind:"custom",g}
+  function drawTarget(){
+    const photo=wrap.querySelector("#tp-photo"), name=wrap.querySelector("#tp-name"), sub=wrap.querySelector("#tp-sub");
+    if(!photo) return;
+    if(!target){
+      photo.innerHTML="🖼️"; name.textContent="尚未选择目标照片";
+      sub.textContent="从 64 图选一张，或上传自己的照片（发布时作为答案）";
+      return;
     }
-    const myFile=mask.querySelector("#my-file"), mySave=mask.querySelector("#my-save"), myPrev=mask.querySelector("#my-preview");
-    mask.querySelector("#my-upload").onclick=()=>myFile.click();
-    myFile.onchange=async()=>{
-      const f=myFile.files&&myFile.files[0]; if(!f) return;
-      const dl=await fileToDataURL(f);
-      myRaw=await compressImage(dl,512,0.82);
-      if(!myRaw){ toast("图片处理失败或过大，请换一张"); myFile.value=""; return; }
-      mask.querySelector("#my-pvimg").src=myRaw;
-      myPrev.style.display="block";
-    };
-    mySave.onclick=async()=>{
-      const cat=String(mask.querySelector("#my-cat").value||"").trim();
-      const exact=String(mask.querySelector("#my-exact").value||"").trim();
-      if(!myRaw){ toast("请先选择图片"); return; }
-      if(!cat || !exact){ toast("类别词和准确词必填"); return; }
-      const list=await customList();
-      if(list.length>=CUSTOM_CAP){ toast("已达 30 张上限"); return; }
-      const item={
-        id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-        img:myRaw,
-        name:String(mask.querySelector("#my-name").value||"").trim()||exact,
-        category_word:cat,
-        keywords:[String(mask.querySelector("#my-kw1").value||"").trim(),String(mask.querySelector("#my-kw2").value||"").trim()].filter(Boolean).slice(0,2),
-        aliases:[String(mask.querySelector("#my-al1").value||"").trim(),String(mask.querySelector("#my-al2").value||"").trim()].filter(Boolean).slice(0,2),
-        exact, createdAt:Date.now()
-      };
-      await customPut(item); toast("已保存到自定义图库");
-      myRaw=""; myPrev.style.display="none"; myFile.value="";
-      mask.querySelector("#my-name").value=""; mask.querySelector("#my-cat").value=""; mask.querySelector("#my-kw1").value=""; mask.querySelector("#my-kw2").value=""; mask.querySelector("#my-exact").value=""; mask.querySelector("#my-al1").value=""; mask.querySelector("#my-al2").value="";
-      drawMy();
-    };
-    drawMy();
+    photo.innerHTML=`<img src="${target.kind==="pack"?("images-thumb/"+target.g.id+".jpg"):esc(target.g.img)}" alt="">`;
+    name.textContent=target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact);
+    sub.textContent=target.kind==="pack"?("系统图库 · 类别："+target.g.category):("自定义 · 类别："+(target.g.category_word||"未设")+" · 准确词："+(target.g.exact||"未设"));
+  }
+  function pickTarget(){
+    const packPromise=loadPack();
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:540px">
+      <h3>选择目标照片</h3>
+      <div class="tabs" id="pt-tabs"><button class="pt-tab on" data-v="pack">系统图库</button><button class="pt-tab" data-v="custom">我的图片</button></div>
+      <div id="pt-pack"><div class="cat-tabs" id="pt-cats"></div><div class="img-grid" id="pt-grid" style="max-height:300px;overflow:auto"></div></div>
+      <div id="pt-custom" style="display:none">
+        <div class="img-grid" id="pt-mygrid" style="max-height:210px;overflow:auto"></div>
+        <div style="margin-top:10px;border-top:1px dashed #E3DDD0;padding-top:10px">
+          <div class="sub" style="margin-bottom:6px">上传自己的照片（自动压缩；保存后点缩略图选中）：</div>
+          <div class="row"><input type="file" id="pt-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="pt-upload">选择图片</button></div>
+          <div id="pt-preview" style="display:none;margin-top:8px">
+            <img id="pt-pvimg" alt="预览" style="width:84px;height:84px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:block">
+            <input id="pt-name" class="pw-in" placeholder="图片名称（猜题人可见）">
+            <input id="pt-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
+            <input id="pt-kw1" class="pw-in" placeholder="联想词1（如：草原）">
+            <input id="pt-kw2" class="pw-in" placeholder="联想词2（可选）">
+            <input id="pt-exact" class="pw-in" placeholder="准确词（必填，如：长颈鹿）">
+            <button class="primary" id="pt-save" style="width:100%;margin-top:8px">保存到自定义图库</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="pt-ok" style="flex:1">选为目标</button><button class="ghost" id="pt-cancel">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    let ptSel=null, pack=null, cats=[], cat="", ptRaw="";
+    const catTabs=mk.querySelector("#pt-cats"), grid=mk.querySelector("#pt-grid"), myGrid=mk.querySelector("#pt-mygrid");
+    packPromise.then(pk=>{ pack=pk; cats=[...new Set(pk.images.map(g=>g.category))]; cat=cats[0]||""; drawCats(); drawImgs(); }).catch(()=>toast("系统图库加载失败"));
     function drawCats(){
       catTabs.innerHTML="";
       cats.forEach(c=>{
@@ -876,39 +853,99 @@ function renderPuzzleEditor(){
       });
     }
     function drawImgs(){
-      imgGrid.innerHTML="";
-      pack.images.filter(g=>g.category===cat).forEach(g=>{
-        const b=html("button",{class:"img-cell"+(pickedImage&&pickedImage.id===g.id?" on":""),title:g.zh});
-        b.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${g.zh}"><span>${g.zh}</span>`;
-        b.onclick=()=>{pickedImage=g;drawImgs();pickedEl.textContent=`已选：${g.zh}（类别：${g.category}）`;};
-        imgGrid.appendChild(b);
+      grid.innerHTML="";
+      (pack?pack.images:[]).filter(g=>g.category===cat).forEach(g=>{
+        const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="pack"&&ptSel.g.id===g.id?" on":"")});
+        b.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${esc(g.zh)}"><span>${esc(g.zh)}</span>`;
+        b.onclick=()=>{ptSel={kind:"pack",g};drawImgs();drawMy();};
+        grid.appendChild(b);
       });
     }
-    drawCats(); drawImgs();
-    [...mask.querySelectorAll("input[name=ansmode]")].forEach(r=>{
-      r.onchange=()=>{
-        mode=r.value;
-        customEl.style.display=mode==="custom"?"block":"none";
-        imgGrid.style.display=(mode==="image")?"grid":"none";
-        catTabs.style.display=(mode==="image")?"flex":"none";
-        myPanel.style.display=mode==="custom_image"?"block":"none";
+    function drawMy(){
+      customList().then(list=>{
+        myGrid.innerHTML="";
+        list.forEach(g=>{
+          const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="custom"&&ptSel.g.id===g.id?" on":"")});
+          b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>`;
+          b.onclick=()=>{ptSel={kind:"custom",g};drawMy();drawImgs();};
+          myGrid.appendChild(b);
+        });
+      });
+    }
+    const ptFile=mk.querySelector("#pt-file");
+    mk.querySelector("#pt-upload").onclick=()=>ptFile.click();
+    ptFile.onchange=async()=>{
+      const f=ptFile.files&&ptFile.files[0]; if(!f) return;
+      ptRaw=await compressImage(await fileToDataURL(f),512,0.82);
+      if(!ptRaw){ toast("图片处理失败或过大，请换一张"); ptFile.value=""; return; }
+      mk.querySelector("#pt-pvimg").src=ptRaw;
+      mk.querySelector("#pt-preview").style.display="block";
+    };
+    mk.querySelector("#pt-save").onclick=async()=>{
+      const catv=String(mk.querySelector("#pt-cat").value||"").trim();
+      const exactv=String(mk.querySelector("#pt-exact").value||"").trim();
+      if(!ptRaw){ toast("请先选择图片"); return; }
+      if(!catv||!exactv){ toast("类别词和准确词必填"); return; }
+      const list=await customList();
+      if(list.length>=CUSTOM_CAP){ toast("已达 30 张上限"); return; }
+      const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,createdAt:Date.now()};
+      try{ await customPut(item); }catch(e){ toast("图片无效，请重试"); return; }
+      toast("已保存到自定义图库");
+      ptRaw=""; mk.querySelector("#pt-preview").style.display="none"; ptFile.value="";
+      mk.querySelector("#pt-name").value="";mk.querySelector("#pt-cat").value="";mk.querySelector("#pt-kw1").value="";mk.querySelector("#pt-kw2").value="";mk.querySelector("#pt-exact").value="";
+      drawMy();
+    };
+    mk.querySelectorAll("#pt-tabs .pt-tab").forEach(t=>{
+      t.onclick=()=>{
+        mk.querySelectorAll("#pt-tabs .pt-tab").forEach(x=>x.classList.remove("on"));
+        t.classList.add("on");
+        const v=t.dataset.v;
+        mk.querySelector("#pt-pack").style.display=v==="pack"?"block":"none";
+        mk.querySelector("#pt-custom").style.display=v==="custom"?"block":"none";
+        if(v==="pack") drawImgs(); else drawMy();
       };
     });
+    mk.querySelector("#pt-cancel").onclick=()=>mk.remove();
+    mk.querySelector("#pt-ok").onclick=()=>{
+      if(!ptSel){ toast("请选择一张目标照片"); return; }
+      target=ptSel; drawTarget(); mk.remove();
+    };
+    drawMy();
+  }
+  wrap.querySelector("#tp-pick").onclick=()=>pickTarget();
+  drawTarget();
+
+  /* ---- 发布谜题（目标照片已在画布上方选定） ---- */
+  let packCache=null;
+  async function loadPack(){ if(!packCache){ const r=await fetch("image-pack-64.json"); packCache=await r.json(); } return packCache; }
+  wrap.querySelector("#publish").onclick=()=>{
+    if(state.els.length===0){ toast("先画点什么再发布吧"); return; }
+    if(!target){ toast("先在上方选择目标照片"); return; }
+    openPublish();
+  };
+  async function openPublish(){
+    const mask=html("div",{class:"mask"});
+    mask.innerHTML=`
+    <div class="modal center" style="max-width:420px">
+      <h2>发布谜题</h2>
+      <div style="text-align:center">
+        <div class="tp-photo" style="width:140px;height:140px;margin:0 auto;border:2px solid var(--gold)">${target.kind==="pack"?`<img src="images-thumb/${esc(target.g.id)}.jpg" alt="">`:`<img src="${esc(target.g.img)}" alt="">`}</div>
+        <div style="margin-top:8px"><b>${target.kind==="pack"?esc(target.g.zh):esc(target.g.name||target.g.exact)}</b></div>
+        <div class="sub">${target.kind==="pack"?("类别："+esc(target.g.category)):("类别："+esc(target.g.category_word||"未设")+" · 联想："+esc((target.g.keywords||[]).join("、")||"未设")+" · 准确："+esc(target.g.exact))}</div>
+      </div>
+      <div class="note" style="text-align:center;margin-top:10px">这张图将作为谜题答案；朋友按「类别 → 联想 → 准确」三关猜词。</div>
+      <div class="row" style="justify-content:center;margin-top:14px">
+        <button class="ghost" id="cancel">返回修改</button>
+        <button class="primary" id="confirm">确认发布</button>
+      </div>
+    </div>`;
+    $app.appendChild(mask);
     mask.querySelector("#cancel").onclick=()=>mask.remove();
     mask.querySelector("#confirm").onclick=async()=>{
       const btn=mask.querySelector("#confirm"); btn.disabled=true; btn.textContent="发布中…";
-      const body={canvas:state.els,answerMode:mode,bg:state.bg||"#FFFFFF"};
-      if(mode==="image"){
-        if(!pickedImage){toast("请从图库选择一张答案照片");btn.disabled=false;btn.textContent="确认发布";return;}
-        body.imageId=pickedImage.id;
-      } else if(mode==="custom_image"){
-        if(!myPicked){toast("请从我的图片中选择一张作为答案");btn.disabled=false;btn.textContent="确认发布";return;}
-        body.words={ exact:myPicked.exact, keywords:myPicked.keywords||[], aliases:myPicked.aliases||[], category_word:myPicked.category_word||"" };
-        body.img=myPicked.img;
-      } else {
-        body.customWords=customEl.value.split(/[,，、\s]+/).filter(Boolean);
-        if(body.customWords.length===0){toast("请填写至少一个答案词");btn.disabled=false;btn.textContent="确认发布";return;}
-      }
+      const body={canvas:state.els,answerMode:target.kind==="pack"?"image":"custom_image",bg:state.bg||"#FFFFFF"};
+      if(target.kind==="pack") body.imageId=target.g.id;
+      else { body.words={ exact:target.g.exact, keywords:target.g.keywords||[], aliases:target.g.aliases||[], category_word:target.g.category_word||"" }; body.img=target.g.img; }
       try{
         const r=await fetch("/api/puzzle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
         const j=await r.json();
@@ -1155,28 +1192,36 @@ async function runPuzzleTest(){
     st4.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
     st4.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
     await sleep(30);
-    // 发布弹层
-    document.querySelector("#publish").click(); await sleep(60);
-    log(!!document.querySelector(".mask .modal"),"发布弹层打开");
-    log(document.querySelectorAll(".cat-tabs .cat-tab").length>=1,"图库类别 tab 出现");
-    log(!!document.querySelector(".img-grid .img-cell"),"图库缩略图出现");
-    log(!!document.querySelector('input[name=ansmode][value=custom_image]'),"发布弹层有我的图片模式");
-    const myRadio=document.querySelector('input[name=ansmode][value=custom_image]');
-    myRadio.checked=true; myRadio.dispatchEvent(new Event("change",{bubbles:true}));
+    // 目标照片：先选目标再发布（定目标→看着画→发布）
+    document.querySelector("#tp-pick").click(); await sleep(80);
+    log(!!document.querySelector("#pt-grid") && document.querySelectorAll("#pt-grid .img-cell").length>=1,"目标照片弹窗系统图库出现");
+    log(!!document.querySelector("#pt-mygrid"),"目标照片弹窗有我的图片页");
+    const ptFirst=document.querySelector("#pt-grid .img-cell");
+    if(ptFirst){ ptFirst.click(); await sleep(30); const ptOk=document.querySelector("#pt-ok"); if(ptOk){ ptOk.click(); await sleep(30);} }
+    log(((document.querySelector("#tp-name").textContent)||"").length>0 && !!document.querySelector("#tp-photo img"),"目标照片已选定并显示");
+    document.querySelector("#tp-pick").click(); await sleep(50);
+    const ptCustomTab=document.querySelector('#pt-tabs .pt-tab[data-v="custom"]');
+    if(ptCustomTab){ ptCustomTab.click(); await sleep(40); }
+    log(!!document.querySelector("#pt-file") && !!document.querySelector("#pt-save"),"目标弹窗上传控件存在");
+    if(document.querySelector("#pt-cancel")) document.querySelector("#pt-cancel").click();
     await sleep(30);
-    log((document.querySelector("#mypanel").style.display||"").includes("block"),"我的图片面板显示");
-    log(!!document.querySelector("#my-grid") && !!document.querySelector("#my-file"),"上传控件存在");
+    // 发布确认弹层
+    document.querySelector("#publish").click(); await sleep(60);
+    log(!!document.querySelector(".mask .modal") && !!document.querySelector("#confirm"),"发布确认弹层打开");
+    log(!!document.querySelector(".mask .tp-photo img"),"发布弹层显示目标照片");
+    if(document.querySelector("#cancel")) document.querySelector("#cancel").click();
+    await sleep(20);
+    // 自定义图 IndexedDB 读写（合法小图）
     const withTO=(pr,ms)=>Promise.race([pr,new Promise(r=>setTimeout(()=>r("TIMEOUT"),ms||800))]);
     let idbOk=false;
     try{
-      const r1=await withTO(customPut({id:"tt1",img:"data:image/jpeg;base64,AAAA",name:"测试图",category_word:"动物",keywords:["草原"],aliases:[],exact:"长颈鹿",createdAt:Date.now()}));
+      const r1=await withTO(customPut({id:"tt1",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",category_word:"动物",keywords:["草原"],aliases:[],exact:"长颈鹿",createdAt:Date.now()}));
       if(r1!=="TIMEOUT"){
         const ll=await withTO(customList());
         if(ll!=="TIMEOUT" && ll.some(x=>x.id==="tt1")){ idbOk=true; await withTO(customDel("tt1")); }
       }
     }catch(e){ idbOk=false; }
     log(idbOk,"自定义图 IndexedDB 保存/读取/删除");
-    document.querySelector("#cancel").click(); await sleep(20);
     // 猜题页（三关引导：类别→联想→准确）
     location.hash="#/puzzle/mock1"; route(); await sleep(80);
     log(document.querySelectorAll("#stage g[data-kind]").length===1,"猜题页渲染只读画布 1 元素");
@@ -1654,6 +1699,11 @@ const __PW = window.__pwOnline = {
         this.poolMode=m.poolMode||"mixed"; this.customImgs=m.customImgs||[];
         this.reconnectAt=Date.now(); this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
         saveSession();
+        if(window.__pwCarryCount!==undefined){
+          const want=window.__pwCarryCount; window.__pwCarryCount=undefined;
+          const got=(this.customImgs||[]).length;
+          if(want>0) toast(skipOf(want,got) ? `已带入 ${got} 张，${want-got} 张因缺词条或过大被跳过` : `已带入 ${got} 张`);
+        }
         renderOnlineLobby(); break;
       case "joined":
         this.roomId=m.room_id; this.pid=m.pid;
@@ -1723,8 +1773,10 @@ const __PW = window.__pwOnline = {
         if(this.status==="lobby") renderOnlineLobby();
         if(window.__pwUpload && window.__pwUpload.pending){
           window.__pwUpload.pending=false;
-          toast("已上传到房间");
+          toast("已上传："+((m.img&&m.img.zh)||"图片"));
           if(window.__pwUpload.remove) window.__pwUpload.remove();
+        } else if(m.img && m.img.contributor && m.img.contributor!==this.nickname){
+          toast("有新图片加入房间");
         }
         break;
       case "img_removed":
@@ -1838,13 +1890,34 @@ function renderOnline(){
     const drawCw=()=>{
       grid.innerHTML="";
       list.forEach(g=>{
-        const b=html("div",{class:"img-cell"+(picked.has(g.id)?" on":"")});
-        b.innerHTML=`<img src="${g.img}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span><input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`;
+        const on=picked.has(g.id);
+        const b=html("div",{class:"img-cell"+(on?" on":"")});
+        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span><input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${on?"checked":""}>${on?`<button class="cw-del">✕</button>`:""}`;
+        /* 坏图标识：加载失败时盖红标（图可能是坏记录，也可能是网络限流） */
+        const im=b.querySelector("img");
+        if(im) im.onerror=()=>{ if(!b.querySelector(".img-broken")){ const br=html("div",{class:"img-broken"},"加载失败"); b.appendChild(br); } };
         b.onclick=()=>{
+          if(b.querySelector(".cw-confirm")){ drawCw(); return; }   /* 确认层开着时点格子=取消 */
           if(picked.has(g.id)) picked.delete(g.id); else picked.add(g.id);
           drawCw();
           okBtn.textContent=`确定（${picked.size} 张）`;
         };
+        if(on){
+          const del=b.querySelector(".cw-del");
+          del.onclick=(ev)=>{
+            ev.stopPropagation();
+            const cf=html("div",{class:"cw-confirm"});
+            cf.innerHTML=`<span>删除这张？</span><div class="row" style="margin:0;gap:6px"><button class="ghost" id="cwc-yes" style="flex:none;padding:3px 10px;font-size:11px;background:#C1272D;color:#fff;border:none">删除</button><button class="ghost" id="cwc-no" style="flex:none;padding:3px 10px;font-size:11px">取消</button></div>`;
+            b.appendChild(cf);
+            cf.querySelector("#cwc-yes").onclick=async()=>{
+              try{ await customDel(g.id); }catch(_){}
+              list=list.filter(x=>x.id!==g.id); picked.delete(g.id);
+              drawCw(); okBtn.textContent=`确定（${picked.size} 张）`;
+              toast("已删除");
+            };
+            cf.querySelector("#cwc-no").onclick=()=>drawCw();
+          };
+        }
         grid.appendChild(b);
       });
     };
@@ -1859,6 +1932,7 @@ function renderOnline(){
   card.querySelector("#pw-create").onclick=()=>{
     __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
     const customs=(window.__pwCustomSel||[]).map(g=>({zh:g.name||g.exact,img:g.img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""}));
+    window.__pwCarryCount=customs.length;
     pwConnect(()=>__PW.send({t:"create",nickname:__PW.nickname,customImages:customs,device:getDeviceId()}));
   };
   card.querySelector("#pw-join").onclick=()=>{
@@ -1896,6 +1970,7 @@ function pwConnect(action){
 }
 
 /* ---- 大厅 ---- */
+function skipOf(want,got){ return want>got; }
 function modeLabel(m){
   if(m==="default") return "照片墙只从默认 64 图里随机抽 16 张。";
   if(m==="custom") return "照片墙只从房间自定义图库抽；不足 16 张时自动用默认图补齐。";
@@ -1947,9 +2022,10 @@ function renderOnlineLobby(){
   if(!shared.length){
     sh.innerHTML='<div class="note" style="grid-column:1/-1">还没有图片，上传或建房时携带的图片会显示在这里（最多 32 张）</div>';
   } else {
-    shared.forEach(g=>{
+    /* 防剧透：大厅不显示图片和名称/类别，只显示 #序号 · 贡献者；照片墙对局时才揭晓 */
+    shared.forEach((g,i)=>{
       const cell=html("div",{class:"img-cell"});
-      cell.innerHTML=`<img src="${g.imgUrl}" alt="${esc(g.zh||"")}" loading="lazy"><span>${esc(g.zh||"")}<br><span class="sub">${esc(g.category||"自定义")} · ${esc(g.contributor||"匿名")}</span></span>${isHost?`<button class="mini-del" data-id="${esc(g.id)}">移除</button>`:""}`;
+      cell.innerHTML=`<span style="text-align:center;padding:12px 2px"><b style="font-size:16px">#${i+1}</b><br><span class="sub">${esc(g.contributor||"匿名")}</span></span>${isHost?`<button class="mini-del" data-id="${esc(g.id)}">移除</button>`:""}`;
       sh.appendChild(cell);
       if(isHost) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
     });
@@ -2014,21 +2090,55 @@ function renderOnlineLobby(){
     };
   };
   card.querySelector("#pw-upload").onclick=()=>uploadToRoom();
-  /* 从我的图库导入：把本机 IndexedDB 单人图一键 add_img 进房间（全员可用） */
+  /* 从我的图库导入：打开图库弹窗，已带进房间的图标记「已上传」置灰，可勾选或全部导入 */
   card.querySelector("#pw-import-custom").onclick=async()=>{
     const list=await customList();
     if(!list.length){ toast("个人图库还没有图片，先在单人谜题里保存"); return; }
-    let ok=0, fail=0, skip=0;
-    for(const g of list){
-      if(__PW.status!=="lobby"){ toast("游戏已开始，不能再导入"); return; }
-      let img;
-      try{ img=await compressImage(g.img,512,0.82); }catch(e){ img=null; }
-      if(!img || img.length>1.5e6){ fail++; continue; }
-      if(!g.exact){ skip++; continue; }
-      __PW.send({t:"add_img",zh:g.name||g.exact,img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
-      ok++;
-    }
-    toast(`已提交导入 ${ok} 张`+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
+    const roomImgs=new Set((__PW.customImgs||[]).map(x=>x.img));
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:520px">
+      <h3>从我的图库导入</h3>
+      <div class="sub">已带进房间的图片标记「已上传」，不会重复导入（图库上限 32 张）</div>
+      <div id="imp-grid" class="img-grid" style="max-height:340px;overflow:auto"></div>
+      <div class="row" style="margin-top:12px"><button class="primary" id="imp-ok" style="flex:1">导入所选（0 张）</button><button class="ghost" id="imp-all" style="flex:1">全部导入</button><button class="ghost" id="imp-cancel">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    const grid=mk.querySelector("#imp-grid"), okBtn=mk.querySelector("#imp-ok");
+    const picked=new Set();
+    const draw=()=>{
+      grid.innerHTML="";
+      list.forEach(g=>{
+        const up=roomImgs.has(g.img);
+        const b=html("div",{class:"img-cell"+(picked.has(g.id)?" on":"")+(up?" is-up":"")});
+        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>${up?`<div class="img-done">已上传</div>`:`<input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`}`;
+        const im=b.querySelector("img");
+        if(im) im.onerror=()=>{ if(!b.querySelector(".img-broken")) b.appendChild(html("div",{class:"img-broken"},"加载失败")); };
+        if(!up) b.onclick=()=>{
+          if(picked.has(g.id)) picked.delete(g.id); else picked.add(g.id);
+          draw(); okBtn.textContent=`导入所选（${picked.size} 张）`;
+        };
+        grid.appendChild(b);
+      });
+    };
+    const doImport=async(ids)=>{
+      if(__PW.status!=="lobby"){ toast("游戏已开始，不能再导入"); mk.remove(); return; }
+      let ok=0, fail=0, skip=0;
+      for(const g of list){
+        if(!ids.includes(g.id)) continue;
+        let img;
+        try{ img=await compressImage(g.img,512,0.82); }catch(e){ img=null; }
+        if(!img || img.length>1.5e6){ fail++; continue; }
+        if(!g.exact){ skip++; continue; }
+        __PW.send({t:"add_img",zh:g.name||g.exact,img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
+        ok++;
+      }
+      toast(`已提交导入 ${ok} 张`+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
+      mk.remove();
+    };
+    draw();
+    mk.querySelector("#imp-cancel").onclick=()=>mk.remove();
+    okBtn.onclick=()=>doImport([...picked]);
+    mk.querySelector("#imp-all").onclick=()=>doImport(list.filter(g=>!roomImgs.has(g.img)).map(g=>g.id));
   };
   const st=card.querySelector("#pw-start");
   if(st) st.onclick=()=>{ if(__PW.players.length<2){ toast("至少 2 人才能开始"); return; } __PW.send({t:"start"}); };
@@ -2496,16 +2606,28 @@ async function runOnlineTest(){
     cwCell.click();
     await sleep(40);
     rec("点击格子可选中", !!document.querySelector("#cw-grid .img-cell.on"),"");
+    rec("选中后出现删除角标", !!document.querySelector("#cw-grid .cw-del"),"");
+    if(document.querySelector("#cw-grid .cw-del")) document.querySelector("#cw-grid .cw-del").click();
+    await sleep(30);
+    rec("删除二次确认出现", !!document.querySelector("#cw-grid .cw-confirm"),"");
+    if(document.querySelector("#cwc-no")) document.querySelector("#cwc-no").click();
+    await sleep(20);
     if(document.querySelector("#cw-cancel")) document.querySelector("#cw-cancel").click();
-    await customDel("cw-test");
+    await sleep(20);
     __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
     await sleep(50);
     rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
     rec("混合模式默认高亮", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
-    rec("自定义图库渲染贡献者", ((document.querySelector("#pw-shared").textContent||"").includes("恐龙"))&&((document.querySelector("#pw-shared").textContent||"").includes("甲")),"");
+    rec("自定义图库防剧透（只显示序号+贡献者）", !((document.querySelector("#pw-shared").textContent||"").includes("恐龙")) && (document.querySelector("#pw-shared").textContent||"").includes("甲") && (document.querySelector("#pw-shared").textContent||"").includes("#1"),"");
     rec("房主可移除自定义图", !!document.querySelector("#pw-shared .mini-del"),"");
     rec("自定义上传入口存在", !!document.querySelector("#pw-upload"),"");
     rec("从我的图库导入按钮存在", !!document.querySelector("#pw-import-custom"),"");
+    document.querySelector("#pw-import-custom").click();
+    await sleep(50);
+    rec("导入弹窗打开且渲染个人图", !!document.querySelector("#imp-grid") && document.querySelectorAll("#imp-grid .img-cell").length>=1,"");
+    if(document.querySelector("#imp-cancel")) document.querySelector("#imp-cancel").click();
+    await sleep(20);
+    await customDel("cw-test");
     document.querySelector("#pw-upload").click();
     await sleep(40);
     rec("上传弹窗重排（虚线框+字段标签+预览区）", !!document.querySelector("#sh-ok") && !!document.querySelector(".file-drop") && !!document.querySelector(".field-label") && !!document.querySelector("#sh-preview"),"");
