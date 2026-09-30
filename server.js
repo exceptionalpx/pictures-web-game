@@ -26,7 +26,8 @@ const ONLINE = {
   elementCap: 60,             // 画布元素上限
   minPlayers: 2,
   maxPlayers: 6,
-  keepAliveMs: 60000,         // 断线保留房间时长
+  keepAliveMs: 60000,         // 大厅断线保留房间时长（意外断开可回）
+  playingKeepAliveMs: 180000, // 游戏中断线恢复窗口（玩到一半掉线可回来）
   baseCorrect: 1,             // 猜对基础分
   firstBonus: 2,              // 首个选图正确额外奖励
   wordScore: { category: 1, keyword: 2, exact: 5 },  // 文字竞猜三级计分：类别词 +1 / 联想词 +2 / 准确词 +5
@@ -191,7 +192,8 @@ class Room {
     const img = String(c.img||"").trim();
     if(!exact || !img || img.length > 1.5e6) return { err: "invalid", msg: "图片或准确词不合法" };
     if(this.customImages.length >= this.customCap) return { err: "room_full", msg: "自定义图库已满（"+this.customCap+" 张）" };
-    if(this.customImages.some(x => x.img === img)) return { err: "dup", msg: "这张图已经上传过了" };
+    const fp=String(c.fp||"").trim();
+    if(this.customImages.some(x => (fp && x.fp===fp) || x.img===img)) return { err: "dup", msg: "这张图已经上传过了" };
     const p = this.findPlayer(pid);
     this._imgSeq++;
     const item = {
@@ -204,27 +206,31 @@ class Room {
       keywords: (c.keywords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
       aliases: (c.aliases||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
       category_word: normalizeWord(c.category_word),
-      contributor: p ? p.nickname : ""
+      fp: fp || "",
+      contributor: p ? p.nickname : "",
+      contributorPid: p ? p.pid : ""
     };
     this.customImages.push(item);
     this.touch();
     return { ok: true, item };
   }
 
-  /** 房主移除自定义图库中的一张图（开局前） */
+  /** 移除自定义图库中的一张图：房主可移除任意，贡献者本人可移除自己上传的（开局前） */
   removeImg(pid, imgId){
     if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能移除图片" };
-    if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以移除图片" };
     const i = this.customImages.findIndex(c => c.id === String(imgId||""));
     if(i < 0) return { err: "not_found", msg: "图片不存在" };
+    const item = this.customImages[i];
+    const isHost = (this.hostPlayer()||{}).pid === pid;
+    if(!isHost && item.contributorPid !== pid) return { err: "not_owner", msg: "只有房主或上传者本人可以移除" };
     this.customImages.splice(i,1);
     this.touch();
     return { ok: true };
   }
 
-  /** 自定义图库元信息（不含 dataURL 与词条答案），用于大厅展示与广播 */
+  /** 自定义图库元信息（不含 dataURL 与词条答案），用于大厅展示与广播；fp 仅用于已上传判重 */
   customMeta(){
-    return this.customImages.map(c => ({ id:c.id, zh:c.zh, category:c.category||"自定义", contributor:c.contributor||"", imgUrl:c.imgUrl }));
+    return this.customImages.map(c => ({ id:c.id, zh:c.zh, category:c.category||"自定义", contributor:c.contributor||"", imgUrl:c.imgUrl, fp:c.fp||"", contributorPid:c.contributorPid||"" }));
   }
 
   /** 出题人更新画布（元素 + 背景色）；仅出题人、元素数合法、背景色在白名单时生效 */
@@ -418,8 +424,9 @@ class RoomManager {
       const ok=[];
       for(const c of customImages.slice(0,room.customCap)){
         const exact=normalizeWord(c.exact);
+        const fp=String(c.fp||"").trim();
         if(!exact || !String(c.img||"").trim() || String(c.img).length>1.5e6) continue;
-        if(ok.some(x => x.img === String(c.img))) continue;
+        if(ok.some(x => (fp && x.fp===fp) || x.img===String(c.img))) continue;   // 指纹优先去重
         room._imgSeq++;
         ok.push({
           id:"cu-"+room._imgSeq,
@@ -431,7 +438,9 @@ class RoomManager {
           keywords:(c.keywords||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
           aliases:(c.aliases||[]).map(String).map(s=>normalizeWord(s)).filter(Boolean).slice(0,2),
           category_word:normalizeWord(c.category_word),
-          contributor:String(nickname||"").slice(0,12)
+          fp: fp || "",
+          contributor:String(nickname||"").slice(0,12),
+          contributorPid: r.pid
         });
       }
       room.customImages=ok;
@@ -476,9 +485,13 @@ class RoomManager {
   cleanup(now = Date.now()){
     for(const [id, room] of this.rooms){
       const alive = room.players.some(p => p.connected);
-      if(!alive && now - room.lastActive > ONLINE.keepAliveMs){
-        room.dispose();
-        this.rooms.delete(id);
+      if(!alive){
+        // 分层关闭：大厅 60s / 游戏中 3min，超时自动销毁（含上传图片）
+        const ttl = room.status === "playing" ? ONLINE.playingKeepAliveMs : ONLINE.keepAliveMs;
+        if(now - room.lastActive > ttl){
+          room.dispose();
+          this.rooms.delete(id);
+        }
       }
     }
   }
@@ -782,6 +795,31 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
             c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target }));
           }
         }
+        return;
+      }
+      if(t === "leave"){
+        // 主动退出：与意外断线不同，最后一人退出时房间立即关闭（图片一并清除）
+        room.removePlayer(pid);
+        ctx = null; ws.ctx = null;
+        const anyOnline = room.players.some(p => p.connected);
+        if(anyOnline){
+          broadcast(room, {
+            t:"player_joined", pid,
+            players: room.players.map(p => ({pid:p.pid,nickname:p.nickname,connected:p.connected})),
+            hostPid: (room.hostPlayer()||{}).pid || ""
+          }, pid);
+          return send({ t:"left", destroyed:false, msg:"已退出房间" });
+        }
+        room.dispose();
+        manager.rooms.delete(room.id);
+        return send({ t:"left", destroyed:true, msg:"你是最后一位玩家，房间已关闭" });
+      }
+      if(t === "disband"){
+        if((room.hostPlayer()||{}).pid !== pid) return send({ t:"error", err:"not_host", msg:"只有房主可以解散房间" });
+        broadcast(room, { t:"room_closed", msg:"房主解散了房间" });
+        room.dispose();
+        manager.rooms.delete(room.id);
+        ctx = null; ws.ctx = null;
         return;
       }
       if(t === "ping"){ return send({ t:"pong" }); }

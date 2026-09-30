@@ -46,7 +46,7 @@ a{color:var(--brand-d)}
 .cat-tab{padding:4px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12px;color:#495057}
 .cat-tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.img-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border:2px solid var(--line);border-radius:8px;background:#fff}
+.img-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border:2px solid var(--line);border-radius:8px;background:#fff}
 .img-cell img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px}
 .img-cell span{font-size:10px;color:#495057}
 .img-cell.on{border-color:var(--brand);background:#EDF1FF}
@@ -55,6 +55,7 @@ a{color:var(--brand-d)}
 .pm-on{border-color:var(--brand);background:var(--brand);color:#fff;font-weight:700}
 .pm:disabled{opacity:.45;cursor:not-allowed;background:#F1EEE6}
 .mini-del{position:absolute;right:2px;top:2px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--bad);cursor:pointer;z-index:2}
+.save-btn,.edit-btn{position:absolute;left:2px;bottom:2px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--ink);cursor:pointer;z-index:2}
 #pw-shared .img-cell{position:relative}
 .pw-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;margin-top:6px;background:#FCFBF8;color:var(--ink)}
 .field-label{font-size:12px;color:var(--muted);margin-top:8px}
@@ -364,6 +365,7 @@ function route(){
     if(parts[1]) renderPuzzleGuess(parts[1]);
     else renderPuzzleEditor();
   }
+  else if(parts[0]==="mylib") renderMyLib();
   else renderHome();
   window.scrollTo(0,0);
 }
@@ -382,6 +384,7 @@ function renderHome(){
   <div class="hero-actions">
     <button class="primary" id="go-online" style="min-width:220px">🕹️ 进入联机对战</button>
     <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 单人出题 · 分享给朋友猜</button>
+    <button class="ghost" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
   </div>
   <div class="rule-grid">
     <div class="rule-card">
@@ -410,12 +413,167 @@ function renderHome(){
   </div>`;
   w.querySelector("#go-online").addEventListener("click",()=>location.hash="#/online");
   w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
+  w.querySelector("#go-mylib").addEventListener("click",()=>location.hash="#/mylib");
   $app.appendChild(w);
 }
 
 
+/* ================= 我的图库管理页 ================= */
+function renderMyLib(){
+  $app.innerHTML="";
+  const w=html("div",{class:"wrap"});
+  const card=html("div",{class:"card",style:"max-width:640px;margin:0 auto"});
+  card.innerHTML=`
+    <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
+    <div class="sub" id="ml-cap"></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="ghost" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
+    <div class="tabs" id="ml-tabs"></div>
+    <div id="ml-grid" class="img-grid"></div>
+    <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
+  w.appendChild(card); $app.appendChild(w);
+  card.querySelector("#ml-back").onclick=()=>location.hash="#/";
+  const PAGE=60;
+  let tab="mine", mine=[], games=[], shown=0;
+  const capEl=card.querySelector("#ml-cap");
+  const showCap=async()=>{
+    let t="";
+    try{ const e=await navigator.storage.estimate(); if(e.quota&&e.usage!=null) t=`（已用 ${(e.usage/1048576).toFixed(0)}MB / ${(e.quota/1073741824).toFixed(0)}GB）`; }catch(_){}
+    capEl.textContent=`本机存储 · 我的图库 ${mine.length} 张 · 对局收藏 ${games.length} 张${t}`;
+  };
+  const escS=v=>String(v==null?"":v);
+  const wordForm=({title,init})=>new Promise(res=>{
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:440px">
+      <h3>${title}</h3>
+      <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" value="${escS(init.name)}" placeholder="猜题人可见">
+      <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" value="${escS(init.category_word)}" placeholder="如：交通工具">
+      <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" value="${escS(init.keywords&&init.keywords[0])}" placeholder="如：海">
+      <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" value="${escS(init.keywords&&init.keywords[1])}" placeholder="可选">
+      <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" value="${escS(init.exact)}" placeholder="如：帆船">
+      <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存</button><button class="ghost" id="mf-no">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
+    mk.querySelector("#mf-ok").onclick=()=>{
+      const exact=mk.querySelector("#mf-exact").value.trim();
+      if(!exact){ toast("准确词必填"); return; }
+      res({
+        name:mk.querySelector("#mf-name").value.trim()||exact,
+        category_word:mk.querySelector("#mf-cat").value.trim(),
+        keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
+        exact
+      });
+      mk.remove();
+    };
+  });
+  const draw=()=>{
+    const src=tab==="mine"?mine:games;
+    const grid=card.querySelector("#ml-grid");
+    const slice=src.slice(0,shown);
+    grid.innerHTML=slice.length?"":"";
+    if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
+    slice.forEach(g=>{
+      const cell=html("div",{class:"img-cell"});
+      const isGame=tab==="games";
+      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:`<button class="edit-btn">编辑</button>`}`;
+      const im=cell.querySelector("img");
+      if(im) im.onerror=()=>{ if(!cell.querySelector(".img-broken")) cell.appendChild(html("div",{class:"img-broken"},"加载失败")); };
+      cell.querySelector(".mini-del").onclick=()=>{
+        if(!window.confirm(`删除这张「${g.name||g.exact||g.zh}」？`)) return;
+        (isGame?gameDel:customDel)(g.id).then(()=>{ if(isGame){ games=games.filter(x=>x.id!==g.id);} else { mine=mine.filter(x=>x.id!==g.id);} draw(); showCap(); toast("已删除"); });
+      };
+      if(isGame){
+        cell.querySelector(".save-btn").onclick=async()=>{
+          try{
+            const fp=await imgFp(g.img);
+            const dup=mine.find(x=>x.fp===fp);
+            if(dup){ toast("我的图库里已有这张"); return; }
+            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,createdAt:Date.now()});
+            mine=await customList(); draw(); showCap(); toast("已转存到我的图库");
+          }catch(_){ toast("转存失败"); }
+        };
+      }else{
+        cell.querySelector(".edit-btn").onclick=async()=>{
+          const r=await wordForm({title:"编辑词条",init:g});
+          if(!r) return;
+          await customPut({...g,...r});
+          mine=await customList(); draw(); toast("已保存");
+        };
+      }
+      grid.appendChild(cell);
+    });
+    const more=card.querySelector("#ml-more");
+    more.innerHTML=src.length>shown?`<button class="ghost" id="ml-more-btn">加载更多（${src.length-shown} 张）</button>`:"";
+    const mb=more.querySelector("#ml-more-btn");
+    if(mb) mb.onclick=()=>{ shown+=PAGE; draw(); };
+  };
+  const switchTab=(t)=>{
+    tab=t; shown=PAGE;
+    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>b.classList.toggle("primary",b.id==="ml-"+tab));
+    draw();
+  };
+  card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
+  card.querySelector("#ml-games").onclick=()=>switchTab("games");
+  card.querySelector("#ml-upload").onclick=async()=>{
+    const r=await wordForm({title:"上传新图片",init:{}});
+    if(!r) return;
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:420px">
+      <h3>选择图片</h3>
+      <label class="file-drop"><input type="file" id="ml-file" accept="image/*" style="display:none">
+        <div style="font-size:30px;line-height:1">🖼️</div><div style="margin-top:6px;color:var(--ink)">点击选择图片</div>
+        <div class="sub" style="margin-top:2px">自动压缩到 512px · 单图 ≤1.5MB</div>
+      </label>
+      <div id="ml-pv" style="display:none;margin-top:10px;text-align:center"><img id="ml-pvimg" style="width:128px;height:128px;object-fit:cover;border-radius:12px;border:2px solid #C7BCA4"></div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="ml-ok" style="flex:1">上传</button><button class="ghost" id="ml-no">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#ml-no").onclick=()=>mk.remove();
+    const fileEl=mk.querySelector("#ml-file");
+    fileEl.onchange=()=>{
+      const f=fileEl.files&&fileEl.files[0];
+      if(!f) return;
+      const fr=new FileReader();
+      fr.onload=async()=>{
+        const raw=fr.result;
+        const pv=mk.querySelector("#ml-pv"); pv.style.display="block"; mk.querySelector("#ml-pvimg").src=raw;
+        mk.querySelector("#ml-ok").onclick=async()=>{
+          mk.querySelector("#ml-ok").disabled=true; mk.querySelector("#ml-ok").textContent="压缩中…";
+          let img=null;
+          for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
+            try{ const c=await compressImage(raw,side,q); if(c){ img=c; break; } }catch(_){}
+          }
+          if(!img || img.length>1.5e6){ mk.querySelector("#ml-ok").disabled=false; mk.querySelector("#ml-ok").textContent="上传"; toast("图片太大或压缩失败"); return; }
+          const fp=await imgFp(img);
+          const dup=mine.find(x=>x.fp===fp);
+          if(dup){ mk.remove(); toast("图库里已有这张图片"); return; }
+          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,createdAt:Date.now()});
+          mk.remove(); mine=await customList(); draw(); showCap(); toast("已存入我的图库");
+        };
+      };
+      fr.readAsDataURL(f);
+    };
+    fileEl.click();
+  };
+  Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
+}
+
 /* ===== 自定义图片库（IndexedDB 本地持久化，单机+联机共用） ===== */
-const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images", CUSTOM_CAP=30;
+const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
+const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;   // 对局收藏：独立 store，上限 200 张 FIFO
+/* 图片内容指纹：SHA-256（secure context 可用），失败回退字符串哈希。
+   同一张图无论压缩几次，指纹稳定，用于跨端判重（房间去重/已上传标记/对局收藏去重） */
+async function imgFp(dataURL){
+  try{
+    const buf = await (await fetch(String(dataURL||""))).arrayBuffer();
+    const d = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,16);
+  }catch(e){
+    let h=5381; const s=String(dataURL||"");
+    for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; }
+    return "fb"+h.toString(16);
+  }
+}
 function idbOpen(){
   return new Promise((res,rej)=>{
     const r=indexedDB.open(CUSTOM_DB,1);
@@ -437,6 +595,51 @@ async function customPut(item){
 async function customDel(id){
   const db=await idbOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+/* ---- 对局收藏：独立 IndexedDB，只存对局中见过的房间自定义图（系统 64 图不收藏），上限 GAME_CAP 张 FIFO ---- */
+function idbGameOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(GAME_DB,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(GAME_STORE)) r.result.createObjectStore(GAME_STORE,{keyPath:"id"}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function gameList(){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readonly").objectStore(GAME_STORE).getAll(); tx.onsuccess=()=>res((tx.result||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))); tx.onerror=()=>rej(tx.error); });
+}
+async function gamePut(item){
+  const img=String(item&&item.img||"");
+  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
+  const db=await idbGameOpen();
+  await new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+  /* FIFO：超出上限删除最旧 */
+  const all=await gameList();
+  if(all.length>GAME_CAP){
+    const stale=all.slice(GAME_CAP);
+    const db2=await idbGameOpen();
+    await new Promise((res,rej)=>{ const tx=db2.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE); stale.forEach(x=>tx.objectStore(GAME_STORE).delete(x.id)); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); });
+  }
+  return item;
+}
+async function gameDel(id){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+async function gameClear(){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).clear(); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+/* 自动收藏：把对局照片墙里的房间自定义图写入收藏（按指纹去重，系统图跳过） */
+async function gameCollect(wall){
+  if(!Array.isArray(wall)) return;
+  for(const g of wall){
+    if(!g || !String(g.img||"").startsWith("data:image/")) continue;   // 只收房间自定义图（dataURL），系统图不收藏
+    try{
+      const fp = await imgFp(g.img);
+      await gamePut({ id:"gp-"+fp, fp, img:g.img, zh:g.zh||"我的图片", category:g.category||"自定义", exact:g.exact||"", keywords:g.keywords||[], aliases:g.aliases||[], category_word:g.category_word||"", contributor:g.contributor||"", createdAt:Date.now() });
+    }catch(_){}
+  }
 }
 function fileToDataURL(file){
   return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
@@ -886,8 +1089,6 @@ function renderPuzzleEditor(){
       const exactv=String(mk.querySelector("#pt-exact").value||"").trim();
       if(!ptRaw){ toast("请先选择图片"); return; }
       if(!catv||!exactv){ toast("类别词和准确词必填"); return; }
-      const list=await customList();
-      if(list.length>=CUSTOM_CAP){ toast("已达 30 张上限"); return; }
       const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,createdAt:Date.now()};
       try{ await customPut(item); }catch(e){ toast("图片无效，请重试"); return; }
       toast("已保存到自定义图库");
@@ -1699,10 +1900,9 @@ const __PW = window.__pwOnline = {
         this.poolMode=m.poolMode||"mixed"; this.customImgs=m.customImgs||[];
         this.reconnectAt=Date.now(); this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
         saveSession();
-        if(window.__pwCarryCount!==undefined){
-          const want=window.__pwCarryCount; window.__pwCarryCount=undefined;
-          const got=(this.customImgs||[]).length;
-          if(want>0) toast(skipOf(want,got) ? `已带入 ${got} 张，${want-got} 张因缺词条或过大被跳过` : `已带入 ${got} 张`);
+        /* 房间图库为空且个人图库有图 → 引导导入（携带已取消，统一房间内导入） */
+        if(!(this.customImgs||[]).length && this.status==="lobby"){
+          customList().then(l=>{ if(l.length) toast(`你的图库有 ${l.length} 张图，点「从我的图库导入」即可带进房间`); });
         }
         renderOnlineLobby(); break;
       case "joined":
@@ -1762,9 +1962,17 @@ const __PW = window.__pwOnline = {
         if(window.__pwRooms) window.__pwRooms(m);
         break;
       case "reveal":
-        this.reveal=m; this.status=m.state; renderOnlineReveal(); break;
+        this.reveal=m; this.status=m.state;
+        gameCollect(m.wall||[]);   // 对局收藏：自动保存本局房间自定义图到本地
+        renderOnlineReveal(); break;
       case "game_over":
         this.over=m; this.status="game_over"; renderOnlineReveal(); break;
+      case "left":
+        if(m.destroyed) toast(m.msg||"你是最后一位玩家，房间已关闭");
+        pwReset(); location.hash="#/"; break;
+      case "room_closed":
+        toast(m.msg||"房间已关闭");
+        pwReset(); location.hash="#/"; break;
       case "mode_set":
         this.poolMode=m.mode;
         if(this.status==="lobby") renderOnlineLobby(); break;
@@ -1813,12 +2021,16 @@ const __PW = window.__pwOnline = {
 };
 window.__pwDrawerStatus = (m)=>{ toast(`有人已作答（${m.answered}/${m.total}）`); };
 
+/* 主动退出：确认后发 leave（最后一位玩家离开时房间立即关闭） */
 function pwLeave(){
-  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
-  try{ __PW.ws&&__PW.ws.close(); }catch(_){}
-  clearSession();
-  Object.assign(__PW,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
-  location.hash="#/";
+  if(!window.confirm("确定离开房间吗？")) return;
+  if(__PW.ws&&__PW.ws.readyState===1){ __PW.send({t:"leave"}); }
+  else{ pwReset(); location.hash="#/"; }
+}
+/* 房主解散房间 */
+function pwDisband(){
+  if(!window.confirm("解散房间？房间将立即关闭，所有玩家会被移出。")) return;
+  if(__PW.ws&&__PW.ws.readyState===1){ __PW.send({t:"disband"}); }
 }
 function saveSession(){
   try{ localStorage.setItem("pw_session", JSON.stringify({roomId:__PW.roomId,pid:__PW.pid,nickname:__PW.nickname})); }catch(_){}
@@ -1866,74 +2078,16 @@ function renderOnline(){
     <h3>在线房间 · 点击加入</h3>
     <div id="pw-rooms"><div class="note">连接后自动加载…</div></div>
     ${__PW.roomId?`<div style="margin-top:10px"><button class="accent" id="pw-back" style="width:100%">回到当前房间（${__PW.roomId}）</button></div>`:""}
-    <button class="ghost" id="pw-pick-custom" style="width:100%;margin-top:6px">携带我的图片（最多 16 张，可设词条）</button>
-    <div id="pw-custom-picked" class="sub" style="margin-top:4px"></div>
     <div class="foot-actions"><button class="ghost" onclick="location.hash='#/'">回首页</button></div>`;
   w.appendChild(card); $app.appendChild(w);
   if(card.querySelector("#pw-back")) card.querySelector("#pw-back").onclick=()=>{ pwConnect(()=>__PW.send({t:"rejoin",room_id:__PW.roomId,pid:__PW.pid})); };
   const nickInput=card.querySelector("#pw-nick");
   nickInput.oninput=(e)=>saveNickMemo(e.target.value);
   const nick=()=>nickInput.value.trim();
-  window.__pwCustomSel=[];
-  card.querySelector("#pw-pick-custom").onclick=async()=>{
-    const list=await customList();
-    if(!list.length){ toast("图库还没有图片，先在单人谜题里上传"); return; }
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:520px">
-      <h3>携带我的图片</h3><div class="sub">勾选后随房间发给队友（最多 16 张，会成为照片墙的候选题）</div>
-      <div id="cw-grid" class="img-grid" style="max-height:320px;overflow:auto"></div>
-      <div class="row" style="margin-top:12px"><button class="primary" id="cw-ok" style="flex:1">确定（0 张）</button><button class="ghost" id="cw-cancel">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    const grid=mk.querySelector("#cw-grid"), okBtn=mk.querySelector("#cw-ok");
-    const picked=new Set((window.__pwCustomSel||[]).map(g=>g.id));
-    const drawCw=()=>{
-      grid.innerHTML="";
-      list.forEach(g=>{
-        const on=picked.has(g.id);
-        const b=html("div",{class:"img-cell"+(on?" on":"")});
-        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span><input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${on?"checked":""}>${on?`<button class="cw-del">✕</button>`:""}`;
-        /* 坏图标识：加载失败时盖红标（图可能是坏记录，也可能是网络限流） */
-        const im=b.querySelector("img");
-        if(im) im.onerror=()=>{ if(!b.querySelector(".img-broken")){ const br=html("div",{class:"img-broken"},"加载失败"); b.appendChild(br); } };
-        b.onclick=()=>{
-          if(b.querySelector(".cw-confirm")){ drawCw(); return; }   /* 确认层开着时点格子=取消 */
-          if(picked.has(g.id)) picked.delete(g.id); else picked.add(g.id);
-          drawCw();
-          okBtn.textContent=`确定（${picked.size} 张）`;
-        };
-        if(on){
-          const del=b.querySelector(".cw-del");
-          del.onclick=(ev)=>{
-            ev.stopPropagation();
-            const cf=html("div",{class:"cw-confirm"});
-            cf.innerHTML=`<span>删除这张？</span><div class="row" style="margin:0;gap:6px"><button class="ghost" id="cwc-yes" style="flex:none;padding:3px 10px;font-size:11px;background:#C1272D;color:#fff;border:none">删除</button><button class="ghost" id="cwc-no" style="flex:none;padding:3px 10px;font-size:11px">取消</button></div>`;
-            b.appendChild(cf);
-            cf.querySelector("#cwc-yes").onclick=async()=>{
-              try{ await customDel(g.id); }catch(_){}
-              list=list.filter(x=>x.id!==g.id); picked.delete(g.id);
-              drawCw(); okBtn.textContent=`确定（${picked.size} 张）`;
-              toast("已删除");
-            };
-            cf.querySelector("#cwc-no").onclick=()=>drawCw();
-          };
-        }
-        grid.appendChild(b);
-      });
-    };
-    drawCw();
-    mk.querySelector("#cw-cancel").onclick=()=>mk.remove();
-    okBtn.onclick=()=>{
-      window.__pwCustomSel=list.filter(g=>picked.has(g.id)).slice(0,16);
-      mk.remove();
-      card.querySelector("#pw-custom-picked").textContent=window.__pwCustomSel.length?`已携带 ${window.__pwCustomSel.length} 张：${window.__pwCustomSel.map(g=>g.name||g.exact).join("、")}`:"";
-    };
-  };
+  /* 携带功能已取消：图片统一在房间内「上传图片到房间 / 从我的图库导入」（全员可用） */
   card.querySelector("#pw-create").onclick=()=>{
     __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
-    const customs=(window.__pwCustomSel||[]).map(g=>({zh:g.name||g.exact,img:g.img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""}));
-    window.__pwCarryCount=customs.length;
-    pwConnect(()=>__PW.send({t:"create",nickname:__PW.nickname,customImages:customs,device:getDeviceId()}));
+    pwConnect(()=>__PW.send({t:"create",nickname:__PW.nickname,device:getDeviceId()}));
   };
   card.querySelector("#pw-join").onclick=()=>{
     const code=card.querySelector("#pw-code").value.trim().toUpperCase();
@@ -1970,7 +2124,6 @@ function pwConnect(action){
 }
 
 /* ---- 大厅 ---- */
-function skipOf(want,got){ return want>got; }
 function modeLabel(m){
   if(m==="default") return "照片墙只从默认 64 图里随机抽 16 张。";
   if(m==="custom") return "照片墙只从房间自定义图库抽；不足 16 张时自动用默认图补齐。";
@@ -2002,8 +2155,11 @@ function renderOnlineLobby(){
     <div class="row" style="margin-top:8px"><button class="primary" id="pw-upload" style="flex:1">上传图片到房间</button><button class="ghost" id="pw-import-custom" style="flex:1">从我的图库导入</button></div>
     ${isHost?'<button class="accent" id="pw-start" style="width:100%;margin-top:14px">开始游戏</button>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
     <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 60 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
-    <div class="foot-actions"><button class="ghost" onclick="pwLeave()">离开房间</button></div>`;
+    <div class="note">房间生命周期：最后一位玩家离开 60 秒后自动关闭（游戏中掉线恢复窗口 3 分钟）；房主可随时解散。</div>
+    <div class="foot-actions">${isHost?'<button class="ghost" id="pw-disband">解散房间</button>':""}<button class="ghost" id="pw-leave">离开房间</button></div>`;
   w.appendChild(card);$app.appendChild(w);
+  if(card.querySelector("#pw-leave")) card.querySelector("#pw-leave").onclick=()=>pwLeave();
+  if(card.querySelector("#pw-disband")) card.querySelector("#pw-disband").onclick=()=>pwDisband();
   const pl=card.querySelector("#pw-players");
   __PW.players.forEach(p=>{
     const row=html("div",{class:"review-item"});
@@ -2020,14 +2176,15 @@ function renderOnlineLobby(){
   /* 自定义图库：缩略图 + 贡献者 + 房主移除 */
   const sh=card.querySelector("#pw-shared");
   if(!shared.length){
-    sh.innerHTML='<div class="note" style="grid-column:1/-1">还没有图片，上传或建房时携带的图片会显示在这里（最多 32 张）</div>';
+    sh.innerHTML='<div class="note" style="grid-column:1/-1">还没有图片，点下方「上传图片到房间」或「从我的图库导入」（最多 32 张）</div>';
   } else {
     /* 防剧透：大厅不显示图片和名称/类别，只显示 #序号 · 贡献者；照片墙对局时才揭晓 */
     shared.forEach((g,i)=>{
+      const canDel=isHost || g.contributorPid===__PW.pid;   // 房主可移除任意，贡献者本人可移除自己上传的
       const cell=html("div",{class:"img-cell"});
-      cell.innerHTML=`<span style="text-align:center;padding:12px 2px"><b style="font-size:16px">#${i+1}</b><br><span class="sub">${esc(g.contributor||"匿名")}</span></span>${isHost?`<button class="mini-del" data-id="${esc(g.id)}">移除</button>`:""}`;
+      cell.innerHTML=`<span style="text-align:center;padding:12px 2px"><b style="font-size:16px">#${i+1}</b><br><span class="sub">${esc(g.contributor||"匿名")}</span></span>${canDel?`<button class="mini-del" data-id="${esc(g.id)}">移除</button>`:""}`;
       sh.appendChild(cell);
-      if(isHost) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
+      if(canDel) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
     });
   }
   /* 上传图片到自定义图库（全员可用，开局前）：压缩降级重试 + 1.5MB 预检 + 服务端 ack 确认 */
@@ -2082,7 +2239,18 @@ function renderOnlineLobby(){
       const ok=mk.querySelector("#sh-ok");
       ok.disabled=true; ok.textContent="上传中…";
       window.__pwUpload={pending:true, ok, remove:()=>{ window.__pwUpload=null; mk.remove(); }, img, zh:zh||exact, exact, keywords:[kw1,kw2].filter(Boolean), aliases:[], category_word:cat};
-      __PW.send({t:"add_img",zh:zh||exact,img,exact,keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
+      __PW.send({t:"add_img",zh:zh||exact,img,exact,fp:await imgFp(img),keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
+      /* 上传到房间的图自动存进个人图库（指纹去重：已有同图则更新词条） */
+      try{
+        const fp=await imgFp(img);
+        const mine=await customList();
+        const dup=mine.find(x=>x.fp===fp);
+        if(dup){
+          await customPut({...dup, name:zh||exact||dup.name, category_word:cat||dup.category_word, keywords:[kw1,kw2].filter(Boolean).length?[kw1,kw2].filter(Boolean):dup.keywords, exact:exact||dup.exact});
+        }else{
+          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:zh||exact,exact,category_word:cat,keywords:[kw1,kw2].filter(Boolean),aliases:[],fp,createdAt:Date.now()});
+        }
+      }catch(_){ /* 个人图库保存失败不阻塞房间上传 */ }
       setTimeout(()=>{
         const up=window.__pwUpload;
         if(up && up.pending){ up.pending=false; up.ok.disabled=false; up.ok.textContent="上传"; toast("上传超时，请检查连接后重试"); }
@@ -2090,27 +2258,31 @@ function renderOnlineLobby(){
     };
   };
   card.querySelector("#pw-upload").onclick=()=>uploadToRoom();
-  /* 从我的图库导入：打开图库弹窗，已带进房间的图标记「已上传」置灰，可勾选或全部导入 */
+  /* 从我的图库导入：双 tab（我的图库/对局收藏），按指纹标记已上传，可勾选或全部导入 */
   card.querySelector("#pw-import-custom").onclick=async()=>{
-    const list=await customList();
-    if(!list.length){ toast("个人图库还没有图片，先在单人谜题里保存"); return; }
-    const roomImgs=new Set((__PW.customImgs||[]).map(x=>x.img));
+    const mine=await customList();
+    const games=await gameList();
+    if(!mine.length && !games.length){ toast("图库还没有图片，先上传一张或玩一局自动收藏"); return; }
+    /* 房间图库指纹集（服务端 customMeta 返回 fp，不含图内容） */
+    const roomFps=new Set((__PW.customImgs||[]).map(x=>x.fp||"").filter(Boolean));
+    const fpOf=async(g)=>{ if(g.fp) return g.fp; try{ return await imgFp(g.img); }catch(e){ return ""; } };
     const mk=html("div",{class:"mask"});
     mk.innerHTML=`<div class="pop" style="max-width:520px">
-      <h3>从我的图库导入</h3>
-      <div class="sub">已带进房间的图片标记「已上传」，不会重复导入（图库上限 32 张）</div>
+      <h3>导入图片到房间</h3>
+      <div class="sub">已带进房间的图片标记「已上传」，不会重复导入（房间图库上限 32 张）</div>
+      <div class="tabs" id="imp-tabs"><button class="pt-tab on" data-v="mine">我的图库（${mine.length}）</button><button class="pt-tab" data-v="games">对局收藏（${games.length}）</button></div>
       <div id="imp-grid" class="img-grid" style="max-height:340px;overflow:auto"></div>
       <div class="row" style="margin-top:12px"><button class="primary" id="imp-ok" style="flex:1">导入所选（0 张）</button><button class="ghost" id="imp-all" style="flex:1">全部导入</button><button class="ghost" id="imp-cancel">取消</button></div>
     </div>`;
     document.body.appendChild(mk);
     const grid=mk.querySelector("#imp-grid"), okBtn=mk.querySelector("#imp-ok");
-    const picked=new Set();
+    let tab="mine", src=mine, picked=new Set(), upSet=new Set();
     const draw=()=>{
       grid.innerHTML="";
-      list.forEach(g=>{
-        const up=roomImgs.has(g.img);
+      src.forEach(g=>{
+        const up=upSet.has(g.id);
         const b=html("div",{class:"img-cell"+(picked.has(g.id)?" on":"")+(up?" is-up":"")});
-        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>${up?`<div class="img-done">已上传</div>`:`<input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`}`;
+        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span>${up?`<div class="img-done">已上传</div>`:`<input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`}`;
         const im=b.querySelector("img");
         if(im) im.onerror=()=>{ if(!b.querySelector(".img-broken")) b.appendChild(html("div",{class:"img-broken"},"加载失败")); };
         if(!up) b.onclick=()=>{
@@ -2120,25 +2292,40 @@ function renderOnlineLobby(){
         grid.appendChild(b);
       });
     };
+    /* 计算当前 tab 的已上传集合（按指纹，兼容旧记录现场算） */
+    const refreshUp=async()=>{
+      const fps=new Set();
+      for(const g of src){ const fp=await fpOf(g); if(fp && roomFps.has(fp)) fps.add(g.id); }
+      upSet=fps; picked=new Set([...picked].filter(id=>!upSet.has(id))); draw(); okBtn.textContent=`导入所选（${picked.size} 张）`;
+    };
+    mk.querySelectorAll("#imp-tabs .pt-tab").forEach(t=>{
+      t.onclick=()=>{
+        mk.querySelectorAll("#imp-tabs .pt-tab").forEach(x=>x.classList.remove("on"));
+        t.classList.add("on");
+        tab=t.dataset.v; src=tab==="mine"?mine:games; picked=new Set(); refreshUp();
+      };
+    });
     const doImport=async(ids)=>{
       if(__PW.status!=="lobby"){ toast("游戏已开始，不能再导入"); mk.remove(); return; }
-      let ok=0, fail=0, skip=0;
-      for(const g of list){
+      let ok=0, fail=0, skip=0, dup=0;
+      for(const g of src){
         if(!ids.includes(g.id)) continue;
+        const fp=await fpOf(g);
+        if(fp && roomFps.has(fp)){ dup++; continue; }
         let img;
         try{ img=await compressImage(g.img,512,0.82); }catch(e){ img=null; }
         if(!img || img.length>1.5e6){ fail++; continue; }
         if(!g.exact){ skip++; continue; }
-        __PW.send({t:"add_img",zh:g.name||g.exact,img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
+        __PW.send({t:"add_img",zh:g.name||g.exact||g.zh,img,exact:g.exact,fp:await imgFp(img),keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
         ok++;
       }
-      toast(`已提交导入 ${ok} 张`+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
+      toast(`已提交导入 ${ok} 张`+(dup?`（${dup} 张已在房间跳过）`:"")+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
       mk.remove();
     };
-    draw();
+    refreshUp();
     mk.querySelector("#imp-cancel").onclick=()=>mk.remove();
     okBtn.onclick=()=>doImport([...picked]);
-    mk.querySelector("#imp-all").onclick=()=>doImport(list.filter(g=>!roomImgs.has(g.img)).map(g=>g.id));
+    mk.querySelector("#imp-all").onclick=()=>doImport(src.filter(g=>!upSet.has(g.id)).map(g=>g.id));
   };
   const st=card.querySelector("#pw-start");
   if(st) st.onclick=()=>{ if(__PW.players.length<2){ toast("至少 2 人才能开始"); return; } __PW.send({t:"start"}); };
@@ -2381,10 +2568,12 @@ async function runOnlineTest(){
   window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
   window.__pwCooldownMs=60;           // 自检内冷却缩短
   try{
-    /* 0. 入口页：建房携带自定义图入口（上限 16 张） */
+    /* 0. 入口页：携带功能已取消（统一房间内上传/导入）；首页新增我的图库入口 */
     renderOnline(); await sleep(60);
-    rec("入口页携带我的图片按钮", !!document.querySelector("#pw-pick-custom"),"");
-    rec("携带图片上限 16 张文案", (document.body.textContent||"").includes("最多 16 张"),"");
+    rec("入口页无携带按钮", !document.querySelector("#pw-pick-custom"),"");
+    renderHome(); await sleep(40);
+    rec("首页我的图库入口", !!document.querySelector("#go-mylib"),"");
+    renderOnline(); await sleep(40);
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
       players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
@@ -2598,22 +2787,9 @@ async function runOnlineTest(){
     saveNickMemo("测试昵称");
     renderOnline(); await sleep(50);
     rec("昵称记忆预填", (document.querySelector("#pw-nick").value||"").trim()==="测试昵称","");
-    await customPut({id:"cw-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",exact:"测试图",keywords:[],aliases:[],category_word:"测试"});
-    document.querySelector("#pw-pick-custom").click();
-    await sleep(60);
-    rec("携带窗口渲染个人图", !!document.querySelector("#cw-grid .img-cell"),"");
-    const cwCell=document.querySelector("#cw-grid .img-cell");
-    cwCell.click();
-    await sleep(40);
-    rec("点击格子可选中", !!document.querySelector("#cw-grid .img-cell.on"),"");
-    rec("选中后出现删除角标", !!document.querySelector("#cw-grid .cw-del"),"");
-    if(document.querySelector("#cw-grid .cw-del")) document.querySelector("#cw-grid .cw-del").click();
-    await sleep(30);
-    rec("删除二次确认出现", !!document.querySelector("#cw-grid .cw-confirm"),"");
-    if(document.querySelector("#cwc-no")) document.querySelector("#cwc-no").click();
-    await sleep(20);
-    if(document.querySelector("#cw-cancel")) document.querySelector("#cw-cancel").click();
-    await sleep(20);
+    await customPut({id:"cw-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",exact:"测试图",keywords:[],aliases:[],category_word:"测试",fp:"testfp001",createdAt:Date.now()});
+    await gamePut({id:"gp-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"收藏图",exact:"收藏图",keywords:[],aliases:[],category_word:"收藏",fp:"testfp002",createdAt:Date.now()});
+    /* 房间创建后：贡献者/房主移除权限 + 导入弹窗双 tab */
     __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
     await sleep(50);
     rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
@@ -2622,9 +2798,17 @@ async function runOnlineTest(){
     rec("房主可移除自定义图", !!document.querySelector("#pw-shared .mini-del"),"");
     rec("自定义上传入口存在", !!document.querySelector("#pw-upload"),"");
     rec("从我的图库导入按钮存在", !!document.querySelector("#pw-import-custom"),"");
+    rec("大厅显示分层关闭提示", (document.querySelector("#pw-players").parentElement.textContent||"").includes("60 秒"),"");
+    rec("房主有解散房间按钮", !!document.querySelector("#pw-disband"),"");
+    rec("房主有离开房间按钮", !!document.querySelector("#pw-leave"),"");
     document.querySelector("#pw-import-custom").click();
     await sleep(50);
     rec("导入弹窗打开且渲染个人图", !!document.querySelector("#imp-grid") && document.querySelectorAll("#imp-grid .img-cell").length>=1,"");
+    rec("导入弹窗双 tab", document.querySelectorAll("#imp-tabs .pt-tab").length===2,"");
+    const impGamesTab=document.querySelector('#imp-tabs .pt-tab[data-v="games"]');
+    if(impGamesTab) impGamesTab.click();
+    await sleep(60);
+    rec("对局收藏 tab 渲染收藏图", !!document.querySelector("#imp-grid .img-cell") && (document.querySelector("#imp-grid").textContent||"").includes("收藏图"),"");
     if(document.querySelector("#imp-cancel")) document.querySelector("#imp-cancel").click();
     await sleep(20);
     await customDel("cw-test");
@@ -2634,6 +2818,10 @@ async function runOnlineTest(){
     if(document.querySelector("#sh-cancel")) document.querySelector("#sh-cancel").click();
     await sleep(30);
     rec("上传弹窗可关闭", !document.querySelector("#sh-ok"),"");
+    /* 房间生命周期：left / room_closed 前端清理 */
+    __PW.handle({t:"room_closed",msg:"房主解散了房间"});
+    await sleep(40);
+    rec("room_closed 清理回首页", location.hash==="#/" || !document.querySelector("#pw-players"),"");
     __PW.handle({t:"mode_set",mode:"custom"});
     await sleep(50);
     rec("set_mode 广播后高亮切换", (document.querySelector('#pw-poolmode [data-mode="custom"]').className||"").includes("pm-on"),"");

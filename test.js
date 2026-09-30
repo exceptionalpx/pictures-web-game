@@ -987,8 +987,11 @@ test("房间自定义图库：全员上传 / 上限 32 / 去重 / 贡献者 / �
   assert.equal(meta.imgUrl, "/room-img/"+r.room.id+"/cu-1", "元信息含 imgUrl");
   assert.equal(meta.zh, "我的图");
 
-  // 去重
+  // 去重（字符串 + 指纹）
   assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,AA1", exact:"恐龙" }).err, "dup", "同图去重");
+  assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,AA2", exact:"恐龙", fp:"fp-same" }).ok, true, "带指纹上传");
+  assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,AA3", exact:"恐龙", fp:"fp-same" }).err, "dup", "同指纹去重");
+  r.room.customImages = [r.room.customImages[0]];   // 保留 cu-1（甲上传），其余清空
   assert.equal(r.room.customImages.length, 1);
 
   // 上限 32
@@ -1001,10 +1004,14 @@ test("房间自定义图库：全员上传 / 上限 32 / 去重 / 贡献者 / �
   assert.equal(r.room.addImg(g2, { img:"", exact:"词" }).err, "invalid", "空图拒绝");
   assert.equal(r.room.addImg(g2, { img:"data:image/jpeg;base64,DD", exact:"  " }).err, "invalid", "空准确词拒绝");
 
-  // 房主移除 + 权限
-  assert.equal(r.room.removeImg(g1, "cu-1").err, "not_host", "非房主不能移除");
-  assert.equal(r.room.removeImg(host, "cu-1").ok, true, "房主移除成功");
+  // 移除权限：房主可移除任意；贡献者本人可移除自己上传的；其他玩家不行
+  const cuByA = r.room.customImages.find(c => c.contributor === "甲").id;
+  const cuByB = r.room.customImages.find(c => c.contributor === "乙").id;
+  assert.equal(r.room.removeImg(g2, cuByA).err, "not_owner", "非房主非上传者不能移除");
+  assert.equal(r.room.removeImg(g1, cuByA).ok, true, "贡献者本人可移除自己上传的");
   assert.equal(r.room.customImages.length, 31);
+  assert.equal(r.room.removeImg(host, cuByB).ok, true, "房主移除成功");
+  assert.equal(r.room.customImages.length, 30);
   assert.equal(r.room.removeImg(host, "cu-999").err, "not_found", "不存在拒绝");
 
   // 开局锁定
@@ -1086,7 +1093,8 @@ test("房主让位：房主离线自动转移给第一个在线玩家，回归�
   r.room.players[0].connected = true;
   assert.equal(r.room.hostPlayer().pid, b, "A 回归不自动收回房主权");
   assert.equal(r.room.setPoolMode(a, "default").err, "not_host", "A 回归后仍非房主");
-  assert.equal(r.room.removeImg(a, "x").err, "not_host", "A 回归后不能移除自定义图");
+  const rmId = r.room.addImg(b, { img:"data:image/jpeg;base64,RM", exact:"词" }).item.id;
+  assert.equal(r.room.removeImg(a, rmId).err, "not_owner", "A 回归后不能移除他人上传的图");
   // B 离线 → 房主转移给第一个在线玩家（A 已回归在线，按席位顺序 A 在前 → A 成为房主）
   r.room.removePlayer(b);
   assert.equal(r.room.hostPlayer().pid, a, "B 离线后 A（已回归在线）成为房主");
@@ -1146,3 +1154,88 @@ test("e2e：顶号后新连接不被旧连接关闭误标离线", async () => {
   await new Promise(res => server.close(res));
 });
 
+
+test("建房携带指纹去重：同 fp 只入一张", () => {
+  const mgr = new RoomManager();
+  const r = mgr.create("A", [
+    { img:"data:image/jpeg;base64,Y1", exact:"词a", fp:"fp456" },
+    { img:"data:image/jpeg;base64,Y2", exact:"词b", fp:"fp456" },
+    { img:"data:image/jpeg;base64,Y3", exact:"词c", fp:"fp789" }
+  ], "dB");
+  assert.equal(r.room.customImages.length, 2, "同指纹携带只入 1 张");
+});
+
+test("房间分层清理：大厅 60s / 游戏中 3min 超时销毁", () => {
+  const OLD_K = ONLINE.keepAliveMs, OLD_P = ONLINE.playingKeepAliveMs;
+  ONLINE.keepAliveMs = 50; ONLINE.playingKeepAliveMs = 90;
+  try{
+    const mgr = new RoomManager();
+    // 大厅房间：超过 60s(50ms) 销毁
+    const r1 = mgr.create("A", null, "dA");
+    r1.room.players[0].connected = false; r1.room.touch();
+    r1.room.lastActive = Date.now() - 200;
+    mgr.cleanup();
+    assert.equal(mgr.rooms.has(r1.room.id), false, "大厅超时销毁");
+    // 游戏中房间：未到 3min(90ms) 保留（70ms > 大厅 50ms，但 < 游戏 90ms）
+    const r2 = mgr.create("B", null, "dB");
+    r2.room.maxRounds = 2; r2.room.startRound(); r2.room.players[0].connected = false; r2.room.touch();
+    r2.room.lastActive = Date.now() - 70;
+    mgr.cleanup();
+    assert.equal(mgr.rooms.has(r2.room.id), true, "游戏中 3min 窗口未到保留");
+    // 游戏中房间：超过 3min 销毁
+    r2.room.lastActive = Date.now() - 200;
+    mgr.cleanup();
+    assert.equal(mgr.rooms.has(r2.room.id), false, "游戏中超时销毁");
+    // 大厅房间：未到 60s 保留
+    const r3 = mgr.create("C", null, "dC");
+    r3.room.players[0].connected = false; r3.room.touch();
+    r3.room.lastActive = Date.now() - 20;
+    mgr.cleanup();
+    assert.equal(mgr.rooms.has(r3.room.id), true, "大厅 60s 窗口未到保留");
+  }finally{
+    ONLINE.keepAliveMs = OLD_K; ONLINE.playingKeepAliveMs = OLD_P;
+  }
+});
+
+test("e2e：disband 房主解散广播 + leave 最后一人销毁/多人保留", async () => {
+  const { server, manager, ready, wss } = startServer(0, { lockMs: 0, createMs: 10000 });
+  await ready;
+  const port = server.address().port;
+  const base = `ws://127.0.0.1:${port}/ws`;
+
+  // 房主 disband → 广播 room_closed，房间销毁
+  const a = wsClient(base); await a.ready;
+  a.send({ t:"create", nickname:"A", device:"devA" });
+  const r1 = await a.waitFor(m => m.t === "created");
+  a.send({ t:"disband" });
+  const closed = await a.waitFor(m => m.t === "room_closed");
+  assert.equal(closed.msg.includes("解散"), true, "广播解散消息");
+  await sleep(50);
+  assert.equal(manager.rooms.has(r1.room_id), false, "解散后房间销毁");
+
+  // leave：单人房间 → 立即销毁
+  const b = wsClient(base); await b.ready;
+  b.send({ t:"create", nickname:"B", device:"devB" });
+  const r2 = await b.waitFor(m => m.t === "created");
+  b.send({ t:"leave" });
+  const left1 = await b.waitFor(m => m.t === "left");
+  assert.equal(left1.destroyed, true, "最后一人退出房间销毁");
+  await sleep(50);
+  assert.equal(manager.rooms.has(r2.room_id), false, "房间已删除");
+
+  // leave：多人房间 → 保留，广播玩家列表
+  const c = wsClient(base); await c.ready;
+  c.send({ t:"create", nickname:"C", device:"devC" });
+  const r3 = await c.waitFor(m => m.t === "created");
+  const d = wsClient(base); await d.ready;
+  d.send({ t:"join", room_id: r3.room_id, nickname:"D", device:"devD" });
+  await d.waitFor(m => m.t === "joined");
+  c.send({ t:"leave" });
+  const left2 = await c.waitFor(m => m.t === "left");
+  assert.equal(left2.destroyed, false, "非最后一人退出保留");
+  await sleep(50);
+  assert.equal(manager.rooms.has(r3.room_id), true, "多人房间退出后仍存在");
+
+  manager.disposeAll(); a.ws.close(); b.ws.close(); c.ws.close(); d.ws.close(); wss.close();
+  await new Promise(res => server.close(res));
+});
