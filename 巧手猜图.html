@@ -60,6 +60,16 @@ a{color:var(--brand-d)}
 #pw-shared .img-cell{position:relative}
 .pw-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;margin-top:6px;background:#FCFBF8;color:var(--ink)}
 .field-label{font-size:12px;color:var(--muted);margin-top:8px}
+.kw-line{font-size:14px;margin-top:6px;display:flex;justify-content:space-between;gap:10px;background:#F6F2E8;border-radius:8px;padding:7px 10px}
+.img-cell.imported{border-color:#C7BCA4;background:#FAF7F0}
+.import-tag{position:absolute;top:2px;right:2px;background:rgba(90,98,120,.75);color:#fff;font-size:10px;border-radius:6px;padding:1px 6px;z-index:2}
+.hit-badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.hit-badge{font-size:12px;border-radius:999px;padding:3px 10px;background:#EFEBE0;color:var(--muted);border:1px solid var(--line)}
+.hit-badge.on{background:#E7F4E8;color:#1E7D32;border-color:#4CAF50;font-weight:600}
+.hit-badge b{font-weight:700}
+.stage-wrap.time-warn{outline:3px solid #E03131;outline-offset:-2px;border-radius:12px}
+.stage-wrap.time-warn .timer-hint{display:block}
+.timer-hint{display:none;position:absolute;top:8px;right:50%;transform:translateX(50%);background:rgba(224,49,49,.92);color:#fff;font-weight:700;border-radius:999px;padding:4px 14px;font-size:13px;z-index:5;pointer-events:none}
 .pop .pw-in{border-color:#C7BCA4;background:#FFFEFA}
 .file-drop{display:block;border:2px dashed #C7BCA4;border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;margin-top:10px;background:#FFFDF6}
 .file-drop:hover{border-color:var(--brand);background:#FAF7F0}
@@ -297,6 +307,34 @@ function levelLabel(level){
   return { exact:"准确词 +5", keyword:"联想词 +2", category:"类别词 +1" }[level] || "文字命中";
 }
 
+/* ================= 轻量音效（Web Audio 合成，无素材文件；音量克制，供氛围提示） ================= */
+function sfx(name){
+  if(sfx._mute) return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx=sfx._ctx||(sfx._ctx=new AC());
+    if(ctx.state==="suspended") ctx.resume();
+    const now=ctx.currentTime;
+    const tone=(hz,vol,dur,type,delay)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type=type||"sine"; o.frequency.value=hz;
+      g.gain.setValueAtTime(0.0001,now+delay);
+      g.gain.linearRampToValueAtTime(vol,now+delay+0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+delay+dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now+delay); o.stop(now+delay+dur+0.05);
+    };
+    const P={
+      hit:()=>{ tone(659,0.15,0.16,"sine",0); tone(880,0.13,0.22,"sine",0.08); },
+      win:()=>{ tone(523,0.14,0.13,"sine",0); tone(659,0.14,0.13,"sine",0.07); tone(784,0.15,0.22,"sine",0.14); },
+      miss:()=>{ tone(196,0.11,0.18,"triangle",0); },
+      tick:()=>{ tone(1046,0.05,0.05,"square",0); },
+      reveal:()=>{ tone(392,0.15,0.26,"sine",0); tone(523,0.15,0.26,"sine",0.11); tone(659,0.15,0.3,"sine",0.22); tone(784,0.14,0.42,"sine",0.33); },
+      pick:()=>{ tone(784,0.15,0.13,"sine",0); tone(1047,0.13,0.18,"sine",0.06); }
+    };
+    if(P[name]) P[name]();
+  }catch(_){}
+}
 /* ================= 作品渲染（创作/实时观看/揭晓共用） ================= */
 function shapeFor(e){
   const g = h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`,"data-kind":e.kind});
@@ -476,31 +514,28 @@ function renderMyLib(){
     grid.innerHTML=slice.length?"":"";
     if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
     slice.forEach(g=>{
-      const cell=html("div",{class:"img-cell"});
+      const cell=html("div",{class:"img-cell"+(tab==="mine"&&g.source==="import"?" imported":"")});
       const isGame=tab==="games";
-      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:`<button class="edit-btn">编辑</button>`}`;
+      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:""}${tab==="mine"&&g.source==="import"?`<span class="import-tag">他人</span>`:""}`;
       const im=cell.querySelector("img");
       if(im) im.onerror=()=>{ if(!cell.querySelector(".img-broken")) cell.appendChild(html("div",{class:"img-broken"},"加载失败")); };
-      cell.querySelector(".mini-del").onclick=()=>{
-        if(!window.confirm(`删除这张「${g.name||g.exact||g.zh}」？`)) return;
+      cell.querySelector(".mini-del").onclick=(ev)=>{
+        ev.stopPropagation();
+        const tip=g.source==="import"?"该图来自对局收藏，仅从本机移除":"删除这张";
+        if(!window.confirm(`${tip}「${g.name||g.exact||g.zh}」？`)) return;
         (isGame?gameDel:customDel)(g.id).then(()=>{ if(isGame){ games=games.filter(x=>x.id!==g.id);} else { mine=mine.filter(x=>x.id!==g.id);} draw(); showCap(); toast("已删除"); });
       };
+      if(!isGame) cell.onclick=()=>viewDetail(g);
       if(isGame){
         cell.querySelector(".save-btn").onclick=async()=>{
           try{
             const fp=await imgFp(g.img);
             const dup=mine.find(x=>x.fp===fp);
             if(dup){ toast("我的图库里已有这张"); return; }
-            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,createdAt:Date.now()});
+            const isMine = !g.contributor || g.contributor===nickMemo();
+            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,source:isMine?"own":"import",contributor:g.contributor||"",createdAt:Date.now()});
             mine=await customList(); draw(); showCap(); toast("已转存到我的图库");
           }catch(_){ toast("转存失败"); }
-        };
-      }else{
-        cell.querySelector(".edit-btn").onclick=async()=>{
-          const r=await wordForm({title:"编辑词条",init:g});
-          if(!r) return;
-          await customPut({...g,...r});
-          mine=await customList(); draw(); toast("已保存");
         };
       }
       grid.appendChild(cell);
@@ -510,6 +545,31 @@ function renderMyLib(){
     const mb=more.querySelector("#ml-more-btn");
     if(mb) mb.onclick=()=>{ shown+=PAGE; draw(); };
   };
+  /* 词条详情弹层：查看图片的全部词语；自己上传可编辑，他人图只读 */
+  function viewDetail(g){
+    const isOwn=g.source!=="import";
+    const srcLabel=isOwn?"自己上传":(g.contributor?`来自「${esc(g.contributor)}」的对局收藏`:"来自对局收藏");
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:420px">
+      <h3>${esc(g.name||g.exact||g.zh)}</h3>
+      <div style="text-align:center;margin:10px 0"><img src="${esc(g.img)}" alt="" style="max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
+      <div class="kw-line">类别词 <b>${esc(g.category_word||g.category||"—")}</b></div>
+      <div class="kw-line">联想词 <b>${esc((g.keywords||[]).filter(Boolean).join("、")||"—")}</b></div>
+      <div class="kw-line">准确词 <b style="color:#C0392B">${esc(g.exact||"—")}</b></div>
+      <div class="sub" style="margin-top:10px">来源：${srcLabel}</div>
+      <div class="row" style="margin-top:14px">${isOwn?`<button class="primary" id="vd-edit" style="flex:1">编辑词条</button>`:""}<button class="ghost" id="vd-close" style="flex:1">关闭</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#vd-close").onclick=()=>mk.remove();
+    if(isOwn){
+      mk.querySelector("#vd-edit").onclick=async()=>{
+        const r=await wordForm({title:"编辑词条",init:g});
+        if(!r) return;
+        await customPut({...g,...r});
+        mk.remove(); mine=await customList(); draw(); showCap(); toast("已保存");
+      };
+    }
+  }
   const switchTab=(t)=>{
     tab=t; shown=PAGE;
     card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>{
@@ -532,7 +592,7 @@ function renderMyLib(){
     const fp=await imgFp(img);
     const dup=mine.find(x=>x.fp===fp);
     if(dup){ toast("图库里已有这张图片"); return; }
-    await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,createdAt:Date.now()});
+    await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,source:"own",createdAt:Date.now()});
     mine=await customList(); draw(); showCap(); toast("已存入我的图库");
   };
   Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
@@ -1274,7 +1334,7 @@ function renderPuzzleEditor(){
       const exactv=String(mk.querySelector("#pt-exact").value||"").trim();
       if(!ptRaw){ toast("请先选择图片"); return; }
       if(!catv||!exactv){ toast("类别词和准确词必填"); return; }
-      const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,createdAt:Date.now()};
+      const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,source:"own",createdAt:Date.now()};
       try{ await customPut(item); }catch(e){ toast("图片无效，请重试"); return; }
       toast("已保存到自定义图库");
       ptRaw=""; mk.querySelector("#pt-preview").style.display="none"; ptFile.value="";
@@ -1437,6 +1497,7 @@ async function renderPuzzleGuess(id){
           let imgHtml="";
           if(j.answer && j.answer.img) imgHtml=`<img src="${j.answer.img}" alt="谜底照片" style="width:100%;max-width:300px;border-radius:12px;margin-top:10px;display:block">`;
           fbEl.innerHTML=`<div class="fb hit">🎉 答对了！${ansText}${imgHtml}</div>`;
+          sfx("win");
           stage=3; renderProgress();
           return;
         }
@@ -1444,14 +1505,17 @@ async function renderPuzzleGuess(id){
           const ni=STAGES.indexOf(j.next);
           stage=ni>=0?ni:stage+1;
           fbEl.innerHTML=`<div class="fb hit">🎯 命中${STAGE_LABEL[j.level]||""}「${esc(j.word)}」！进入下一关</div>`;
+          sfx("hit");
           renderProgress();
           return;
         }
         if(j.hint){
           fbEl.innerHTML=`<div class="fb miss">${j.hint==="category"?"这只是类别，再具体一点！":"接近了！这属于联想词，想想它的准确名字"}</div>`;
+          sfx("miss");
           return;
         }
         fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
+        sfx("miss");
       }).catch(()=>{ send.disabled=false; fbEl.innerHTML=`<div class="fb miss">网络错误，请重试。</div>`; });
   }
   renderProgress();
@@ -1480,6 +1544,7 @@ async function runPuzzleTest(){
     if(u.endsWith("image-pack-64.json")) return {status:200,ok:true,json:async()=>({images:[{id:"ani-elephant",category:"动物",zh:"大象",exact:"大象",keywords:["森林","鼻子"],aliases:["象"],category_word:"动物"},{id:"ani-giraffe",category:"动物",zh:"长颈鹿",exact:"长颈鹿",keywords:["草原","脖子"],aliases:["鹿"],category_word:"动物"}]})};
     return {status:200,ok:true,json:async()=>({ok:true})};
   };
+  sfx._mute=true;   // 自检内静音
   try{
     log(typeof cropImageDialog==="function" && typeof clampNum==="function","裁剪器组件可用");
     location.hash="#/puzzle"; route(); await sleep(60);
@@ -1670,6 +1735,7 @@ function renderEditor(){
         <div class="shape-rail-mini" id="shape-rail-mini" title="展开形状">⤢</div>
         <svg class="stage" id="stage"></svg>
       </div>
+      <span class="timer-hint">⏰ 最后 30 秒，加快！</span>
       <div class="hint" id="hint"></div>
       <div class="canvas-ops">
         <button id="up">置顶</button>
@@ -2007,13 +2073,16 @@ function renderEditor(){
     if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
   });
 
-  /* 计时 */
+  /* 计时：最后 30 秒画布红框警示 + 最后 10 秒滴答音 */
   timerId=setInterval(()=>{
     if(state.finished){clearInterval(timerId);return;}
     const left=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000));
     const mm=Math.floor(left/60),ss=left%60;
     timerEl.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
-    timerEl.classList.toggle("urgent",left<=15);
+    timerEl.classList.toggle("urgent",left<=30);
+    wrap.querySelector(".stage-wrap").classList.toggle("time-warn",left<=30);
+    if(left>0 && left<=10){ if(sfx._lastTick!==left){ sfx._lastTick=left; sfx("tick"); } }
+    else { sfx._lastTick=null; }
   },1000);
   /* 作答动态：出题人实时看到每个猜词与选图对错（word_view/guess_view 仅发给出题人） */
   function addFeed(inner, cls){
@@ -2029,14 +2098,16 @@ function renderEditor(){
     if(m.correct){
       const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)}`;
       addFeed(`<b>${esc(m.nickname)}</b><span class="tag">${tag}</span>`,"ok");
+      if(!m.repeat) sfx("hit");
     }else{
       addFeed(`<b>${esc(m.nickname)}</b><span class="tag">猜「${esc(m.word)}」✗</span>`,"no");
+      sfx("miss");
     }
   };
   window.__pwDrawerGuess=(m)=>{
     const cell=coordLabel(m.cell);
-    if(m.correct) addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✓${m.first?" 首答":""}</span>`,"ok");
-    else addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✗</span>`,"no");
+    if(m.correct){ addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✓${m.first?" 首答":""}</span>`,"ok"); sfx(m.first?"win":"pick"); }
+    else { addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ✗</span>`,"no"); sfx("miss"); }
   };
   syncUI();
   window.__pwEditor={state,svg,wrap,draw};
@@ -2439,7 +2510,7 @@ function renderOnlineLobby(){
         if(dup){
           await customPut({...dup, name:zh||exact||dup.name, category_word:cat||dup.category_word, keywords:[kw1,kw2].filter(Boolean).length?[kw1,kw2].filter(Boolean):dup.keywords, exact:exact||dup.exact});
         }else{
-          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:zh||exact,exact,category_word:cat,keywords:[kw1,kw2].filter(Boolean),aliases:[],fp,createdAt:Date.now()});
+          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:zh||exact,exact,category_word:cat,keywords:[kw1,kw2].filter(Boolean),aliases:[],fp,source:"own",createdAt:Date.now()});
         }
       }catch(_){ /* 个人图库保存失败不阻塞房间上传 */ }
       setTimeout(()=>{
@@ -2542,6 +2613,7 @@ function renderOnlineGuess(){
       <input id="pw-word" placeholder="猜它是什么，如：大象" maxlength="30" autocomplete="off" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
       <button class="primary" id="pw-wordsend">猜！</button>
     </div>
+    <div id="pw-hits" class="hit-badges"></div>
     <div id="pw-records" style="margin-top:8px"></div>
     <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 60 秒后开放</span></div>
     <div id="pw-photo-holder"></div>`;
@@ -2550,6 +2622,17 @@ function renderOnlineGuess(){
     bar=card.querySelector("#pw-gbar"), recEl=card.querySelector("#pw-records");
   const wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
   renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"});
+  window.__myHits={category:"",keyword:"",exact:""};
+  function renderHits(){
+    const el=document.querySelector("#pw-hits"); if(!el) return;
+    const H=window.__myHits||{};
+    const L=[["category","类别"],["keyword","联想"],["exact","准确"]];
+    el.innerHTML=L.map(([k,label])=>{
+      const w=H[k];
+      return `<span class="hit-badge${w?" on":""}">${label}${w?` <b>✓ ${esc(w)}</b>`:" 未中"}</span>`;
+    }).join("");
+  }
+  renderHits();
   let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
   const triedSet=new Set(__PW.myTried||[]);
   window.__pwCooldownMs = window.__pwCooldownMs || 10000;
@@ -2588,10 +2671,13 @@ function renderOnlineGuess(){
         const guide=m.level==="category"?" · 已经到类别了，再具体点！":(m.level==="keyword"?" · 超级接近！想想它的名字":"！");
         const head=m.level==="exact"?"🎉 完美命中！":"🎯 命中";
         bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${head}「${esc(m.word)}」✓ ${label}${guide}（本轮 ${m.total||0}/8）</span>`;
+        if(!window.__myHits[m.level]){ window.__myHits[m.level]=m.word; }
+        renderHits();
+        sfx(m.level==="exact"?"win":"hit");
       }
     }else{
       r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
-      missStreak++;
+      missStreak++; sfx("miss");
       const pool=[
         "不对哦，再想想～答案是一个词",
         "加油！试试图中主体的名字或身份",
@@ -2628,8 +2714,10 @@ function renderOnlineGuess(){
   window.__pwGuessOk=(m)=>{
     if(m.correct){
       toast(m.first?"🎉 首答正确！+3（等揭晓）":"✅ 猜中！+1（等揭晓）");
+      sfx(m.first?"win":"pick");
       done=true; lockWall(true); bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
     }else{
+      sfx("miss");
       triedSet.add(picked); __PW.myTried=(__PW.myTried||[]).concat(picked);
       const ch=wallEl&&wallEl.children[picked];
       if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(picked)}</span><span class="cross">✗</span>`; }
@@ -2687,6 +2775,7 @@ function renderOnlineGuess(){
 }
 /* ---- 揭晓 / 终局 ---- */
 function renderOnlineReveal(){
+  sfx("reveal");
   window.__pwDrawerWord=null; window.__pwDrawerGuess=null;
   const rev=__PW.reveal, over=__PW.over;
   const data=over||rev;
@@ -2758,6 +2847,7 @@ async function runOnlineTest(){
   WALL16.forEach(g=>{ g.thumb=g.img.replace("/images/","/images-thumb/").replace(".png",".jpg"); });
   window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
   window.__pwCooldownMs=60;           // 自检内冷却缩短
+  sfx._mute=true;                     // 自检内静音（不产生音频）
   try{
     /* 0. 入口页：携带功能已取消（统一房间内上传/导入）；首页新增我的图库入口 */
     renderOnline(); await sleep(60);
@@ -2768,6 +2858,7 @@ async function runOnlineTest(){
     rec("tab 选中态 CSS 规则存在", (()=>{try{return [...document.styleSheets].some(s=>{try{return [...s.cssRules].some(r=>r.selectorText&&r.selectorText.indexOf("button.ghost.primary")>=0)}catch(_){return false}})}catch(_){return false}})(), "");
     rec("上传弹层函数可用", typeof uploadForm==="function","");
     rec("裁剪器组件可用", typeof cropImageDialog==="function","");
+    rec("音效系统可用", typeof sfx==="function","");
     renderOnline(); await sleep(40);
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
@@ -2791,6 +2882,7 @@ async function runOnlineTest(){
     const ed=window.__pwEditor;
     rec("出题人编辑器挂载", !!(ed&&ed.svg),"renderEditor online");
     rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("2:"),"");
+    rec("画布最后30秒警示浮标", !!document.querySelector(".timer-hint"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
     [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
@@ -2863,6 +2955,7 @@ async function runOnlineTest(){
     rec("记录显示+5", (document.querySelector("#pw-records").textContent||"").includes("+5"),"");
     rec("文字命中提示层级", (document.querySelector("#pw-gbar").textContent||"").includes("准确词 +5"),"");
     rec("命中显示词条+本轮分", (document.querySelector("#pw-gbar").textContent||"").includes("大象")&&(document.querySelector("#pw-gbar").textContent||"").includes("5/8"),"");
+    rec("命中徽章点亮(准确)", !!document.querySelector("#pw-hits .hit-badge.on") && (document.querySelector("#pw-hits").textContent||"").includes("准确") && (document.querySelector("#pw-hits").textContent||"").includes("大象"),"");
     /* 词条级去重：重复命中 → 提示已猜过 */
     __PW.handle({t:"word_res",correct:true,repeat:true,level:"category",word:"动物",msg:"该词已猜过"});
     await sleep(40);
