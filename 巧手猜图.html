@@ -20,6 +20,7 @@ button.primary{background:var(--brand);color:#fff;font-weight:600}
 button.primary:hover{background:var(--brand-d)}
 button.accent{background:var(--accent);color:#fff;font-weight:600}
 button.ghost{background:transparent;border:1.5px solid var(--line)}
+button.ghost.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 button:disabled{opacity:.45;cursor:not-allowed}
 .wrap{max-width:1080px;margin:0 auto;padding:18px}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
@@ -62,6 +63,7 @@ a{color:var(--brand-d)}
 .pop .pw-in{border-color:#C7BCA4;background:#FFFEFA}
 .file-drop{display:block;border:2px dashed #C7BCA4;border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;margin-top:10px;background:#FFFDF6}
 .file-drop:hover{border-color:var(--brand);background:#FAF7F0}
+.file-pick{display:inline-block;background:var(--brand);color:#fff;font-weight:600;border-radius:10px;padding:9px 22px;margin-top:2px}
 .pop{background:#FFFDFA;border:1px solid #EFE9DC;border-radius:16px;padding:18px;box-shadow:0 12px 40px rgba(24,28,41,.28);max-height:85vh;overflow:auto;box-sizing:border-box}
 .pop .row{margin-top:14px}
 .pt-tab{padding:6px 14px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
@@ -384,7 +386,7 @@ function renderHome(){
   <div class="hero-actions">
     <button class="primary" id="go-online" style="min-width:220px">🕹️ 进入联机对战</button>
     <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 单人出题 · 分享给朋友猜</button>
-    <button class="ghost" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
+    <button class="primary" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
   </div>
   <div class="rule-grid">
     <div class="rule-card">
@@ -426,7 +428,7 @@ function renderMyLib(){
   card.innerHTML=`
     <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
     <div class="sub" id="ml-cap"></div>
-    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="ghost" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
     <div class="tabs" id="ml-tabs"></div>
     <div id="ml-grid" class="img-grid"></div>
     <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
@@ -466,6 +468,7 @@ function renderMyLib(){
       mk.remove();
     };
   });
+
   const draw=()=>{
     const src=tab==="mine"?mine:games;
     const grid=card.querySelector("#ml-grid");
@@ -509,60 +512,82 @@ function renderMyLib(){
   };
   const switchTab=(t)=>{
     tab=t; shown=PAGE;
-    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>b.classList.toggle("primary",b.id==="ml-"+tab));
+    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>{
+      const isSel=b.id==="ml-"+tab;
+      b.classList.toggle("primary",isSel);
+      b.classList.toggle("ghost",!isSel);
+    });
     draw();
   };
   card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
   card.querySelector("#ml-games").onclick=()=>switchTab("games");
   card.querySelector("#ml-upload").onclick=async()=>{
-    const r=await wordForm({title:"上传新图片",init:{}});
+    const r=await uploadForm();
     if(!r) return;
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:420px">
-      <h3>选择图片</h3>
-      <label class="file-drop"><input type="file" id="ml-file" accept="image/*" style="display:none">
-        <div style="font-size:30px;line-height:1">🖼️</div><div style="margin-top:6px;color:var(--ink)">点击选择图片</div>
-        <div class="sub" style="margin-top:2px">自动压缩到 512px · 单图 ≤1.5MB</div>
-      </label>
-      <div id="ml-pv" style="display:none;margin-top:10px;text-align:center"><img id="ml-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
-      <div class="row" style="margin-top:14px"><button class="primary" id="ml-ok" style="flex:1">上传</button><button class="ghost" id="ml-no">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    mk.querySelector("#ml-no").onclick=()=>mk.remove();
-    const fileEl=mk.querySelector("#ml-file");
-    fileEl.onchange=()=>{
-      const f=fileEl.files&&fileEl.files[0];
-      if(!f) return;
-      const fr=new FileReader();
-      fr.onload=async()=>{
-        const raw=fr.result;
-        const cropped=await cropImageDialog(raw);
-        if(!cropped){ mk.remove(); return; }
-        const pv=mk.querySelector("#ml-pv"); pv.style.display="block"; mk.querySelector("#ml-pvimg").src=cropped;
-        mk.querySelector("#ml-pvimg").style.objectFit="contain";
-        mk.querySelector("#ml-pvimg").style.width="auto"; mk.querySelector("#ml-pvimg").style.height="auto";
-        mk.querySelector("#ml-pvimg").style.maxWidth="128px"; mk.querySelector("#ml-pvimg").style.maxHeight="128px";
-        mk.querySelector("#ml-ok").onclick=async()=>{
-          mk.querySelector("#ml-ok").disabled=true; mk.querySelector("#ml-ok").textContent="压缩中…";
-          let img=null;
-          for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
-            try{ const c=await compressImage(cropped,side,q); if(c){ img=c; break; } }catch(_){}
-          }
-          if(!img || img.length>1.5e6){ mk.querySelector("#ml-ok").disabled=false; mk.querySelector("#ml-ok").textContent="上传"; toast("图片太大或压缩失败"); return; }
-          const fp=await imgFp(img);
-          const dup=mine.find(x=>x.fp===fp);
-          if(dup){ mk.remove(); toast("图库里已有这张图片"); return; }
-          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,createdAt:Date.now()});
-          mk.remove(); mine=await customList(); draw(); showCap(); toast("已存入我的图库");
-        };
-      };
-      fr.readAsDataURL(f);
-    };
-    fileEl.click();
+    let img=null;
+    for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
+      try{ const c=await compressImage(r.cropped,side,q); if(c){ img=c; break; } }catch(_){}
+    }
+    if(!img || img.length>1.5e6){ toast("图片太大或压缩失败"); return; }
+    const fp=await imgFp(img);
+    const dup=mine.find(x=>x.fp===fp);
+    if(dup){ toast("图库里已有这张图片"); return; }
+    await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,createdAt:Date.now()});
+    mine=await customList(); draw(); showCap(); toast("已存入我的图库");
   };
   Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
 }
 
+/* 上传新图片弹层：词条字段 + 明显的「选择图片」按钮 + 预览，单弹层一次完成 */
+const uploadForm=()=>new Promise(res=>{
+  const mk=html("div",{class:"mask"});
+  mk.innerHTML=`<div class="pop" style="max-width:440px">
+    <h3>上传新图片</h3>
+    <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" placeholder="猜题人可见">
+    <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" placeholder="如：交通工具">
+    <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" placeholder="如：海">
+    <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" placeholder="可选">
+    <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" placeholder="如：帆船">
+    <label class="file-drop"><input type="file" id="mf-file" accept="image/*" style="display:none">
+      <span class="file-pick">📁 选择图片</span>
+      <div class="sub" style="margin-top:6px">自动压缩到 512px · 单图 ≤1.5MB</div>
+    </label>
+    <div id="mf-pv" style="display:none;margin-top:10px;text-align:center"><img id="mf-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
+    <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存并上传</button><button class="ghost" id="mf-no">取消</button></div>
+  </div>`;
+  document.body.appendChild(mk);
+  mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
+  let cropped=null;
+  const fileEl=mk.querySelector("#mf-file");
+  fileEl.onchange=()=>{
+    const f=fileEl.files&&fileEl.files[0];
+    if(!f) return;
+    const fr=new FileReader();
+    fr.onload=async()=>{
+      const raw=fr.result;
+      cropped=await cropImageDialog(raw);
+      if(!cropped) return;   // 取消裁剪：停留在弹层，可重选图片
+      const pv=mk.querySelector("#mf-pv"); pv.style.display="block"; mk.querySelector("#mf-pvimg").src=cropped;
+      mk.querySelector("#mf-pvimg").style.objectFit="contain";
+      mk.querySelector("#mf-pvimg").style.width="auto"; mk.querySelector("#mf-pvimg").style.height="auto";
+      mk.querySelector("#mf-pvimg").style.maxWidth="128px"; mk.querySelector("#mf-pvimg").style.maxHeight="128px";
+    };
+    fr.readAsDataURL(f);
+  };
+  mk.querySelector("#mf-ok").onclick=()=>{
+    const exact=mk.querySelector("#mf-exact").value.trim();
+    if(!exact){ toast("准确词必填"); return; }
+    if(!cropped){ toast("请先选择图片"); return; }
+    res({
+      name:mk.querySelector("#mf-name").value.trim()||exact,
+      category_word:mk.querySelector("#mf-cat").value.trim(),
+      keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
+      exact,
+      cropped
+    });
+    mk.remove();
+  };
+});
 /* ===== 自定义图片库（IndexedDB 本地持久化，单机+联机共用） ===== */
 const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
 const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;   // 对局收藏：独立 store，上限 200 张 FIFO
@@ -2739,6 +2764,9 @@ async function runOnlineTest(){
     rec("入口页无携带按钮", !document.querySelector("#pw-pick-custom"),"");
     renderHome(); await sleep(40);
     rec("首页我的图库入口", !!document.querySelector("#go-mylib"),"");
+    rec("首页我的图库按钮主样式", document.querySelector("#go-mylib").classList.contains("primary"),"");
+    rec("tab 选中态 CSS 规则存在", (()=>{try{return [...document.styleSheets].some(s=>{try{return [...s.cssRules].some(r=>r.selectorText&&r.selectorText.indexOf("button.ghost.primary")>=0)}catch(_){return false}})}catch(_){return false}})(), "");
+    rec("上传弹层函数可用", typeof uploadForm==="function","");
     rec("裁剪器组件可用", typeof cropImageDialog==="function","");
     renderOnline(); await sleep(40);
     /* 1. 创建房间 → 大厅 */
