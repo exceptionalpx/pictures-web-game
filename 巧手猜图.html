@@ -47,7 +47,7 @@ a{color:var(--brand-d)}
 .cat-tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .img-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border:2px solid var(--line);border-radius:8px;background:#fff}
-.img-cell img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px}
+.img-cell img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:4px}
 .img-cell span{font-size:10px;color:#495057}
 .img-cell.on{border-color:var(--brand);background:#EDF1FF}
 .pm{flex:1;border:1.5px solid var(--line);background:#FCFBF8;border-radius:10px;padding:8px 4px;font-size:13px;color:var(--ink);cursor:pointer}
@@ -75,7 +75,7 @@ a{color:var(--brand-d)}
 .cw-confirm span{color:#fff;font-size:11px}
 .target-strip{display:flex;align-items:center;gap:10px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px;margin:10px 0}
 .target-strip .tp-photo{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;background:#fff;border:1px solid #E3DDD0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden}
-.target-strip .tp-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.target-strip .tp-photo img{width:100%;height:100%;object-fit:contain;display:block}
 .target-strip .tp-meta{flex:1;min-width:0}
 .target-strip .tp-meta b{font-size:14px}
 .target-strip .tp-meta .sub{font-size:12px;word-break:break-all}
@@ -108,7 +108,7 @@ a{color:var(--brand-d)}
 .editor .wall-panel{width:220px;max-width:100%}
 .wall-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .cell{position:relative;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);background:#FCFBF8;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;overflow:hidden}
-.cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cell img{width:100%;height:100%;object-fit:contain;display:block}
 .cell .coord{position:absolute;left:3px;top:2px;font-size:9px;color:var(--muted);font-family:ui-monospace,monospace;text-shadow:0 0 4px #fff,0 0 4px #fff;z-index:1}
 .cell.target{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,168,34,.3)}
 .cell.target .coord{color:#B07900;font-weight:700}
@@ -119,7 +119,7 @@ a{color:var(--brand-d)}
 .cell .mark{position:absolute;right:4px;bottom:2px;font-size:12px;font-weight:800;color:#fff;background:rgba(232,168,34,.92);border-radius:6px;padding:0 6px;z-index:1}
 .cell .cross{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--bad);background:rgba(253,232,232,.72);z-index:1}
 .target-card{display:flex;flex-direction:column;gap:8px;background:#FFF8E6;border:2px solid var(--gold);border-radius:12px;padding:10px}
-.target-card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
+.target-card img{width:100%;height:auto;max-height:320px;object-fit:contain;border-radius:10px;display:block}
 .target-card .sub{margin-top:2px}
 .feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px;max-width:640px;width:100%}
 .feed-panel h2{font-size:15px;margin-bottom:8px}
@@ -200,7 +200,7 @@ a{color:var(--brand-d)}
 .review-item svg{width:64px;height:64px;flex:none;border-radius:8px;background:#fff;border:1px solid var(--line)}
 .review-item .res{margin-left:auto;font-weight:700;white-space:nowrap}
 .answer-img{display:flex;justify-content:center;margin:12px 0}
-.answer-img img{width:220px;height:220px;object-fit:cover;border-radius:14px;border:2px solid var(--gold);box-shadow:var(--shadow)}
+.answer-img img{max-width:220px;max-height:220px;width:auto;height:auto;object-fit:contain;border-radius:14px;border:2px solid var(--gold);box-shadow:var(--shadow)}
 .foot-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
 .link-row{display:flex;gap:8px;margin:12px 0}
 .link-row input{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;font-family:ui-monospace,monospace;background:#FCFBF8;color:var(--ink)}
@@ -433,7 +433,7 @@ function renderMyLib(){
   w.appendChild(card); $app.appendChild(w);
   card.querySelector("#ml-back").onclick=()=>location.hash="#/";
   const PAGE=60;
-  let tab="mine", mine=[], games=[], shown=0;
+  let tab="mine", mine=[], games=[], shown=PAGE;
   const capEl=card.querySelector("#ml-cap");
   const showCap=async()=>{
     let t="";
@@ -524,7 +524,7 @@ function renderMyLib(){
         <div style="font-size:30px;line-height:1">🖼️</div><div style="margin-top:6px;color:var(--ink)">点击选择图片</div>
         <div class="sub" style="margin-top:2px">自动压缩到 512px · 单图 ≤1.5MB</div>
       </label>
-      <div id="ml-pv" style="display:none;margin-top:10px;text-align:center"><img id="ml-pvimg" style="width:128px;height:128px;object-fit:cover;border-radius:12px;border:2px solid #C7BCA4"></div>
+      <div id="ml-pv" style="display:none;margin-top:10px;text-align:center"><img id="ml-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
       <div class="row" style="margin-top:14px"><button class="primary" id="ml-ok" style="flex:1">上传</button><button class="ghost" id="ml-no">取消</button></div>
     </div>`;
     document.body.appendChild(mk);
@@ -536,12 +536,17 @@ function renderMyLib(){
       const fr=new FileReader();
       fr.onload=async()=>{
         const raw=fr.result;
-        const pv=mk.querySelector("#ml-pv"); pv.style.display="block"; mk.querySelector("#ml-pvimg").src=raw;
+        const cropped=await cropImageDialog(raw);
+        if(!cropped){ mk.remove(); return; }
+        const pv=mk.querySelector("#ml-pv"); pv.style.display="block"; mk.querySelector("#ml-pvimg").src=cropped;
+        mk.querySelector("#ml-pvimg").style.objectFit="contain";
+        mk.querySelector("#ml-pvimg").style.width="auto"; mk.querySelector("#ml-pvimg").style.height="auto";
+        mk.querySelector("#ml-pvimg").style.maxWidth="128px"; mk.querySelector("#ml-pvimg").style.maxHeight="128px";
         mk.querySelector("#ml-ok").onclick=async()=>{
           mk.querySelector("#ml-ok").disabled=true; mk.querySelector("#ml-ok").textContent="压缩中…";
           let img=null;
           for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
-            try{ const c=await compressImage(raw,side,q); if(c){ img=c; break; } }catch(_){}
+            try{ const c=await compressImage(cropped,side,q); if(c){ img=c; break; } }catch(_){}
           }
           if(!img || img.length>1.5e6){ mk.querySelector("#ml-ok").disabled=false; mk.querySelector("#ml-ok").textContent="上传"; toast("图片太大或压缩失败"); return; }
           const fp=await imgFp(img);
@@ -641,6 +646,158 @@ async function gameCollect(wall){
     }catch(_){}
   }
 }
+
+/* ===== 图片裁剪对话框：1:1 / 4:3 / 3:4 / 自由；拖框+底图缩放；返回原尺寸 JPEG dataURL，取消返回 null ===== */
+function clampNum(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function cropImageDialog(raw){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{
+      const iw=im.naturalWidth, ih=im.naturalHeight;
+      const STAGE_H=Math.min(360, Math.round((window.innerHeight||800)*0.55));
+      const mk=html("div",{class:"mask"});
+      mk.innerHTML=`<div class="pop" style="max-width:480px;width:calc(100vw - 40px)">
+        <h3>裁剪图片</h3>
+        <div class="row" style="gap:6px;flex-wrap:wrap" id="crop-ratios">
+          <button class="ghost" data-r="1" style="min-width:52px;background:var(--brand);color:#fff;border-color:var(--brand)">1:1</button>
+          <button class="ghost" data-r="4/3" style="min-width:52px">4:3</button>
+          <button class="ghost" data-r="3/4" style="min-width:52px">3:4</button>
+          <button class="ghost" data-r="" style="min-width:52px">自由</button>
+          <div class="sub" style="align-self:center;margin-left:6px">选择构图比例，拖动裁剪框</div>
+        </div>
+        <div id="crop-stage" style="position:relative;overflow:hidden;border-radius:12px;background:repeating-conic-gradient(#ECE7DA 0 25%, #FFFDF6 0 50%) 0 0/18px 18px;border:1px solid var(--line);margin-top:8px"></div>
+        <div class="row" style="margin-top:10px;justify-content:center;gap:10px">
+          <button class="ghost" id="crop-zo">－ 缩小</button>
+          <button class="ghost" id="crop-zi">放大 ＋</button>
+          <div class="sub" style="align-self:center">也可滚动滚轮缩放 · 拖动图片移动</div>
+        </div>
+        <div class="row" style="margin-top:12px;align-items:center">
+          <div id="crop-pv" style="flex:none;width:72px;height:72px;border:2px solid var(--gold);border-radius:10px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center"><img alt="预览" style="max-width:100%;max-height:100%;object-fit:contain"></div>
+          <div class="sub" style="flex:1;padding:0 10px">裁剪后的图片按所选比例完整展示，不再被二次裁切</div>
+          <button class="ghost" id="crop-no">取消</button>
+          <button class="primary" id="crop-ok" style="margin-left:8px">确认裁剪</button>
+        </div>
+      </div>`;
+      document.body.appendChild(mk);
+      const stage=mk.querySelector("#crop-stage");
+      const sw=Math.min(440, (stage.parentElement.clientWidth||440)-32), sh=STAGE_H;
+      stage.style.width=sw+"px"; stage.style.height=sh+"px";
+      const img=html("img");
+      img.src=raw; img.style.position="absolute"; img.style.userSelect="none"; img.style.touchAction="none";
+      img.style.width=iw+"px"; img.style.height=ih+"px"; img.style.transformOrigin="0 0"; img.style.cursor="move";
+      stage.appendChild(img);
+      const box=html("div");
+      box.style.cssText="position:absolute;border:2px solid #fff;outline:1px solid rgba(0,0,0,.35);box-shadow:0 0 0 9999px rgba(0,0,0,.35);cursor:move;touch-action:none;background:transparent";
+      stage.appendChild(box);
+      const grip=html("div");
+      grip.style.cssText="position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--brand);border:2px solid #fff;border-radius:4px;cursor:nwse-resize;touch-action:none";
+      box.appendChild(grip);
+      let ratio="1", bs=0, tx=0, ty=0;
+      const bs0=Math.min((sw-16)/iw,(sh-16)/ih);
+      function applyImg(){ img.style.transform=`translate(${tx}px,${ty}px) scale(${bs})`; }
+      function applyBox(){ box.style.left=box.x+"px"; box.style.top=box.y+"px"; box.style.width=box.w+"px"; box.style.height=box.h+"px"; }
+      function resetView(){
+        bs=bs0; tx=(sw-iw*bs)/2; ty=(sh-ih*bs)/2;
+        const cx=sw/2, cy=sh/2, s=Math.min(sw,sh)*0.68;
+        box.w=s; box.h=s; box.x=cx-s/2; box.y=cy-s/2;
+        applyImg(); applyBox(); syncRatioBtns(); refreshPv();
+      }
+      function syncRatioBtns(){
+        mk.querySelectorAll("#crop-ratios button").forEach(b=>{
+          b.style.background=(b.dataset.r===ratio)?"var(--brand)":"";
+          b.style.color=(b.dataset.r===ratio)?"#fff":"";
+          b.style.borderColor=(b.dataset.r===ratio)?"var(--brand)":"";
+        });
+      }
+      function setRatio(r){
+        ratio=r;
+        const cx=box.x+box.w/2, cy=box.y+box.h/2;
+        let w,h;
+        const maxW=sw-4, maxH=sh-4;
+        if(r==="1"){ const s=Math.min(maxW,maxH)*0.78; w=h=s; }
+        else if(r==="4/3"){ w=Math.min(maxW,maxH)*0.82; h=w*3/4; }
+        else if(r==="3/4"){ h=Math.min(maxW,maxH)*0.82; w=h*3/4; }
+        else { w=Math.min(maxW,box.w); h=Math.min(maxH,box.h); }
+        box.w=w; box.h=h; box.x=clampNum(cx-w/2,0,sw-w); box.y=clampNum(cy-h/2,0,sh-h);
+        applyBox(); syncRatioBtns(); refreshPv();
+      }
+      function refreshPv(){
+        const out=exportCrop(true);
+        if(out){ mk.querySelector("#crop-pv img").src=out; }
+      }
+      function exportCrop(skipToast){
+        const sx=(box.x-tx)/bs, sy=(box.y-ty)/bs;
+        const cx0=clampNum(sx,0,iw), cy0=clampNum(sy,0,ih);
+        const ew=Math.min(iw-cx0, box.w/bs), eh=Math.min(ih-cy0, box.h/bs);
+        if(ew<2||eh<2){ if(!skipToast) toast("裁剪区域超出图片，请调整裁剪框"); return null; }
+        const c=document.createElement("canvas");
+        c.width=Math.max(1,Math.round(ew)); c.height=Math.max(1,Math.round(eh));
+        c.getContext("2d").drawImage(im, cx0,cy0,ew,eh, 0,0,c.width,c.height);
+        return c.toDataURL("image/jpeg",0.92);
+      }
+      /* 拖拽（框 / 手柄 / 底图） */
+      let drag=null;
+      stage.addEventListener("pointerdown",ev=>{
+        if(ev.target===grip){
+          ev.preventDefault(); ev.stopPropagation();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          const rw=box.w, rh=box.h;
+          drag={type:"grip",sx:ev.clientX,sy:ev.clientY,ow:rw,oh:rh};
+        } else if(ev.target===box){
+          ev.preventDefault();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          drag={type:"box",sx:ev.clientX,sy:ev.clientY,ox:box.x,oy:box.y};
+        } else if(ev.target===img){
+          ev.preventDefault();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          drag={type:"img",sx:ev.clientX,sy:ev.clientY,otx:tx,oty:ty};
+        }
+      });
+      stage.addEventListener("pointermove",ev=>{
+        if(!drag) return;
+        const dx=ev.clientX-drag.sx, dy=ev.clientY-drag.sy;
+        if(drag.type==="box"){
+          box.x=clampNum(drag.ox+dx,0,sw-box.w); box.y=clampNum(drag.oy+dy,0,sh-box.h);
+          applyBox();
+        } else if(drag.type==="img"){
+          tx=clampNum(drag.otx+dx, sw-iw*bs, 0); ty=clampNum(drag.oty+dy, sh-ih*bs, 0);
+          applyImg();
+        } else if(drag.type==="grip"){
+          let nw,nh;
+          if(ratio===""){ nw=clampNum(drag.ow+dx,40,sw); nh=clampNum(drag.oh+dy,40,sh); }
+          else{
+            const rv=ratio==="1"?1:(ratio==="4/3"?4/3:3/4);
+            nw=clampNum(drag.ow+dx,40,sw); nh=nw/rv;
+            if(nh>sh){ nh=sh; nw=nh*rv; }
+          }
+          box.w=nw; box.h=nh;
+          box.x=clampNum(box.x,0,sw-nw); box.y=clampNum(box.y,0,sh-nh);
+          applyBox();
+        }
+      });
+      stage.addEventListener("pointerup",()=>{ if(drag){ drag=null; refreshPv(); } });
+      stage.addEventListener("wheel",ev=>{
+        ev.preventDefault();
+        const f=ev.deltaY<0?1.1:1/1.1;
+        bs=clampNum(bs*f, bs0*0.9, 10);
+        tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0);
+        applyImg();
+      },{passive:false});
+      mk.querySelector("#crop-zo").onclick=()=>{ bs=clampNum(bs/1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
+      mk.querySelector("#crop-zi").onclick=()=>{ bs=clampNum(bs*1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
+      mk.querySelectorAll("#crop-ratios button").forEach(b=>b.onclick=()=>setRatio(b.dataset.r));
+      mk.querySelector("#crop-no").onclick=()=>{ mk.remove(); res(null); };
+      mk.querySelector("#crop-ok").onclick=()=>{
+        const out=exportCrop(false);
+        if(out){ mk.remove(); res(out); }
+      };
+      resetView();
+    };
+    im.onerror=()=>res(null);
+    im.src=raw;
+  });
+}
+
 function fileToDataURL(file){
   return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
 }
@@ -1031,7 +1188,7 @@ function renderPuzzleEditor(){
           <div class="sub" style="margin-bottom:6px">上传自己的照片（自动压缩；保存后点缩略图选中）：</div>
           <div class="row"><input type="file" id="pt-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="pt-upload">选择图片</button></div>
           <div id="pt-preview" style="display:none;margin-top:8px">
-            <img id="pt-pvimg" alt="预览" style="width:84px;height:84px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:block">
+            <img id="pt-pvimg" alt="预览" style="max-width:84px;max-height:84px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1.5px solid var(--line);display:block">
             <input id="pt-name" class="pw-in" placeholder="图片名称（猜题人可见）">
             <input id="pt-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
             <input id="pt-kw1" class="pw-in" placeholder="联想词1（如：草原）">
@@ -1079,7 +1236,10 @@ function renderPuzzleEditor(){
     mk.querySelector("#pt-upload").onclick=()=>ptFile.click();
     ptFile.onchange=async()=>{
       const f=ptFile.files&&ptFile.files[0]; if(!f) return;
-      ptRaw=await compressImage(await fileToDataURL(f),512,0.82);
+      const rawD=await fileToDataURL(f);
+      const cropped=await cropImageDialog(rawD);
+      if(!cropped){ ptFile.value=""; return; }
+      ptRaw=await compressImage(cropped,512,0.82);
       if(!ptRaw){ toast("图片处理失败或过大，请换一张"); ptFile.value=""; return; }
       mk.querySelector("#pt-pvimg").src=ptRaw;
       mk.querySelector("#pt-preview").style.display="block";
@@ -1296,6 +1456,7 @@ async function runPuzzleTest(){
     return {status:200,ok:true,json:async()=>({ok:true})};
   };
   try{
+    log(typeof cropImageDialog==="function" && typeof clampNum==="function","裁剪器组件可用");
     location.hash="#/puzzle"; route(); await sleep(60);
     log(!!document.querySelector("#publish"),"创作页有发布按钮");
     log(document.querySelectorAll("#tabs button").length===2,"工具 tabs 2 个");
@@ -2199,7 +2360,7 @@ function renderOnlineLobby(){
         <div class="sub" style="margin-top:2px">自动压缩到 512px</div>
       </label>
       <div id="sh-preview" style="display:none;margin-top:10px;text-align:center">
-        <img id="sh-pvimg" style="width:128px;height:128px;object-fit:cover;border-radius:12px;border:2px solid #C7BCA4">
+        <img id="sh-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4">
         <div class="sub" id="sh-fname" style="margin-top:4px"></div>
       </div>
       <div style="margin-top:12px">
@@ -2215,15 +2376,19 @@ function renderOnlineLobby(){
     </div>`;
     document.body.appendChild(mk);
     const fileEl=mk.querySelector("#sh-file"), preview=mk.querySelector("#sh-preview");
-    fileEl.onchange=()=>{
+    fileEl.onchange=async()=>{
       const f=fileEl.files&&fileEl.files[0];
-      preview.style.display=f?"block":"none";
-      if(f){
-        const r=new FileReader();
-        r.onload=()=>{ mk.querySelector("#sh-pvimg").src=r.result; };
-        r.readAsDataURL(f);
-        mk.querySelector("#sh-fname").textContent=f.name;
-      }
+      if(!f){ preview.style.display="none"; window.__pwCropResult=null; return; }
+      mk.querySelector("#sh-fname").textContent=f.name;
+      const rawD=await fileToDataURL(f);
+      const cropped=await cropImageDialog(rawD);
+      if(!cropped){ fileEl.value=""; preview.style.display="none"; window.__pwCropResult=null; return; }
+      window.__pwCropResult=cropped;
+      mk.querySelector("#sh-pvimg").src=cropped;
+      mk.querySelector("#sh-pvimg").style.objectFit="contain";
+      mk.querySelector("#sh-pvimg").style.width="auto"; mk.querySelector("#sh-pvimg").style.height="auto";
+      mk.querySelector("#sh-pvimg").style.maxWidth="128px"; mk.querySelector("#sh-pvimg").style.maxHeight="128px";
+      preview.style.display="block";
     };
     mk.querySelector("#sh-cancel").onclick=()=>{ window.__pwUpload=null; mk.remove(); };
     mk.querySelector("#sh-ok").onclick=async()=>{
@@ -2232,13 +2397,14 @@ function renderOnlineLobby(){
       if(!fileEl.files||!fileEl.files[0]){ toast("请先选择一张图片"); return; }
       if(!exact){ toast("准确词必填"); return; }
       let img;
-      try{ img=await compressImage(await fileToDataURL(fileEl.files[0]),512,0.82); }
+      try{ img=await compressImage(window.__pwCropResult||await fileToDataURL(fileEl.files[0]),512,0.82); }
       catch(e){ toast("图片读取失败，请换一张"); return; }
       if(!img){ toast("图片压缩失败或过大，请换一张试试"); return; }
       if(img.length>1.5e6){ toast("图片太大（需 ≤1.5MB），请换一张"); return; }
       const ok=mk.querySelector("#sh-ok");
       ok.disabled=true; ok.textContent="上传中…";
       window.__pwUpload={pending:true, ok, remove:()=>{ window.__pwUpload=null; mk.remove(); }, img, zh:zh||exact, exact, keywords:[kw1,kw2].filter(Boolean), aliases:[], category_word:cat};
+      window.__pwCropResult=null;
       __PW.send({t:"add_img",zh:zh||exact,img,exact,fp:await imgFp(img),keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
       /* 上传到房间的图自动存进个人图库（指纹去重：已有同图则更新词条） */
       try{
@@ -2573,6 +2739,7 @@ async function runOnlineTest(){
     rec("入口页无携带按钮", !document.querySelector("#pw-pick-custom"),"");
     renderHome(); await sleep(40);
     rec("首页我的图库入口", !!document.querySelector("#go-mylib"),"");
+    rec("裁剪器组件可用", typeof cropImageDialog==="function","");
     renderOnline(); await sleep(40);
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
