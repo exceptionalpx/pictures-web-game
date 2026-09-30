@@ -88,6 +88,11 @@ class Room {
     this.wall = [];               // 每轮从图池（64 图 + 房主自定义图）随机抽 16 张（对象）
     this.customImages = [];       // 房间自定义图库（全房间可上传；{id,img,imgUrl,zh,category,exact,keywords,aliases,category_word,contributor}）
     this.poolMode = "mixed";      // 图库模式：default(64图) | custom(自定义图库) | mixed(混合)，房主开局前选择
+    this.roundExactHits = [];     // 本轮已文字命中准确词的玩家 pid（出题人进度感 X/Y）
+    this.matchFirstExact = null;  // 整局首次文字命中准确词的玩家 pid（终局 MVP）
+    this.drawerHits = {};         // 出题人 pid → 被选图猜中次数（整局累计，终局 MVP）
+    this.lockedWall = null;       // 房主锁定的图池（开局用这批 16 张，每轮换 target 不换图）
+    this.previewWall = null;      // 房主预览抽出的 16 张（未锁定，可反复换批）
     this.customCap = 32;          // 房间自定义图库上限（开局后从中随机抽 16 张）
     this._imgSeq = 0;             // 共享图 id 递增序列
     this.target = -1;             // 服务端权威秘密目标（wall 内索引）
@@ -141,27 +146,47 @@ class Room {
 
   canStart(){ return this.status === "lobby" && this.players.length >= ONLINE.minPlayers; }
 
+  /** 按房主选择的图库模式构建候选图池（自定义不足 16 张时默认图补足） */
+  buildPool(){
+    if(this.poolMode === "default"){
+      return IMAGES.slice();
+    }
+    if(this.poolMode === "custom"){
+      const cus = this.customImages.map(c => ({ ...c, img: c.imgUrl }));
+      if(cus.length >= 16) return cus;                       // 自定义足够：直接作池
+      const need = 16 - cus.length;
+      const fill = shuffle(IMAGES).slice(0, need);           // 不足：自定义全进 + 默认图补足（不重复）
+      return cus.concat(fill);
+    }
+    return IMAGES.concat(this.customImages.map(c => ({ ...c, img: c.imgUrl })));
+  }
+
+  /** 房主开局前预览图池：抽 16 张返回（不锁定，可反复换批） */
+  previewPool(pid){
+    if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能调整图池" };
+    if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以预览图池" };
+    this.previewWall = shuffle(this.buildPool()).slice(0,16);
+    this.touch();
+    return { ok: true, wall: this.previewWall };
+  }
+
+  /** 房主锁定预览批：本局用这批 16 张（每轮换 target、图不变）；无预览时直接抽一批 */
+  lockPool(pid){
+    if(this.status !== "lobby") return { err: "not_lobby", msg: "游戏开始后不能锁定图池" };
+    if((this.hostPlayer()||{}).pid !== pid) return { err: "not_host", msg: "只有房主可以锁定图池" };
+    this.lockedWall = (this.previewWall && this.previewWall.length) ? this.previewWall.slice() : shuffle(this.buildPool()).slice(0,16);
+    this.previewWall = null;
+    this.touch();
+    return { ok: true, count: this.lockedWall.length };
+  }
+
   startRound(){
     if(this.round >= this.maxRounds) return { err: "game_over" };
     this.round++;
     this.drawerIdx = (this.round - 1) % this.players.length;
-    // 图池按房主选择的图库模式构建；自定义不足 16 张时全部进墙、默认图补足剩余格，保证照片墙 16 格完整
-    let pool;
-    if(this.poolMode === "default"){
-      pool = IMAGES.slice();
-    } else if(this.poolMode === "custom"){
-      const cus = this.customImages.map(c => ({ ...c, img: c.imgUrl }));
-      if(cus.length >= 16){
-        pool = shuffle(cus);                                // 自定义足够：随机抽 16
-      } else {
-        const need = 16 - cus.length;
-        const fill = shuffle(IMAGES).slice(0, need);        // 不足：自定义全进 + 默认图补足（不重复）
-        pool = cus.concat(fill);
-      }
-    } else {
-      pool = IMAGES.concat(this.customImages.map(c => ({ ...c, img: c.imgUrl })));
-    }
-    this.wall = shuffle(pool).slice(0,16);   // 每轮从所选图池随机抽 16 张
+    // 图池：房主锁定批优先（每轮同 16 张），否则从候选池随机抽 16 张
+    this.wall = this.lockedWall ? this.lockedWall.slice() : shuffle(this.buildPool()).slice(0,16);
+    this.roundExactHits = [];
     this.target = Math.floor(Math.random()*this.wall.length);
     this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.players.forEach(p => { p.guessed = null; p.wordHit = false; p.wordPts = 0; p.wordLevel = ""; p.wordScored = []; p.tried = []; p.lastWrongAt = 0; });
@@ -267,6 +292,10 @@ class Room {
     p.wordPts = (p.wordPts||0) + m.pts;
     p.wordHit = true;
     p.wordLevel = m.level;
+    if(m.level === "exact"){
+      if(!this.roundExactHits.includes(pid)) this.roundExactHits.push(pid);
+      if(!this.matchFirstExact) this.matchFirstExact = pid;
+    }
     this.touch();
     return { ok: true, correct: true, level: m.level, pts: m.pts, word: m.word, total: p.wordPts };
   }
@@ -294,6 +323,8 @@ class Room {
     if(correct){
       p.guessed = { cell, correct, first: false, at: Date.now(), done: true };
       p.guessed.first = !this.guessers().some(g => g.guessed && g.guessed.correct && g.guessed.at < p.guessed.at && g.pid !== pid);
+      const d0 = this.drawer();
+      if(d0) this.drawerHits[d0.pid] = (this.drawerHits[d0.pid]||0) + 1;
     }else{
       p.tried = (p.tried||[]).concat(cell);
       p.lastWrongAt = Date.now();
@@ -362,6 +393,11 @@ class Room {
     this.drawerIdx = -1;
     this.wall = [];
     this.target = -1;
+    this.roundExactHits = [];
+    this.matchFirstExact = null;
+    this.drawerHits = {};
+    this.lockedWall = null;
+    this.previewWall = null;
     this.canvas = { els: [], bg: "#FFFFFF", ver: 0 };
     this.roundStart = 0;
     this.deadline = 0;
@@ -378,7 +414,10 @@ class Room {
       const scores = Object.fromEntries(this.players.map(p => [p.pid, p.score]));
       const sorted = [...this.players].sort((a,b) => b.score - a.score);
       const winner = sorted[0];
-      return { state: "game_over", scores, winner: { pid: winner.pid, nickname: winner.nickname, score: winner.score } };
+      const dh = this.drawerHits || {};
+      const drawerTop = Object.keys(dh).length ? Object.keys(dh).reduce((x,y) => (dh[x]||0) >= (dh[y]||0) ? x : y) : "";
+      const mvp = { score: winner.pid, firstExact: this.matchFirstExact || "", drawer: drawerTop };
+      return { state: "game_over", scores, winner: { pid: winner.pid, nickname: winner.nickname, score: winner.score }, mvp };
     }
     if(this.status === "round_end"){
       const r = this.startRound();
@@ -720,6 +759,16 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
         return broadcast(room, { t:"mode_set", mode: room.poolMode });
       }
+      if(t === "preview_pool"){
+        const r = room.previewPool(pid);
+        if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
+        return send({ t:"pool_preview", wall: r.wall.map(g => ({ img: g.img, thumb: g.thumb, zh: g.zh })) });
+      }
+      if(t === "lock_pool"){
+        const r = room.lockPool(pid);
+        if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
+        return broadcast(room, { t:"pool_locked", count: r.count });
+      }
       if(t === "add_img"){
         const r = room.addImg(pid, m);
         if(r.err) return send({ t:"error", err:r.err, msg:r.msg });
@@ -741,7 +790,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
           if(c.ctx && c.ctx.room === room){
             const isDrawer = room.drawer().pid === c.ctx.pid;
             const snap = room.snapshotFor(c.ctx.pid);
-            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target }));
+            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target, exactHits: room.roundExactHits }));
           }
         }
         return;
@@ -757,7 +806,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         const drawerPid = room.drawer() && room.drawer().pid;
         // 出题人实时看到每个猜词与命中结果（含未命中；命中只给出题人，不给其他猜题人）
         if(drawerPid){
-          sendTo(room, drawerPid, { t:"word_view", pid, nickname: room.findPlayer(pid).nickname, word: String(m.text||"").trim(), correct: !!r.correct, level: r.level || "", pts: r.pts || 0, repeat: !!r.repeat });
+          sendTo(room, drawerPid, { t:"word_view", pid, nickname: room.findPlayer(pid).nickname, word: String(m.text||"").trim(), correct: !!r.correct, level: r.level || "", pts: r.pts || 0, repeat: !!r.repeat, exactCount: room.roundExactHits.length });
         }
         if(r.correct){
           if(r.repeat){ return send({ t:"word_res", correct: true, repeat: true, level: r.level, pts: r.pts, word: r.word, msg: r.msg }); }
@@ -792,7 +841,7 @@ function startServer(port = process.env.PORT || 4000, roomOpts = {}){
         for(const c of wss.clients){
           if(c.ctx && c.ctx.room === room){
             const snap = room.snapshotFor(c.ctx.pid);
-            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target }));
+            c.send(JSON.stringify({ t:"round_start", state:"playing", round: room.round, drawer: { pid: room.drawer().pid, nickname: room.drawer().nickname }, deadline: room.deadline, lockSeconds: ONLINE.lockSeconds, createSeconds: ONLINE.createSeconds, wall: room.wall, target: snap.target, exactHits: room.roundExactHits }));
           }
         }
         return;

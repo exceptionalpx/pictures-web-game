@@ -284,6 +284,63 @@ test("出题人轮换 + 终局结算", () => {
   assert.equal(total, room.players.reduce((a,p)=>a+p.score,0));
 });
 
+test("出题人进度感 + 终局 MVP：exact 计数 / 首个准确命中 / 出题被猜中最多", () => {
+  const room = new Room("T8", { lockMs: 0, createMs: 100000, cooldownMs: 0 });
+  room.addPlayer("阿明"); const b = room.addPlayer("小红"); const c = room.addPlayer("小刚");
+  room.maxRounds = 1; room.startRound();
+  assert.deepEqual(room.roundExactHits, [], "开局 exactHits 空");
+  // 目标墙确定为大象，保证命中层级可测
+  const elephant = IMAGES.find(g => g.exact === "大象");
+  assert.ok(elephant, "词表含大象");
+  room.wall = [elephant].concat(IMAGES.filter(g => g.id !== elephant.id).slice(0, 15));
+  room.target = 0;
+  const aPid = room.players[0].pid, bPid = b.pid, cPid = c.pid;
+  const w1 = room.submitWord(bPid, "大象");
+  assert.equal(w1.level, "exact", "小红命中准确词");
+  assert.deepEqual(room.roundExactHits, [bPid], "准确命中计入进度");
+  assert.equal(room.matchFirstExact, bPid, "首个准确命中记 MVP");
+  const w2 = room.submitWord(cPid, "大象");
+  assert.equal(w2.level, "exact", "小刚命中准确词");
+  assert.deepEqual(room.roundExactHits, [bPid, cPid], "两人命中进度=2");
+  assert.equal(room.matchFirstExact, bPid, "首个仍为小红（去重）");
+  // 选图猜中 → 出题人被猜中次数累计
+  room.submitGuess(bPid, 0);
+  assert.equal(room.drawerHits[aPid], 1, "阿明被猜中 1 次");
+  room.submitGuess(cPid, 0);
+  assert.equal(room.drawerHits[aPid], 2, "阿明被猜中 2 次");
+  // 终局 mvp
+  const rev = room.reveal();
+  assert.equal(rev.state, "game_over", "1 轮即终局");
+  const r = room.nextRound();
+  assert.equal(r.state, "game_over");
+  assert.equal(r.mvp.firstExact, bPid, "MVP 首个准确命中者");
+  assert.equal(r.mvp.drawer, aPid, "MVP 出题被猜中最多");
+  assert.equal(r.mvp.score, r.winner.pid, "MVP 得分王=赢家");
+});
+
+test("大厅图池预览：preview 抽 16 / 非房主拒绝 / lock 后开局墙与锁定一致", () => {
+  const room = new Room("T9", { lockMs: 0, createMs: 100000 });
+  room.addPlayer("阿明"); const b = room.addPlayer("小红");
+  const pv = room.previewPool(room.players[0].pid);
+  assert.equal(pv.ok, true);
+  assert.equal(pv.wall.length, 16, "预览抽 16 张");
+  assert.equal(room.previewPool(b.pid).err, "not_host", "非房主不能预览");
+  const lk = room.lockPool(room.players[0].pid);
+  assert.equal(lk.ok, true); assert.equal(lk.count, 16, "锁定 16 张");
+  assert.equal(room.lockPool(b.pid).err, "not_host", "非房主不能锁定");
+  room.maxRounds = 3;
+  const s1 = room.startRound();
+  assert.equal(s1.ok, true);
+  const ids1 = new Set(room.wall.map(g => g.id));
+  assert.equal(ids1.size, 16, "开局墙 16 张不重复");
+  room.reveal();
+  room.nextRound();   // round2：出题人轮换，图池保持锁定批
+  const ids2 = new Set(room.wall.map(g => g.id));
+  assert.deepEqual([...ids2].sort(), [...ids1].sort(), "锁定批每轮同 16 张");
+  assert.equal(room.previewPool(room.players[0].pid).err, "not_lobby", "开局后不能预览");
+  assert.equal(room.lockPool(room.players[0].pid).err, "not_lobby", "开局后不能锁定");
+});
+
 test("目标保密：snapshotFor 只给出题人带 target", () => {
   const room = new Room("T7", { lockMs: 0, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B");

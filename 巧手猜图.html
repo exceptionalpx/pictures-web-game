@@ -136,6 +136,11 @@ a{color:var(--brand-d)}
 .feed-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-top:14px;max-width:640px;width:100%}
 .feed-panel h2{font-size:15px;margin-bottom:8px}
 .feed{display:flex;flex-direction:column;gap:4px;max-height:148px;overflow-y:auto}
+.feed-progress{display:flex;gap:8px;align-items:center;justify-content:center;background:#FFF3D6;border:1.5px solid #F2C94C;color:#7A5C00;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;width:100%;max-width:640px;position:sticky;top:56px;z-index:6;box-shadow:var(--shadow)}
+@media (min-width:768px){ .feed-progress{display:none} }
+@media (max-width:767px){ .feed-panel{margin-top:8px;padding:8px 10px} .feed{max-height:110px} }
+.mvp-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
+.mvp-badge{background:#FFF3D6;border:1.5px solid #F2C94C;color:#7A5C00;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700}
 .feed .fitem{display:flex;gap:8px;align-items:center;font-size:14px;padding:4px 8px;border-radius:8px;background:#FAF7EF}
 .feed .fitem.ok{background:#E8F7EC}
 .feed .fitem.no{background:#FDF0EE}
@@ -1715,6 +1720,10 @@ function renderEditor(){
   let timerId=null;
   $app.innerHTML="";
   const wrap=html("div",{class:"wrap"});
+  const isNarrow = !!__PW.forceNarrow || window.matchMedia("(max-width:767px)").matches;
+  const progressHtml = isNarrow ? `<div class="feed-progress" id="feed-progress">🎯 准确词命中 <b>0/0</b></div>` : "";
+  const narrowFeed = isNarrow ? `<div class="feed-panel"><h2>作答动态</h2><div class="feed" id="feed"></div></div>` : "";
+  const desktopFeed = isNarrow ? "" : `<div class="feed-panel"><h2>作答动态</h2><div class="feed" id="feed"></div></div>`;
   wrap.innerHTML=`
   <div class="topbar">
     <button class="ghost" id="back">← 首页</button>
@@ -1725,6 +1734,7 @@ function renderEditor(){
     <button class="primary" id="submit">等待揭晓…</button>
   </div>
   <div class="editor">
+    ${progressHtml}
     <div class="panel wall-panel">
       <h2>🎯 目标照片</h2>
       <div class="target-card" id="target-card"></div>
@@ -1745,6 +1755,7 @@ function renderEditor(){
         <button id="redo">↪ 重做</button>
         <button id="clear">清空</button>
       </div>
+      ${narrowFeed}
       <div class="tool-bar panel">
         <div class="tb-group"><div class="tabs" id="tabs"></div></div>
         <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
@@ -1755,10 +1766,7 @@ function renderEditor(){
       </div>
     </div>
   </div>
-  <div class="feed-panel">
-    <h2>作答动态</h2>
-    <div class="feed" id="feed"></div>
-  </div>`;
+  ${desktopFeed}`;
   $app.appendChild(wrap);
   wrap.querySelector("#back").onclick=()=>{if(timerId)clearInterval(timerId);location.hash="#/";};
   const submitEl=wrap.querySelector("#submit"); submitEl.textContent="等待揭晓…"; submitEl.disabled=true;
@@ -2085,6 +2093,13 @@ function renderEditor(){
     else { sfx._lastTick=null; }
   },1000);
   /* 作答动态：出题人实时看到每个猜词与选图对错（word_view/guess_view 仅发给出题人） */
+  function renderFeedProgress(){
+    const el=document.querySelector("#feed-progress"); if(!el) return;
+    const total=Math.max(0,(__PW.players||[]).length-1);
+    el.innerHTML=`🎯 准确词命中 <b>${(__PW.exactHits||[]).length}/${total}</b>`;
+  }
+  window.__pwFeedProgress=renderFeedProgress;
+  renderFeedProgress();
   function addFeed(inner, cls){
     const feed=document.querySelector("#feed"); if(!feed) return;
     const it=document.createElement("div");
@@ -2096,6 +2111,10 @@ function renderEditor(){
   }
   window.__pwDrawerWord=(m)=>{
     if(m.correct){
+      if(m.level==="exact" && !m.repeat && !(__PW.exactHits||[]).includes(m.pid)){
+        __PW.exactHits=(__PW.exactHits||[]).concat(m.pid);
+        renderFeedProgress();
+      }
       const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)}`;
       addFeed(`<b>${esc(m.nickname)}</b><span class="tag">${tag}</span>`,"ok");
       if(!m.repeat) sfx("hit");
@@ -2121,7 +2140,7 @@ const __PW = window.__pwOnline = {
   wall:[], target:-1, deadline:0, canvas:[], canvasBg:"#FFFFFF", scores:{},
   round:0, maxRounds:0, drawer:{pid:"",nickname:""},
   createSeconds:120, lockSeconds:60, answered:0, total:0,
-  poolMode:"mixed", customImgs:[],
+  poolMode:"mixed", customImgs:[], exactHits:[],
   hostPid:"", players:[], reveal:null, over:null, _connFailed:false,
   send(o){
     if(this.ws&&this.ws.readyState===1){ this.ws.send(JSON.stringify(o)); return; }
@@ -2184,6 +2203,8 @@ const __PW = window.__pwOnline = {
         this.round=m.round; this.deadline=m.deadline; this.createSeconds=m.createSeconds;
         this.lockSeconds=m.lockSeconds; this.drawer=m.drawer; this.status="playing";
         this.wall=m.wall||[]; this.target=m.target; this.reveal=null; this.over=null; this.answered=0; this.canvas=[]; this.canvasBg="#FFFFFF";
+        this.exactHits=m.exactHits||[];
+        if(window.__pwFeedProgress) window.__pwFeedProgress();
         preloadThumbs(this.wall);
         renderOnlineRoom(); break;
       case "canvas":
@@ -2233,6 +2254,13 @@ const __PW = window.__pwOnline = {
       case "mode_set":
         this.poolMode=m.mode;
         if(this.status==="lobby") renderOnlineLobby(); break;
+      case "pool_preview":
+        if(window.__pwPoolPreview) window.__pwPoolPreview(m);
+        break;
+      case "pool_locked":
+        if(window.__pwPoolClose) window.__pwPoolClose();
+        toast(`图池已锁定（${m.count||16} 张）`);
+        break;
       case "img_added":
         this.customImgs=m.list||[];
         if(this.status==="lobby") renderOnlineLobby();
@@ -2397,7 +2425,7 @@ function renderOnlineLobby(){
     <h1>房间 ${__PW.roomId}</h1>
     <div class="sub">把房间码发给朋友，或复制链接邀请（${__PW.players.length}/6 人，至少 2 人开局）</div>
     <div style="text-align:center;font-family:ui-monospace,monospace;font-size:40px;font-weight:800;letter-spacing:6px;margin:12px 0">${__PW.roomId}</div>
-    <div class="link-row"><input id="pw-link" readonly><button class="primary" id="pw-copy">复制链接</button></div>
+    <div class="link-row"><input id="pw-link" readonly><button class="primary" id="pw-copy" style="flex:1">复制链接</button><button class="accent" id="pw-share" style="flex:1">分享房间</button></div>
     <h3>玩家列表</h3>
     <div id="pw-players"></div>
     <h3>照片墙图库 <span class="sub">${isHost?"房主选择":"等待房主选择"} · 开局后锁定</span></h3>
@@ -2410,7 +2438,7 @@ function renderOnlineLobby(){
     <h3>自定义图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
     <div id="pw-shared" class="img-grid"></div>
     <div class="row" style="margin-top:8px"><button class="primary" id="pw-upload" style="flex:1">上传图片到房间</button><button class="ghost" id="pw-import-custom" style="flex:1">从我的图库导入</button></div>
-    ${isHost?'<button class="accent" id="pw-start" style="width:100%;margin-top:14px">开始游戏</button>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
+    ${isHost?'<div class="row" style="margin-top:10px"><button class="ghost" id="pw-preview-pool" style="flex:1">预览图池</button><button class="accent" id="pw-start" style="flex:1">开始游戏</button></div>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
     <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 60 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
     <div class="note">房间生命周期：最后一位玩家离开 60 秒后自动关闭（游戏中掉线恢复窗口 3 分钟）；房主可随时解散。</div>
     <div class="foot-actions">${isHost?'<button class="ghost" id="pw-disband">解散房间</button>':""}<button class="ghost" id="pw-leave">离开房间</button></div>`;
@@ -2426,6 +2454,40 @@ function renderOnlineLobby(){
   const link=location.origin+location.pathname+"#/online?room="+__PW.roomId;
   card.querySelector("#pw-link").value=link;
   card.querySelector("#pw-copy").onclick=async()=>{ try{ await navigator.clipboard.writeText(link); toast("链接已复制"); }catch(e){ card.querySelector("#pw-link").select(); document.execCommand("copy"); toast("链接已复制"); } };
+  /* 房间分享：一键复制 房间码 + 链接 */
+  if(card.querySelector("#pw-share")) card.querySelector("#pw-share").onclick=async()=>{
+    const text=`巧手猜图 · 房间码 ${__PW.roomId} · ${link}`;
+    try{ await navigator.clipboard.writeText(text); toast("已复制房间码+链接，快发给朋友"); }
+    catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("已复制房间码+链接"); }
+  };
+  /* 图池预览（仅房主）：抽 16 张缩略图墙 → 换一批 / 锁定这批 */
+  let poolMk=null;
+  window.__pwPoolClose=()=>{ if(poolMk){ poolMk.remove(); poolMk=null; } };
+  window.__pwPoolPreview=(m)=>{
+    if(!poolMk) return;
+    const box=poolMk.querySelector("#pv-wall");
+    box.innerHTML="";
+    (m.wall||[]).forEach((g,i)=>{
+      const cell=html("div",{class:"cell"});
+      cell.innerHTML=`<span class="coord">${coordLabel(i)}</span><img src="${g.thumb||g.img}" alt="" loading="lazy">`;
+      box.appendChild(cell);
+    });
+  };
+  const openPoolPreview=()=>{
+    poolMk=html("div",{class:"mask"});
+    poolMk.innerHTML=`<div class="pop" style="max-width:560px">
+      <h3>图池预览（仅你可见）</h3>
+      <div class="sub">确认这批照片后点「锁定这批」，开局就用它；可反复「换一批」</div>
+      <div id="pv-wall" class="wall-grid" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:12px"><button class="ghost" id="pv-reroll" style="flex:1">换一批</button><button class="primary" id="pv-lock" style="flex:1">锁定这批</button><button class="ghost" id="pv-close">关闭</button></div>
+    </div>`;
+    document.body.appendChild(poolMk);
+    poolMk.querySelector("#pv-close").onclick=()=>window.__pwPoolClose();
+    poolMk.querySelector("#pv-reroll").onclick=()=>__PW.send({t:"preview_pool"});
+    poolMk.querySelector("#pv-lock").onclick=()=>__PW.send({t:"lock_pool"});
+    __PW.send({t:"preview_pool"});
+  };
+  if(card.querySelector("#pw-preview-pool")) card.querySelector("#pw-preview-pool").onclick=openPoolPreview;
   /* 图库模式：仅房主可点，点击即广播 set_mode，回包 mode_set 后刷新高亮 */
   card.querySelectorAll("#pw-poolmode .pm").forEach(btn=>{
     btn.onclick=()=>{ __PW.send({t:"set_mode",mode:btn.dataset.mode}); };
@@ -2740,13 +2802,25 @@ function renderOnlineGuess(){
       const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span><img src="${g.thumb||g.img}" alt="${g.zh}" loading="lazy" decoding="async">`);
       c.onclick=()=>{
         if(locked||done||cooldownUntil>Date.now()) return;
-        picked=i;
-        [...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
-        bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g.zh}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
-        bar.querySelector("#pw-gok").onclick=()=>{
-          if(done||cooldownUntil>Date.now()) return;
-          __PW.send({t:"guess",cell:picked});
-          bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
+        /* 照片墙放大预览（不显示名称防剧透）：点小图先看大图，确认后才选中 */
+        const mk=html("div",{class:"mask"});
+        mk.innerHTML=`<div class="pop" style="max-width:440px;text-align:center">
+          <h3>${coordLabel(i)} 号照片</h3>
+          <img src="${g.img}" alt="照片" style="max-width:100%;max-height:52vh;border-radius:12px;object-fit:contain">
+          <div class="row" style="margin-top:12px"><button class="primary" id="pv-ok" style="flex:1">就选这张</button><button class="ghost" id="pv-cancel" style="flex:1">返回</button></div>
+        </div>`;
+        document.body.appendChild(mk);
+        mk.querySelector("#pv-cancel").onclick=()=>mk.remove();
+        mk.querySelector("#pv-ok").onclick=()=>{
+          mk.remove();
+          picked=i;
+          [...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
+          bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g.zh}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
+          bar.querySelector("#pw-gok").onclick=()=>{
+            if(done||cooldownUntil>Date.now()) return;
+            __PW.send({t:"guess",cell:picked});
+            bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
+          };
         };
       };
       wallEl.appendChild(c);
@@ -2786,6 +2860,13 @@ function renderOnlineReveal(){
   let inner=`<h1>${over?"🏆 对局结束":`第 ${rev.round} 轮揭晓`}</h1>`;
   if(over){
     inner+=`<div class="score-big">${over.winner.nickname} 获胜 · ${over.winner.score} 分</div>`;
+    const mvp=over.mvp||{};
+    const nameOf=(pid)=>{ const p=__PW.players.find(x=>x.pid===pid); return p?p.nickname:""; };
+    const badges=[];
+    if(mvp.score) badges.push(`🏆 得分王 ${nameOf(mvp.score)}`);
+    if(mvp.firstExact) badges.push(`⚡ 最快猜中 ${nameOf(mvp.firstExact)}`);
+    if(mvp.drawer) badges.push(`🎨 最佳出题 ${nameOf(mvp.drawer)}`);
+    if(badges.length) inner+=`<div class="mvp-row">${badges.map(b=>`<span class="mvp-badge">${b}</span>`).join("")}</div>`;
   }else{
     inner+=`<div class="sub" style="text-align:center">答案：<b>${rev.answerLabel}</b>（出题人 ${rev.drawer.nickname}）</div>`;
     if(rev.answerImg) inner+=`<div class="answer-img"><img src="${rev.answerImg}" alt="答案照片"></div>`;
@@ -2847,6 +2928,7 @@ async function runOnlineTest(){
   WALL16.forEach(g=>{ g.thumb=g.img.replace("/images/","/images-thumb/").replace(".png",".jpg"); });
   window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
   window.__pwCooldownMs=60;           // 自检内冷却缩短
+  __PW.forceNarrow=true;              // 自检内强制手机端出题人布局（进度条+feed 移位）
   sfx._mute=true;                     // 自检内静音（不产生音频）
   try{
     /* 0. 入口页：携带功能已取消（统一房间内上传/导入）；首页新增我的图库入口 */
@@ -2867,6 +2949,8 @@ async function runOnlineTest(){
     rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
     rec("房主可开始", !!document.querySelector("#pw-start"),"start 按钮");
     rec("房间码展示", (document.querySelector("h1").textContent||"").includes("AB12"),"");
+    rec("分享房间按钮存在", !!document.querySelector("#pw-share"),"");
+    rec("房主图池预览按钮", !!document.querySelector("#pw-preview-pool"),"");
 
     /* 2. 玩家加入 */
     __PW.handle({t:"player_joined",hostPid:"pA",players:[
@@ -2885,6 +2969,7 @@ async function runOnlineTest(){
     rec("画布最后30秒警示浮标", !!document.querySelector(".timer-hint"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
+    rec("手机端出题人进度条", !!document.querySelector("#feed-progress")&&/\d+\/\d+/.test(document.querySelector("#feed-progress").textContent||""),"");
     [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
     [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形").click();
     const srect=ed.svg.getBoundingClientRect();
@@ -2927,6 +3012,7 @@ async function runOnlineTest(){
     await sleep(30);
     rec("出题人见命中词+层级", (document.querySelector("#feed").textContent||"").includes("准确词")&&(document.querySelector("#feed").textContent||"").includes("+5"),"");
     rec("出题人feed无重复分数", (document.querySelector("#feed").textContent||"").includes("准确词 +5") && !(document.querySelector("#feed").textContent||"").includes("+5 +5"),"");
+    rec("进度条随准确命中+1", (document.querySelector("#feed-progress").textContent||"").includes("1/1"),"");
     __PW.handle({t:"guess_view",pid:"pB",nickname:"小红",cell:3,correct:true,first:true});
     await sleep(30);
     rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
@@ -3003,6 +3089,9 @@ async function runOnlineTest(){
 
     /* 8. 无限次选图 + 冷却 */
     document.querySelector("#pw-photo-holder .wall-grid").children[3].click();
+    await sleep(50);
+    rec("选图弹大图预览", !!document.querySelector(".pop #pv-ok")&&!!document.querySelector(".pop img"),"");
+    const pvOk=document.querySelector("#pv-ok"); if(pvOk) pvOk.click();
     await sleep(40);
     rec("选中格高亮", !!document.querySelector("#pw-photo-holder .wall-grid .cell.picked"),"");
     const ok1=document.querySelector("#pw-gok");
@@ -3040,9 +3129,10 @@ async function runOnlineTest(){
     rec("揭晓含下一轮按钮", !!document.querySelector("#pw-next"),"");
 
     /* 10. 终局 + 再来一局（房主/非房主）+ 回大厅 */
-    __PW.handle({t:"game_over",scores:{pA:1,pB:8},winner:{pid:"pB",nickname:"小红",score:8}});
+    __PW.handle({t:"game_over",scores:{pA:1,pB:8},winner:{pid:"pB",nickname:"小红",score:8},mvp:{score:"pB",firstExact:"pB",drawer:"pA"}});
     rec("终局标题", (document.querySelector("h1").textContent||"").includes("对局结束"),"");
     rec("赢家显示", (document.querySelector(".score-big").textContent||"").includes("小红"),"");
+    rec("终局MVP徽章", document.querySelectorAll(".mvp-badge").length===3&&(document.querySelector(".mvp-row").textContent||"").includes("得分王")&&(document.querySelector(".mvp-row").textContent||"").includes("最快猜中")&&(document.querySelector(".mvp-row").textContent||"").includes("最佳出题"),"");
     __PW.pid="pB";
     renderOnlineReveal(); await sleep(40);
     const agNon=document.querySelector("#pw-again");
@@ -3150,6 +3240,8 @@ async function runOnlineTest(){
   }catch(err){
     rec("联机自检异常", false, (err&&err.message)||String(err));
   }
+  /* 清理残留弹层（照片墙大图预览等 append 到 body 的遮罩） */
+  document.querySelectorAll(".mask").forEach(x=>x.remove());
   window.__pwNoAutoConnect=false;
   window.__pwCooldownMs=10000;
   /* 报告 */
