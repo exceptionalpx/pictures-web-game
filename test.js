@@ -30,7 +30,7 @@ test("房间：创建 / 加入 / 超员 / 开局后拒绝加入", () => {
   assert.ok(pid);
 });
 
-test("作答锁定窗口：前 30 秒拒绝选图，解锁后放行", () => {
+test("作答锁定窗口：前 60 秒拒绝选图，解锁后放行", () => {
   const room = new Room("T1", { lockMs: 50, createMs: 100000 });
   room.addPlayer("A"); room.addPlayer("B");
   room.maxRounds = 2; room.startRound();
@@ -525,7 +525,7 @@ test("素材图携带入池 + imgUrl 化：墙内自定义图为 HTTP 路径而�
 
 test("词表完整性：64 图 8 类全覆盖 / 三级词非空 / 无单字词 / 全库唯一 / 无跨层重叠", () => {
   assert.equal(ONLINE.createSeconds, 120, "作画 120 秒");
-  assert.equal(ONLINE.lockSeconds, 45, "文字竞猜 45 秒");
+  assert.equal(ONLINE.lockSeconds, 60, "文字竞猜 60 秒");
   assert.equal(IMAGES.length, 64, "64 张图");
   assert.equal(PACK.scoring.category_word, 1, "类别词 1 分");
   assert.equal(PACK.scoring.keyword, 2, "联想词 2 分");

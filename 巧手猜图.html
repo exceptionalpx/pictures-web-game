@@ -57,6 +57,10 @@ a{color:var(--brand-d)}
 .mini-del{position:absolute;right:2px;top:2px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--bad);cursor:pointer;z-index:2}
 #pw-shared .img-cell{position:relative}
 .pw-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;margin-top:6px;background:#FCFBF8;color:var(--ink)}
+.field-label{font-size:12px;color:var(--muted);margin-top:8px}
+.pop .pw-in{border-color:#C7BCA4;background:#FFFEFA}
+.file-drop{display:block;border:2px dashed #C7BCA4;border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;margin-top:10px;background:#FFFDF6}
+.file-drop:hover{border-color:var(--brand);background:#FAF7F0}
 .img-picked{font-size:12px;color:var(--brand);margin:6px 0;min-height:16px}
 .puzzle-code{font-size:34px;font-weight:800;letter-spacing:6px;text-align:center;color:var(--brand);margin:10px 0;font-variant-numeric:tabular-nums}
 .link-box{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;color:#343A40;background:#F8F9FA}
@@ -370,12 +374,12 @@ function renderHome(){
     </div>
     <div class="rule-card">
       <div class="big">✍️</div>
-      <h3>猜题人 · 前 45 秒文字竞猜</h3>
+      <h3>猜题人 · 前 60 秒文字竞猜</h3>
       <span class="sub">照片墙隐藏，只凭画布无限次文字竞猜：<b>准确词 +5 / 联想词 +2 / 类别词 +1</b>，可与选图分叠加。</span>
     </div>
     <div class="rule-card">
       <div class="big">🖼️</div>
-      <h3>45 秒后 · 照片墙开放选图</h3>
+      <h3>60 秒后 · 照片墙开放选图</h3>
       <span class="sub">16 张照片出现在文字框下方，点选不限次数：猜错该格标 ✗ 并进入 10 秒冷却，<b>首答对 +3 / 后答对 +1</b>；轮流出题，总分最高者胜。</span>
     </div>
   </div>
@@ -418,19 +422,27 @@ function fileToDataURL(file){
   return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
 }
 function compressImage(dataURL, maxSide, quality){
+  /* 降级重试：512/0.82 → 384/0.72 → 256/0.65，全部失败返回 null（调用方拒绝，不再回退原图） */
   maxSide=maxSide||512; quality=quality||0.82;
+  const tries=[[maxSide,quality],[Math.min(maxSide,384),0.72],[Math.min(maxSide,256),0.65]];
   return new Promise((res)=>{
     const im=new Image();
     im.onload=()=>{
-      try{
-        const k=Math.min(1, maxSide/Math.max(im.width,im.height));
-        const c=document.createElement("canvas");
-        c.width=Math.max(1,Math.round(im.width*k)); c.height=Math.max(1,Math.round(im.height*k));
-        c.getContext("2d").drawImage(im,0,0,c.width,c.height);
-        res(c.toDataURL("image/jpeg",quality));
-      }catch(e){ res(dataURL); }
+      const step=(i)=>{
+        if(i>=tries.length){ res(null); return; }
+        try{
+          const [side,q]=tries[i];
+          const k=Math.min(1, side/Math.max(im.width,im.height));
+          const c=document.createElement("canvas");
+          c.width=Math.max(1,Math.round(im.width*k)); c.height=Math.max(1,Math.round(im.height*k));
+          c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+          const out=c.toDataURL("image/jpeg",q);
+          res(out.length>1.5e6 ? step(i+1) : out);
+        }catch(e){ step(i+1); }
+      };
+      step(0);
     };
-    im.onerror=()=>res(dataURL);
+    im.onerror=()=>res(null);
     im.src=dataURL;
   });
 }
@@ -829,6 +841,7 @@ function renderPuzzleEditor(){
       const f=myFile.files&&myFile.files[0]; if(!f) return;
       const dl=await fileToDataURL(f);
       myRaw=await compressImage(dl,512,0.82);
+      if(!myRaw){ toast("图片处理失败或过大，请换一张"); myFile.value=""; return; }
       mask.querySelector("#my-pvimg").src=myRaw;
       myPrev.style.display="block";
     };
@@ -1604,7 +1617,7 @@ const __PW = window.__pwOnline = {
   ws:null, roomId:"", pid:"", nickname:"", status:"lobby", role:"",
   wall:[], target:-1, deadline:0, canvas:[], canvasBg:"#FFFFFF", scores:{},
   round:0, maxRounds:0, drawer:{pid:"",nickname:""},
-  createSeconds:90, lockSeconds:30, answered:0, total:0,
+  createSeconds:120, lockSeconds:60, answered:0, total:0,
   poolMode:"mixed", customImgs:[],
   hostPid:"", players:[], reveal:null, over:null, _connFailed:false,
   send(o){
@@ -1707,7 +1720,13 @@ const __PW = window.__pwOnline = {
         if(this.status==="lobby") renderOnlineLobby(); break;
       case "img_added":
         this.customImgs=m.list||[];
-        if(this.status==="lobby") renderOnlineLobby(); break;
+        if(this.status==="lobby") renderOnlineLobby();
+        if(window.__pwUpload && window.__pwUpload.pending){
+          window.__pwUpload.pending=false;
+          toast("已上传到房间");
+          if(window.__pwUpload.remove) window.__pwUpload.remove();
+        }
+        break;
       case "img_removed":
         this.customImgs=m.list||[];
         if(this.status==="lobby") renderOnlineLobby(); break;
@@ -1722,6 +1741,12 @@ const __PW = window.__pwOnline = {
         saveSession();
         renderOnlineLobby(); break;
       case "error":
+        if(window.__pwUpload && window.__pwUpload.pending){
+          window.__pwUpload.pending=false;
+          window.__pwUpload.ok.disabled=false; window.__pwUpload.ok.textContent="上传";
+          toast(m.msg||"上传失败");
+          return;
+        }
         if(m.err==="cooldown" && window.__pwCooldownMsg) window.__pwCooldownMsg(m.remain);
         else if(m.err==="tried") toast(m.msg||"这张照片试过了");
         else if(m.err==="not_found"){
@@ -1776,7 +1801,7 @@ function renderOnline(){
   const card=html("div",{class:"card",style:"max-width:520px;margin:0 auto"});
   card.innerHTML=`
     <h1>联机对战</h1>
-    <div class="sub">2–6 人同房：一人看目标照片作画，其他人实时观看。前 45 秒隐藏照片墙，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），轮流出题。</div>
+    <div class="sub">2–6 人同房：一人看目标照片作画，其他人实时观看。前 60 秒隐藏照片墙，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），轮流出题。</div>
     <h3>你的昵称</h3>
     <input id="pw-nick" placeholder="随便填，如：阿明" value="${esc(nickMemo())}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
     <h3>创建新房间</h3>
@@ -1813,8 +1838,8 @@ function renderOnline(){
     const drawCw=()=>{
       grid.innerHTML="";
       list.forEach(g=>{
-        const b=html("label",{class:"img-cell"+(picked.has(g.id)?" on":"")});
-        b.innerHTML=`<img src="${g.img}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span><input type="checkbox" style="position:absolute;left:4px;top:4px" ${picked.has(g.id)?"checked":""}>`;
+        const b=html("div",{class:"img-cell"+(picked.has(g.id)?" on":"")});
+        b.innerHTML=`<img src="${g.img}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span><input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`;
         b.onclick=()=>{
           if(picked.has(g.id)) picked.delete(g.id); else picked.add(g.id);
           drawCw();
@@ -1899,9 +1924,9 @@ function renderOnlineLobby(){
     <div class="sub" id="pw-mode-note" style="margin-top:6px">${modeLabel(__PW.poolMode)}</div>
     <h3>自定义图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
     <div id="pw-shared" class="img-grid"></div>
-    <button class="primary" id="pw-upload" style="width:100%;margin-top:8px">上传图片到房间</button>
+    <div class="row" style="margin-top:8px"><button class="primary" id="pw-upload" style="flex:1">上传图片到房间</button><button class="ghost" id="pw-import-custom" style="flex:1">从我的图库导入</button></div>
     ${isHost?'<button class="accent" id="pw-start" style="width:100%;margin-top:14px">开始游戏</button>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
-    <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 45 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
+    <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 60 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
     <div class="foot-actions"><button class="ghost" onclick="pwLeave()">离开房间</button></div>`;
   w.appendChild(card);$app.appendChild(w);
   const pl=card.querySelector("#pw-players");
@@ -1929,40 +1954,81 @@ function renderOnlineLobby(){
       if(isHost) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
     });
   }
-  /* 上传图片到自定义图库（全员可用，开局前） */
-  card.querySelector("#pw-upload").onclick=()=>{
+  /* 上传图片到自定义图库（全员可用，开局前）：压缩降级重试 + 1.5MB 预检 + 服务端 ack 确认 */
+  const uploadToRoom=()=>{
     const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:480px">
+    mk.innerHTML=`<div class="pop" style="max-width:460px">
       <h3>上传图片到房间自定义图库</h3>
-      <div class="sub">自动压缩到 512px；上传后实时同步给全房间，同时存入你的个人图库。开局后锁定。</div>
-      <input type="file" id="sh-file" accept="image/*" style="width:100%;margin:8px 0">
-      <div id="sh-preview" class="sub" style="text-align:center"></div>
-      <input id="sh-zh" class="pw-in" placeholder="图片名称（可留空，默认用准确词）">
-      <input id="sh-exact" class="pw-in" placeholder="准确词（必填，如：帆船）">
-      <input id="sh-cat" class="pw-in" placeholder="类别词（可选，如：交通工具）">
-      <input id="sh-kw1" class="pw-in" placeholder="联想词 1（可选，如：海）">
-      <input id="sh-kw2" class="pw-in" placeholder="联想词 2（可选，如：白帆）">
-      <div class="row" style="margin-top:12px"><button class="primary" id="sh-ok" style="flex:1">上传</button><button class="ghost" id="sh-cancel">取消</button></div>
+      <div class="sub">自动压缩后上传，实时同步给全房间，并存入你的个人图库。开局后锁定。</div>
+      <label class="file-drop"><input type="file" id="sh-file" accept="image/*" style="display:none">
+        <div style="font-size:30px;line-height:1">🖼️</div>
+        <div style="margin-top:6px;color:var(--ink)">点击选择图片</div>
+        <div class="sub" style="margin-top:2px">自动压缩到 512px</div>
+      </label>
+      <div id="sh-preview" style="display:none;margin-top:10px;text-align:center">
+        <img id="sh-pvimg" style="width:128px;height:128px;object-fit:cover;border-radius:12px;border:2px solid #C7BCA4">
+        <div class="sub" id="sh-fname" style="margin-top:4px"></div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="field-label">图片名称（猜题人可见）</div><input id="sh-zh" class="pw-in" placeholder="可留空，默认用准确词">
+        <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="sh-exact" class="pw-in" placeholder="如：帆船">
+        <div class="field-label">类别词</div><input id="sh-cat" class="pw-in" placeholder="如：交通工具">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div class="field-label">联想词 1</div><input id="sh-kw1" class="pw-in" placeholder="如：海"></div>
+          <div><div class="field-label">联想词 2</div><input id="sh-kw2" class="pw-in" placeholder="可选"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="sh-ok" style="flex:1">上传</button><button class="ghost" id="sh-cancel">取消</button></div>
     </div>`;
     document.body.appendChild(mk);
     const fileEl=mk.querySelector("#sh-file"), preview=mk.querySelector("#sh-preview");
-    fileEl.onchange=()=>{ preview.innerHTML=fileEl.files&&fileEl.files[0]?("已选择："+fileEl.files[0].name):""; };
-    mk.querySelector("#sh-cancel").onclick=()=>mk.remove();
+    fileEl.onchange=()=>{
+      const f=fileEl.files&&fileEl.files[0];
+      preview.style.display=f?"block":"none";
+      if(f){
+        const r=new FileReader();
+        r.onload=()=>{ mk.querySelector("#sh-pvimg").src=r.result; };
+        r.readAsDataURL(f);
+        mk.querySelector("#sh-fname").textContent=f.name;
+      }
+    };
+    mk.querySelector("#sh-cancel").onclick=()=>{ window.__pwUpload=null; mk.remove(); };
     mk.querySelector("#sh-ok").onclick=async()=>{
       const zh=mk.querySelector("#sh-zh").value.trim(), exact=mk.querySelector("#sh-exact").value.trim();
       const cat=mk.querySelector("#sh-cat").value.trim(), kw1=mk.querySelector("#sh-kw1").value.trim(), kw2=mk.querySelector("#sh-kw2").value.trim();
       if(!fileEl.files||!fileEl.files[0]){ toast("请先选择一张图片"); return; }
       if(!exact){ toast("准确词必填"); return; }
-      try{
-        const raw=await fileToDataURL(fileEl.files[0]);
-        const img=await compressImage(raw,512,0.82);
-        mk.querySelector("#sh-ok").disabled=true;
-        __PW.send({t:"add_img",zh:zh||exact,img,exact,keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
-        try{ await customPut({id:"c"+Date.now(),name:zh||exact,img,exact,keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat,src:"shared"}); }catch(_){}
-        mk.remove();
-        toast("已上传，正在同步给全房间…");
-      }catch(e){ toast("图片处理失败，请换一张试试"); }
+      let img;
+      try{ img=await compressImage(await fileToDataURL(fileEl.files[0]),512,0.82); }
+      catch(e){ toast("图片读取失败，请换一张"); return; }
+      if(!img){ toast("图片压缩失败或过大，请换一张试试"); return; }
+      if(img.length>1.5e6){ toast("图片太大（需 ≤1.5MB），请换一张"); return; }
+      const ok=mk.querySelector("#sh-ok");
+      ok.disabled=true; ok.textContent="上传中…";
+      window.__pwUpload={pending:true, ok, remove:()=>{ window.__pwUpload=null; mk.remove(); }, img, zh:zh||exact, exact, keywords:[kw1,kw2].filter(Boolean), aliases:[], category_word:cat};
+      __PW.send({t:"add_img",zh:zh||exact,img,exact,keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
+      setTimeout(()=>{
+        const up=window.__pwUpload;
+        if(up && up.pending){ up.pending=false; up.ok.disabled=false; up.ok.textContent="上传"; toast("上传超时，请检查连接后重试"); }
+      },8000);
     };
+  };
+  card.querySelector("#pw-upload").onclick=()=>uploadToRoom();
+  /* 从我的图库导入：把本机 IndexedDB 单人图一键 add_img 进房间（全员可用） */
+  card.querySelector("#pw-import-custom").onclick=async()=>{
+    const list=await customList();
+    if(!list.length){ toast("个人图库还没有图片，先在单人谜题里保存"); return; }
+    let ok=0, fail=0, skip=0;
+    for(const g of list){
+      if(__PW.status!=="lobby"){ toast("游戏已开始，不能再导入"); return; }
+      let img;
+      try{ img=await compressImage(g.img,512,0.82); }catch(e){ img=null; }
+      if(!img || img.length>1.5e6){ fail++; continue; }
+      if(!g.exact){ skip++; continue; }
+      __PW.send({t:"add_img",zh:g.name||g.exact,img,exact:g.exact,keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
+      ok++;
+    }
+    toast(`已提交导入 ${ok} 张`+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
   };
   const st=card.querySelector("#pw-start");
   if(st) st.onclick=()=>{ if(__PW.players.length<2){ toast("至少 2 人才能开始"); return; } __PW.send({t:"start"}); };
@@ -1989,7 +2055,7 @@ function renderOnlineGuess(){
       <button class="primary" id="pw-wordsend">猜！</button>
     </div>
     <div id="pw-records" style="margin-top:8px"></div>
-    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 45 秒后开放</span></div>
+    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 60 秒后开放</span></div>
     <div id="pw-photo-holder"></div>`;
   w.appendChild(card);$app.appendChild(w);
   const svg=card.querySelector("#pw-gstage"), wallHolder=card.querySelector("#pw-photo-holder"),
@@ -2212,7 +2278,7 @@ async function runOnlineTest(){
     /* 1. 创建房间 → 大厅 */
     __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
       players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
-      wall:WALL16, rules:{createSeconds:90,lockSeconds:30}});
+      wall:WALL16, rules:{createSeconds:120,lockSeconds:60}});
     rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
     rec("房主可开始", !!document.querySelector("#pw-start"),"start 按钮");
     rec("房间码展示", (document.querySelector("h1").textContent||"").includes("AB12"),"");
@@ -2226,11 +2292,11 @@ async function runOnlineTest(){
     /* 3. 开局 → 出题人视角（看目标照片） */
     __PW.pid="pA";
     __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()+90000,lockSeconds:30,createSeconds:90,target:3,wall:WALL16});
+      deadline:Date.now()+120000,lockSeconds:60,createSeconds:120,target:3,wall:WALL16});
     await sleep(80);
     const ed=window.__pwEditor;
     rec("出题人编辑器挂载", !!(ed&&ed.svg),"renderEditor online");
-    rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("1:"),"");
+    rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("2:"),"");
     rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
     rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
     [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
@@ -2285,7 +2351,7 @@ async function runOnlineTest(){
     /* 4. 猜题人视角：锁定阶段无照片墙 */
     __PW.pid="pB";
     __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()+90000,lockSeconds:30,createSeconds:90,target:undefined,wall:WALL16});
+      deadline:Date.now()+120000,lockSeconds:60,createSeconds:120,target:undefined,wall:WALL16});
     await sleep(80);
     rec("猜题人文字竞猜框", !!document.querySelector("#pw-word"),"");
     rec("锁定期无照片墙", !document.querySelector("#pw-photo-holder .wall-grid"),"");
@@ -2422,13 +2488,30 @@ async function runOnlineTest(){
     saveNickMemo("测试昵称");
     renderOnline(); await sleep(50);
     rec("昵称记忆预填", (document.querySelector("#pw-nick").value||"").trim()==="测试昵称","");
-    __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
+    await customPut({id:"cw-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",exact:"测试图",keywords:[],aliases:[],category_word:"测试"});
+    document.querySelector("#pw-pick-custom").click();
+    await sleep(60);
+    rec("携带窗口渲染个人图", !!document.querySelector("#cw-grid .img-cell"),"");
+    const cwCell=document.querySelector("#cw-grid .img-cell");
+    cwCell.click();
+    await sleep(40);
+    rec("点击格子可选中", !!document.querySelector("#cw-grid .img-cell.on"),"");
+    if(document.querySelector("#cw-cancel")) document.querySelector("#cw-cancel").click();
+    await customDel("cw-test");
+    __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
     await sleep(50);
     rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
     rec("混合模式默认高亮", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
     rec("自定义图库渲染贡献者", ((document.querySelector("#pw-shared").textContent||"").includes("恐龙"))&&((document.querySelector("#pw-shared").textContent||"").includes("甲")),"");
     rec("房主可移除自定义图", !!document.querySelector("#pw-shared .mini-del"),"");
     rec("自定义上传入口存在", !!document.querySelector("#pw-upload"),"");
+    rec("从我的图库导入按钮存在", !!document.querySelector("#pw-import-custom"),"");
+    document.querySelector("#pw-upload").click();
+    await sleep(40);
+    rec("上传弹窗重排（虚线框+字段标签+预览区）", !!document.querySelector("#sh-ok") && !!document.querySelector(".file-drop") && !!document.querySelector(".field-label") && !!document.querySelector("#sh-preview"),"");
+    if(document.querySelector("#sh-cancel")) document.querySelector("#sh-cancel").click();
+    await sleep(30);
+    rec("上传弹窗可关闭", !document.querySelector("#sh-ok"),"");
     __PW.handle({t:"mode_set",mode:"custom"});
     await sleep(50);
     rec("set_mode 广播后高亮切换", (document.querySelector('#pw-poolmode [data-mode="custom"]').className||"").includes("pm-on"),"");
@@ -2453,7 +2536,7 @@ async function runOnlineTest(){
     await sleep(50);
     rec("被踢后清身份", __PW.roomId==="" && !localStorage.getItem("pw_session"),"");
     rec("被踢后设备ID保留", !!localStorage.getItem("pw_device"),"");
-    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",players:[{pid:"pA",nickname:"阿明",score:0,connected:true}],wall:[],rules:{createSeconds:90,lockSeconds:30}});
+    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",players:[{pid:"pA",nickname:"阿明",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60}});
     await sleep(50);
     rec("默认图库模式回退", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
 
@@ -2462,7 +2545,7 @@ async function runOnlineTest(){
     const WALLMIX=WALL16.map(g=>({...g}));
     WALLMIX[0]={id:"cu-1",zh:"自定义图",category:"自定义",category_word:"自定义",exact:"自定义图",keywords:[],aliases:[],img:"data:image/jpeg;base64,AAAA",thumb:""};
     __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()-500,lockSeconds:30,createSeconds:90,target:undefined,wall:WALLMIX});
+      deadline:Date.now()-500,lockSeconds:60,createSeconds:120,target:undefined,wall:WALLMIX});
     await sleep(600);
     rec("照片墙渲染自定义图", !!document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]'),"");
     rec("自定义图 alt 名称", (document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]').getAttribute("alt")||"")==="自定义图","");

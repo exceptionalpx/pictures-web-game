@@ -22,7 +22,7 @@ const { WebSocketServer } = require("ws");
 const ONLINE = {
   ruleset_id: "pictures-web-online-v1",
   createSeconds: 120,          // 每轮作画倒计时
-  lockSeconds: 45,            // 作画开始后前 N 秒作答锁定
+  lockSeconds: 60,            // 作画开始后前 N 秒文字竞猜（照片墙隐藏）
   elementCap: 60,             // 画布元素上限
   minPlayers: 2,
   maxPlayers: 6,
