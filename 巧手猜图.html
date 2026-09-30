@@ -54,7 +54,8 @@ a{color:var(--brand-d)}
 .pm{flex:1;border:1.5px solid var(--line);background:#FCFBF8;border-radius:10px;padding:8px 4px;font-size:13px;color:var(--ink);cursor:pointer}
 .pm:not(:disabled):hover{border-color:var(--brand);color:var(--brand)}
 .pm-on{border-color:var(--brand);background:var(--brand);color:#fff;font-weight:700}
-.pm:disabled{opacity:.45;cursor:not-allowed;background:#F1EEE6}
+.pm:disabled{opacity:1;cursor:not-allowed;background:#F1EEE6;color:var(--muted)}
+.pm:disabled.pm-on{background:var(--brand);color:#fff;opacity:1}
 .mini-del{position:absolute;right:2px;top:2px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--bad);cursor:pointer;z-index:2}
 .save-btn,.edit-btn{position:absolute;left:2px;bottom:2px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:6px;font-size:10px;padding:1px 5px;color:var(--ink);cursor:pointer;z-index:2}
 #pw-shared .img-cell{position:relative}
@@ -2248,7 +2249,7 @@ const __PW = window.__pwOnline = {
         break;
       case "reveal":
         this.reveal=m; this.status=m.state;
-        gameCollect(m.wall||[]);   // 对局收藏：自动保存本局房间自定义图到本地
+        gameCollect(m.wall || this.wall || []);   // 对局收藏：自动保存本局房间自定义图到本地（reveal 消息不带 wall，用本地已存墙）
         renderOnlineReveal(); break;
       case "game_over":
         this.over=m; this.status="game_over"; renderOnlineReveal(); break;
@@ -2702,7 +2703,7 @@ function renderOnlineGuess(){
     }).join("");
   }
   renderHits();
-  let picked=null, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
+  let lastGuess=-1, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
   const triedSet=new Set(__PW.myTried||[]);
   window.__pwCooldownMs = window.__pwCooldownMs || 10000;
   window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"}); };
@@ -2784,13 +2785,13 @@ function renderOnlineGuess(){
     if(m.correct){
       toast(m.first?"🎉 首答正确！+3（等揭晓）":"✅ 猜中！+1（等揭晓）");
       sfx(m.first?"win":"pick");
-      done=true; lockWall(true); bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
+      lastGuess=-1; done=true; lockWall(true); bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
     }else{
       sfx("miss");
-      triedSet.add(picked); __PW.myTried=(__PW.myTried||[]).concat(picked);
-      const ch=wallEl&&wallEl.children[picked];
-      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(picked)}</span><span class="cross">✗</span>`; }
-      picked=null;
+      triedSet.add(lastGuess); __PW.myTried=(__PW.myTried||[]).concat(lastGuess);
+      const ch=wallEl&&wallEl.children[lastGuess];
+      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(lastGuess)}</span><span class="cross">✗</span>`; }
+      lastGuess=-1;
       startCooldown(window.__pwCooldownMs);
     }
   };
@@ -2820,14 +2821,11 @@ function renderOnlineGuess(){
         mk.querySelector("#pv-cancel").onclick=()=>mk.remove();
         mk.querySelector("#pv-ok").onclick=()=>{
           mk.remove();
-          picked=i;
-          [...wallEl.children].forEach((x,j)=>x.className="cell"+(j===i?" picked":""));
-          bar.innerHTML=`<span>已选 <b>${coordLabel(i)} ${g.zh}</b></span><button class="primary" id="pw-gok">确认提交</button>`;
-          bar.querySelector("#pw-gok").onclick=()=>{
-            if(done||cooldownUntil>Date.now()) return;
-            __PW.send({t:"guess",cell:picked});
-            bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
-          };
+          if(done||cooldownUntil>Date.now()) return;
+          lastGuess=i;
+          lockWall(true);
+          bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
+          __PW.send({t:"guess",cell:i});
         };
       };
       wallEl.appendChild(c);
@@ -3109,16 +3107,14 @@ async function runOnlineTest(){
     rec("解锁提示", (document.querySelector("#pw-gbar").textContent||"").includes("照片墙开放"),"");
     rec("文字框仍可用", !!document.querySelector("#pw-word"),"");
 
-    /* 8. 无限次选图 + 冷却 */
+    /* 8. 无限次选图 + 冷却（大图预览「就选这张」= 直接提交） */
     document.querySelector("#pw-photo-holder .wall-grid").children[3].click();
     await sleep(50);
     rec("选图弹大图预览", !!document.querySelector(".pop #pv-ok")&&!!document.querySelector(".pop img"),"");
     const pvOk=document.querySelector("#pv-ok"); if(pvOk) pvOk.click();
     await sleep(40);
-    rec("选中格高亮", !!document.querySelector("#pw-photo-holder .wall-grid .cell.picked"),"");
-    const ok1=document.querySelector("#pw-gok");
-    rec("确认按钮出现", !!ok1,"");
-    if(ok1) ok1.click();
+    rec("提交后等待判定提示", (document.querySelector("#pw-gbar").textContent||"").includes("已提交，等待判定"),"");
+    rec("不再出现确认按钮", !document.querySelector("#pw-gok"),"");
     __PW.handle({t:"guess_ok",correct:false,done:false,tried:[3]});
     await sleep(40);
     rec("猜错该格标记✗", !!document.querySelector("#pw-photo-holder .wall-grid .cell.tried"),"");
@@ -3131,8 +3127,7 @@ async function runOnlineTest(){
     // 第 2 次选对 → 锁定
     nonTried().click();
     await sleep(40);
-    const ok2=document.querySelector("#pw-gok");
-    if(ok2) ok2.click();
+    const pvOk2=document.querySelector("#pv-ok"); if(pvOk2) pvOk2.click();
     __PW.handle({t:"guess_ok",correct:true,first:true,done:true,tried:[3]});
     await sleep(60);
     rec("猜对后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("等待揭晓"),"");
@@ -3266,17 +3261,29 @@ async function runOnlineTest(){
     /* 12. 自定义图入照片墙（dataURL 渲染） */
     __PW.pid="pB";
     const WALLMIX=WALL16.map(g=>({...g}));
-    WALLMIX[0]={id:"cu-1",zh:"自定义图",category:"自定义",category_word:"自定义",exact:"自定义图",keywords:[],aliases:[],img:"data:image/jpeg;base64,AAAA",thumb:""};
+    WALLMIX[0]={id:"cu-1",zh:"自定义图",category:"自定义",category_word:"自定义",exact:"自定义图",keywords:[],aliases:[],img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",thumb:""};
     __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
       deadline:Date.now()-500,lockSeconds:60,createSeconds:120,target:undefined,wall:WALLMIX});
     await sleep(600);
     rec("照片墙渲染自定义图", !!document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]'),"");
     rec("自定义图 alt 名称", (document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]').getAttribute("alt")||"")==="自定义图","");
+    /* 12b. 对局结束自动收藏：reveal 消息不带 wall，前端用本地 this.wall 收藏房间自定义图 */
+    __PW.handle({t:"reveal",state:"round_end",round:1,answer:0,answerLabel:"A1 自定义图",answerImg:"",maxRounds:2,isLast:true,
+      drawer:{pid:"pA",nickname:"阿明"},
+      results:[{pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1}],
+      scores:{pA:1}});
+    await sleep(150);
+    const gAfter=await gameList();
+    const testG=gAfter.find(x=>(x.zh||x.name)==="自定义图");
+    rec("对局结束自动收藏房间自定义图", !!testG,"");
+    if(testG) await gameDel(testG.id);   // 清理测试收藏，不留脏数据
   }catch(err){
     rec("联机自检异常", false, (err&&err.message)||String(err));
   }
   /* 清理残留弹层（照片墙大图预览等 append 到 body 的遮罩） */
   document.querySelectorAll(".mask").forEach(x=>x.remove());
+  /* 清理自检测试收藏数据（gp-test），不污染用户对局收藏 */
+  try{ await gameDel("gp-test"); }catch(_){}
   window.__pwNoAutoConnect=false;
   window.__pwCooldownMs=10000;
   /* 报告 */
