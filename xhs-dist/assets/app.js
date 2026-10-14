@@ -1242,14 +1242,14 @@ function renderMyLib(){
   card.innerHTML=`
     <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
     <div class="sub" id="ml-cap"></div>
-    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-puzzles" style="flex:1">我的谜题库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
     <div class="tabs" id="ml-tabs"></div>
     <div id="ml-grid" class="img-grid"></div>
     <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
   w.appendChild(card); $app.appendChild(w);
   card.querySelector("#ml-back").onclick=()=>location.hash="#/";
   const PAGE=60;
-  let tab="mine", mine=[], games=[], shown=PAGE;
+  let tab="mine", mine=[], games=[], puzzles=[], shown=PAGE;
   const capEl=card.querySelector("#ml-cap");
   const showCap=async()=>{
     let t="";
@@ -1284,8 +1284,27 @@ function renderMyLib(){
   });
 
   const draw=()=>{
-    const src=tab==="mine"?mine:games;
     const grid=card.querySelector("#ml-grid");
+    if(tab==="puzzles"){
+      grid.innerHTML="";
+      if(!puzzles.length){
+        grid.innerHTML=`<div class="note" style="grid-column:1/-1">还没有谜题，点「我来作画」画完发布后会自动保存到这里</div>`;
+        return;
+      }
+      puzzles.forEach(p=>{
+        const cell=html("div",{class:"img-cell",style:"cursor:pointer"});
+        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:#FBFAF6;display:flex;align-items:center;justify-content:center;font-size:24px;border-radius:6px">🎨</div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
+        cell.querySelector(".mini-del").onclick=(ev)=>{
+          ev.stopPropagation();
+          if(!window.confirm(`删除谜题「${p.exact||p.zh}」？`)) return;
+          puzzleDel(p.id).then(()=>{ puzzles=puzzles.filter(x=>x.id!==p.id); draw(); toast("已删除"); });
+        };
+        cell.onclick=()=>{ location.hash="#/puzzle-editor?load="+p.id; };
+        grid.appendChild(cell);
+      });
+      return;
+    }
+    const src=tab==="mine"?mine:games;
     const slice=src.slice(0,shown);
     grid.innerHTML=slice.length?"":"";
     if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
@@ -1348,20 +1367,20 @@ function renderMyLib(){
   }
   const switchTab=(t)=>{
     tab=t; shown=PAGE;
-    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>{
+    card.querySelectorAll("#ml-mine,#ml-games,#ml-puzzles").forEach(b=>{
       const isSel=b.id==="ml-"+tab;
       b.classList.toggle("primary",isSel);
       b.classList.toggle("ghost",!isSel);
     });
     draw();
   };
-  
+
   if(window.__XHS__){
     const gb=card.querySelector("#ml-games"); if(gb) gb.style.display="none";
-    const cap=card.querySelector("#ml-cap");
   }
   card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
   card.querySelector("#ml-games").onclick=()=>switchTab("games");
+  card.querySelector("#ml-puzzles").onclick=()=>switchTab("puzzles");
   card.querySelector("#ml-upload").onclick=async()=>{
     const r=await uploadForm();
     if(!r) return;
@@ -1376,7 +1395,7 @@ function renderMyLib(){
     await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,source:"own",createdAt:Date.now()});
     mine=await customList(); draw(); showCap(); toast("已存入我的图库");
   };
-  Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
+  Promise.all([customList(),gameList(),puzzleList()]).then(([a,b,c])=>{ mine=a; games=b; puzzles=c; showCap(); draw(); });
 }
 
 /* 上传新图片弹层：词条字段 + 明显的「选择图片」按钮 + 预览，单弹层一次完成 */
@@ -1500,6 +1519,27 @@ async function gameDel(id){
 async function gameClear(){
   const db=await idbGameOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).clear(); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+/* ---- 我的谜题库：离线版作画后保存的谜题（canvas+答案+词） ---- */
+const PUZZLE_DB="qiaoshou-puzzles", PUZZLE_STORE="puzzles";
+function idbPuzzleOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(PUZZLE_DB,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(PUZZLE_STORE)) r.result.createObjectStore(PUZZLE_STORE,{keyPath:"id"}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function puzzleList(){
+  const db=await idbPuzzleOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readonly").objectStore(PUZZLE_STORE).getAll(); tx.onsuccess=()=>res((tx.result||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))); tx.onerror=()=>rej(tx.error); });
+}
+async function puzzlePut(item){
+  const db=await idbPuzzleOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readwrite").objectStore(PUZZLE_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+async function puzzleDel(id){
+  const db=await idbPuzzleOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readwrite").objectStore(PUZZLE_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
 }
 /* 自动收藏：把对局照片墙里的房间自定义图写入收藏（按指纹去重，系统图跳过） */
 async function gameCollect(wall){
@@ -2156,7 +2196,7 @@ function renderPuzzleEditor(){
     <div class="modal center" style="max-width:420px">
       <h2>发布谜题</h2>
       <div style="text-align:center">
-        <div class="tp-photo" style="width:140px;height:140px;margin:0 auto;border:2px solid var(--gold)">${target.kind==="pack"?`<img src="images-thumb/${esc(target.g.id)}.jpg" alt="">`:`<img src="${esc(target.g.img)}" alt="">`}</div>
+        <div class="tp-photo" style="width:120px;height:120px;margin:0 auto;border:2px solid var(--gold);overflow:hidden;border-radius:12px">${target.kind==="pack"?`<img src="images-thumb/${esc(target.g.id)}.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`:`<img src="${esc(target.g.img)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`}</div>
         <div style="margin-top:8px"><b>${target.kind==="pack"?esc(target.g.zh):esc(target.g.name||target.g.exact)}</b></div>
         <div class="sub">${target.kind==="pack"?("类别："+esc(target.g.category)):("类别："+esc(target.g.category_word||"未设")+" · 联想："+esc((target.g.keywords||[]).join("、")||"未设")+" · 准确："+esc(target.g.exact))}</div>
       </div>
@@ -2173,9 +2213,26 @@ function renderPuzzleEditor(){
       if(window.__XHS__){
         /* 离线小工具分支：导出 2:3 分享图，走相册/发笔记 */
         try{
+          /* 先保存到我的谜题库 */
+          const pzId="pz"+Date.now().toString(36);
+          const pz={
+            id:pzId,
+            createdAt:Date.now(),
+            canvas:state.els,
+            bg:state.bg||"#FFFFFF",
+            answerMode:target.kind==="pack"?"image":"custom_image",
+            imageId:target.kind==="pack"?target.g.id:null,
+            img:target.kind==="pack"?null:target.g.img,
+            zh:target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact||"") ,
+            category_word:target.kind==="pack"?target.g.category:(target.g.category_word||""),
+            keywords:target.kind==="pack"?[]:(target.g.keywords||[]),
+            exact:target.kind==="pack"?target.g.zh:(target.g.exact||"")
+          };
+          await puzzlePut(pz);
           const dataUri=await exportShareImage(state.els, state.bg||"#FFFFFF");
           mask.remove();
           showOfflineShare(dataUri);
+          toast("已保存到我的谜题库");
         }catch(e){
           toast("生成分享图失败："+(e&&e.message||e));
           btn.disabled=false; btn.textContent="确认发布";
