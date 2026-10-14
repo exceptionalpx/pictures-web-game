@@ -2353,11 +2353,13 @@ function showOfflineShare(dataUri){
     <div class="row" style="justify-content:center;margin-top:14px;flex-direction:column;gap:8px">
       <button class="primary" id="share-note">发小红书笔记</button>
       <button class="alt" id="share-album">保存到相册</button>
+      <button class="ghost" id="share-home">回首页</button>
       <button class="ghost" id="share-close">再改改</button>
     </div>
   </div>`;
   $app.appendChild(mask);
   mask.querySelector("#share-close").onclick=()=>mask.remove();
+  mask.querySelector("#share-home").onclick=()=>{ mask.remove(); location.hash="#/"; };
   mask.querySelector("#share-album").onclick=async()=>{
     try{
       await xhsCall("saveImageToPhotosAlbum",{filePath:dataUri});
@@ -2483,29 +2485,52 @@ async function renderPuzzleGuess(id){
 
 /* ================= 猜图模式（#/guess，离线单人） ================= */
 const GUESS_DECK=[
-  {answerId:"ani-elephant",   bg:"#C6EFCE", seed:101},
-  {answerId:"food-pizza",     bg:"#FFD6E0", seed:202},
-  {answerId:"veh-rocket",     bg:"#DDEBF7", seed:303},
-  {answerId:"land-eiffel",    bg:"#FFF3BF", seed:404},
-  {answerId:"job-firefighter",bg:"#FCE8D5", seed:505},
-  {answerId:"nat-rainbow",    bg:"#E6D5F5", seed:606},
-  {answerId:"cul-lantern",    bg:"#FFE3D3", seed:707},
-  {answerId:"spt-football",   bg:"#BFE3F7", seed:808}
+  {answerId:"spt-skateboard", bg:"#E8F4FD"},
+  {answerId:"cul-redenvelope",bg:"#FFF3BF"},
+  {answerId:"nat-rainbow",    bg:"#F0F9FF"},
+  {answerId:"job-chef",        bg:"#FCE8D5"},
+  {answerId:"land-pyramid",    bg:"#FFF8E7"},
+  {answerId:"veh-balloon",     bg:"#F0F9FF"},
+  {answerId:"ani-butterfly",   bg:"#F0FDF4"},
+  {answerId:"food-pizza",      bg:"#FFF0F0"}
 ];
-const GUESS_WALL_OPEN_MS=60000;
-function seededRand(seed){ let s=seed||1; return function(){ s=(s*9301+49297)%233280; return s/233280; }; }
-function buildSampleArtwork(seed){
-  const rand=seededRand(seed);
-  const kinds=["circle","triangle","rect","star","diamond"];
-  const els=[];
-  const n=5;
-  for(let i=0;i<n;i++){
-    const kind=kinds[Math.floor(rand()*kinds.length)];
-    const w=60+rand()*80, h=60+rand()*80;
-    els.push({kind:kind,x:60+rand()*(400-w),y:60+rand()*(400-h),w:w,h:h,rot:Math.floor(rand()*360),color:COLORS[Math.floor(rand()*COLORS.length)],opacity:0.95,stroke:true});
-  }
-  return els;
-}
+/* 每幅画的固定形状数据（模仿用户画法：填充形状+简单组合） */
+const GUESS_ARTWORK=[
+  /* 滑板 */
+  [{kind:"ellipse",x:300,y:260,w:300,h:55,color:"#E03131",opacity:0.85,rot:0},
+   {kind:"circle",x:220,y:340,w:70,h:70,color:"#E03131",opacity:0.85},
+   {kind:"circle",x:380,y:340,w:70,h:70,color:"#E03131",opacity:0.85}],
+  /* 红包 */
+  [{kind:"rect",x:300,y:400,w:240,h:160,color:"#E03131",opacity:0.55},
+   {kind:"triangle",x:300,y:320,w:240,h:110,color:"#E03131",opacity:0.9},
+   {kind:"circle",x:300,y:400,w:50,h:50,color:"#F59E0B",opacity:0.95}],
+  /* 彩虹 */
+  [{kind:"semicircle",x:300,y:420,w:260,h:130,color:"#E03131",opacity:0.85},
+   {kind:"semicircle",x:300,y:420,w:200,h:100,color:"#F59E0B",opacity:0.85},
+   {kind:"semicircle",x:300,y:420,w:140,h:70,color:"#2F9E44",opacity:0.85}],
+  /* 厨师 */
+  [{kind:"rect",x:300,y:170,w:130,h:80,color:"#E03131",opacity:0.85},
+   {kind:"circle",x:300,y:280,w:120,h:120,color:"#E03131",opacity:0.85},
+   {kind:"waterdrop",x:300,y:440,w:110,h:170,color:"#E03131",opacity:0.85},
+   {kind:"ellipse",x:170,y:390,w:110,h:55,color:"#E03131",opacity:0.85},
+   {kind:"bar",x:250,y:395,w:90,h:14,color:"#E03131",opacity:0.85,rot:25}],
+  /* 金字塔 */
+  [{kind:"diamond",x:300,y:380,w:220,h:170,color:"#F59E0B",opacity:0.9},
+   {kind:"bar",x:300,y:380,w:6,h:170,color:"#E03131",opacity:0.8}],
+  /* 热气球 */
+  [{kind:"waterdrop",x:300,y:250,w:190,h:210,color:"#E03131",opacity:0.85},
+   {kind:"rect",x:300,y:460,w:140,h:80,color:"#E03131",opacity:0.85}],
+  /* 蝴蝶 */
+  [{kind:"ellipse",x:200,y:260,w:110,h:85,color:"#E03131",opacity:0.85,rot:-25},
+   {kind:"ellipse",x:400,y:260,w:110,h:85,color:"#E03131",opacity:0.85,rot:25},
+   {kind:"ellipse",x:230,y:390,w:75,h:60,color:"#E03131",opacity:0.85,rot:15},
+   {kind:"ellipse",x:370,y:390,w:75,h:60,color:"#E03131",opacity:0.85,rot:-15}],
+  /* 披萨 */
+  [{kind:"circle",x:300,y:360,w:280,h:280,color:"#E03131",opacity:0.6},
+   {kind:"triangle",x:240,y:300,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:-10},
+   {kind:"triangle",x:360,y:300,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:10},
+   {kind:"triangle",x:360,y:440,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:30}]
+];
 async function renderGuess(){
   $app.innerHTML="";
   const pack=await loadPack();
@@ -2525,7 +2550,7 @@ async function renderGuess(){
   let idx=0, score=0;
   function loadRound(){
     const conf=GUESS_DECK[idx], ans=byId[conf.answerId];
-    const els=buildSampleArtwork(conf.seed);
+    const els=GUESS_ARTWORK[idx];
     const main=wrap.querySelector("#g-main");
     main.innerHTML=`
     <div class="pz-progress" id="g-prog" style="max-width:560px;margin:12px auto 0"></div>
