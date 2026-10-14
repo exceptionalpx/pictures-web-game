@@ -1,1118 +1,6 @@
 "use strict";
 window.__XHS__ = true; // 小红书小工具离线模式
-/* ================= 共享配置源（与服务端同一 ruleset） ================= */
-const RULESET_ID = "pictures-web-online-v1";
-const RULES = {
-  elementCap: 60,        // 画布元素上限
-  gridW: 4, gridH: 4     // 照片墙 4×4 = 16 张
-};
-const STAGE = 480;                 // 画布逻辑尺寸
-const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
-const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
-const CANVAS_BGS = ["#FFFFFF","#BFE3F7","#C6EFCE","#FFF3BF","#FFD6E0","#E6D5F5","#DDEBF7","#FCE8D5"];
-const TOOLS = [
-  {id:"shape", name:"形状", hint:"点左侧形状，浮动图形跟手；点画布或拖到画布放置；再点同形状取消"},
-  {id:"pen",   name:"画笔", hint:"在画布上按住拖动绘制细线，用形状拼主体，画笔只做点睛"}
-];
-const SHAPES = [
-  {kind:"circle",     name:"圆形",   w:90,  h:90},
-  {kind:"semicircle", name:"半圆",   w:100, h:50},
-  {kind:"triangle",   name:"三角形", w:100, h:90},
-  {kind:"ellipse",    name:"椭圆",   w:100, h:60},
-  {kind:"diamond",    name:"菱形",   w:90,  h:90},
-  {kind:"star",       name:"五角星", w:96,  h:96},
-  {kind:"rect",       name:"长方形", w:100, h:60},
-  {kind:"square",     name:"正方形", w:80,  h:80},
-  {kind:"waterdrop",  name:"水滴",   w:70,  h:100},
-  {kind:"arrow",      name:"箭头",   w:100, h:90},
-  {kind:"bar",        name:"棒型",   w:14,  h:100},
-  {kind:"cross",      name:"十字",   w:90,  h:90}
-];
-
-/* ================= 工具函数 ================= */
-const $app = document.getElementById("app");
-const $toast = document.getElementById("toast");
-let toastTimer;
-function toast(msg){ $toast.textContent=msg; $toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$toast.classList.remove("show"),2200); }
-function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function coordLabel(i){return "ABCD"[Math.floor(i/RULES.gridW)] + ((i%RULES.gridW)+1);}
-function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function h(tag, attrs={}, ...kids){
-  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
-  for(const k in attrs) el.setAttribute(k,attrs[k]);
-  for(const kid of kids){ if(kid==null) continue; el.appendChild(typeof kid==="string"?document.createTextNode(kid):kid); }
-  return el;
-}
-function html(tag, attrs={}, htmlStr){
-  const e=document.createElement(tag);
-  for(const k in attrs){ if(k==="class")e.className=attrs[k]; else if(k.startsWith("on")) e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); }
-  if(htmlStr!=null) e.innerHTML=htmlStr;
-  return e;
-}
-function preloadThumbs(wall){
-  (wall||[]).forEach(g=>{ if(g && g.thumb){ const im=new Image(); im.src=g.thumb; } });
-}
-function levelLabel(level){
-  return { exact:"准确词 +5", keyword:"联想词 +2", category:"类别词 +1" }[level] || "文字命中";
-}
-
-/* ================= 轻量音效（Web Audio 合成，无素材文件；音量克制，供氛围提示） ================= */
-function sfx(name){
-  if(sfx._mute) return;
-  try{
-    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
-    const ctx=sfx._ctx||(sfx._ctx=new AC());
-    if(ctx.state==="suspended") ctx.resume();
-    const now=ctx.currentTime;
-    const tone=(hz,vol,dur,type,delay)=>{
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type=type||"sine"; o.frequency.value=hz;
-      g.gain.setValueAtTime(0.0001,now+delay);
-      g.gain.linearRampToValueAtTime(vol,now+delay+0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001,now+delay+dur);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(now+delay); o.stop(now+delay+dur+0.05);
-    };
-    const P={
-      hit:()=>{ tone(659,0.15,0.16,"sine",0); tone(880,0.13,0.22,"sine",0.08); },
-      win:()=>{ tone(523,0.14,0.13,"sine",0); tone(659,0.14,0.13,"sine",0.07); tone(784,0.15,0.22,"sine",0.14); },
-      miss:()=>{ tone(196,0.11,0.18,"triangle",0); },
-      tick:()=>{ tone(1046,0.05,0.05,"square",0); },
-      reveal:()=>{ tone(392,0.15,0.26,"sine",0); tone(523,0.15,0.26,"sine",0.11); tone(659,0.15,0.3,"sine",0.22); tone(784,0.14,0.42,"sine",0.33); },
-      pick:()=>{ tone(784,0.15,0.13,"sine",0); tone(1047,0.13,0.18,"sine",0.06); }
-    };
-    if(P[name]) P[name]();
-  }catch(_){}
-}
-/* ================= 作品渲染（创作/实时观看/揭晓共用） ================= */
-function shapeFor(e){
-  const g = h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`,"data-kind":e.kind});
-  const op=typeof e.opacity==="number"?e.opacity:1;
-  const col=e.color||"#E03131";
-  const w=e.w||80, hh=e.h||80;
-  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:col,opacity:op}));
-  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:col,opacity:op}));
-  else if(e.kind==="cross"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:col,opacity:op}));
-    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:col,opacity:op}));
-  }
-  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:col,opacity:op}));
-  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:col,opacity:op}));
-  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
-  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
-  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
-  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:col,opacity:op,"fill-rule":"evenodd"}));
-  else if(e.kind==="star"){
-    const sr=w/2, sir=sr*0.382; let sd="";
-    for(let i=0;i<10;i++){ const a=(90+i*36)*Math.PI/180; const rr=(i%2===0)?sr:sir; const sx=rr*Math.cos(a), sy=-rr*Math.sin(a); sd+=(i===0?"M":"L")+sx.toFixed(1)+","+sy.toFixed(1); }
-    g.appendChild(h("path",{d:sd+"Z",fill:col,opacity:op}));
-  }
-  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
-  else if(e.kind==="arrow"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
-    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:col,opacity:op}));
-  }
-  else if(e.kind==="icon"){
-    const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":hh,opacity:op});
-    t.textContent=e.glyph; g.appendChild(t);
-  }
-  else if(e.kind==="path"){
-    g.appendChild(h("path",{d:e.d,fill:"none",stroke:col,"stroke-width":e.width||3,"stroke-linecap":"round","stroke-linejoin":"round",opacity:op}));
-  }
-  return g;
-}
-function shapeIcon(kind, color){
-  const s0=SHAPES.find(s=>s.kind===kind);
-  const iw=36, ih=36;
-  const sw=s0?Math.max(1,s0.w):iw, sh=s0?Math.max(1,s0.h):ih;
-  const scale=Math.min(iw/sw, ih/sh);
-  const w=Math.max(3,sw*scale), h=Math.max(3,sh*scale);
-  const svgEl=document.createElementNS("http://www.w3.org/2000/svg","svg");
-  svgEl.setAttribute("viewBox","0 0 56 56");
-  svgEl.appendChild(shapeFor({kind,x:28,y:28,w,h,rot:0,color:color||"#3B5BDB"}));
-  return svgEl.outerHTML;
-}
-function renderArtwork(svg, els, opts={}){
-  svg.innerHTML="";
-  svg.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);
-  svg.style.height=svg.getBoundingClientRect().width+"px";
-  svg.appendChild(h("rect",{x:0,y:0,width:STAGE,height:STAGE,fill:opts.bg||"#FBFAF6"}));
-  els.forEach(e=>svg.appendChild(shapeFor(e)));
-}
-
-/* ================= 路由 ================= */
-function route(){
-  const hash=location.hash||"#/";
-  const [path,query=""]=hash.slice(1).split("?");
-  const params=Object.fromEntries(new URLSearchParams(query));
-  const parts=path.split("/").filter(Boolean);
-  if(path==="/"||path==="/home"||parts.length===0) renderHome();
-  else if(window.__XHS__ && (parts[0]==="online"||parts[0]==="onlinetest"||parts[0]==="puzzletest")) renderHome();
-  else if(parts[0]==="online") renderOnline();
-  else if(parts[0]==="onlinetest") runOnlineTest();
-  else if(parts[0]==="puzzletest") runPuzzleTest();
-  else if(parts[0]==="guess") renderGuess();
-  else if(parts[0]==="puzzle"){
-    if(parts[1]) renderPuzzleGuess(parts[1]);
-    else renderPuzzleEditor();
-  }
-  else if(parts[0]==="mylib") renderMyLib();
-  else renderHome();
-  window.scrollTo(0,0);
-}
-window.addEventListener("hashchange",route);
-
-/* ================= 首页（正式版入口） ================= */
-function renderHome(){
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  w.innerHTML=`
-  <div class="hero">
-    <h1>巧手猜图</h1>
-    <div class="sub">看一张写实照片，用一套"不够像"的形状把它抽象地拼出来——发给朋友在评论区猜原图；或者反过来，看一张抽象画，猜它原本是什么照片</div>
-    <div class="ruleset">64 张写实照片 · 三级词竞猜 · 限时抽象作画</div>
-  </div>
-  <div class="hero-actions">
-    <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 我来作画 · 发笔记让朋友猜</button>
-    <button class="primary" id="go-guess" style="min-width:220px">🔍 我来猜 · 看画猜照片</button>
-    <button class="primary" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
-  </div>
-  <div class="rule-grid">
-    <div class="rule-card">
-      <div class="big">🔍</div>
-      <h3>猜图模式 · 看画猜照片</h3>
-      <span class="sub">看一张别人拼好的抽象画，<b>前 60 秒文字竞猜</b>：准确词 +5 / 联想词 +2 / 类别词 +1；60 秒后照片墙开放，点大图选出原图。</span>
-    </div>
-    <div class="rule-card">
-      <div class="big">🎨</div>
-      <h3>作画模式 · 抽象还原照片</h3>
-      <span class="sub">选一张照片（系统图或你相册里的图），用<b>12 种半透明形状 + 画笔</b>限时拼出它的神韵，画完一键存相册或发小红书笔记。</span>
-    </div>
-    <div class="rule-card">
-      <div class="big">💬</div>
-      <h3>朋友怎么玩</h3>
-      <span class="sub">你发出去的笔记只放抽象画，朋友在<b>评论区打字猜原图</b>，你再回评揭晓——猜中算他赢。</span>
-    </div>
-  </div>`;
-  if(!window.__XHS__){
-    const ob=document.createElement("button");
-    ob.className="primary"; ob.id="go-online"; ob.style.minWidth="220px";
-    ob.textContent="🕹️ 进入联机对战";
-    document.querySelector(".hero-actions").appendChild(ob);
-  }
-  w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
-  w.querySelector("#go-guess").addEventListener("click",()=>location.hash="#/guess");
-  w.querySelector("#go-mylib").addEventListener("click",()=>location.hash="#/mylib");
-  $app.appendChild(w);
-}
-
-
-/* ================= 我的图库管理页 ================= */
-function renderMyLib(){
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card",style:"max-width:640px;margin:0 auto"});
-  card.innerHTML=`
-    <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
-    <div class="sub" id="ml-cap"></div>
-    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
-    <div class="tabs" id="ml-tabs"></div>
-    <div id="ml-grid" class="img-grid"></div>
-    <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
-  w.appendChild(card); $app.appendChild(w);
-  card.querySelector("#ml-back").onclick=()=>location.hash="#/";
-  const PAGE=60;
-  let tab="mine", mine=[], games=[], shown=PAGE;
-  const capEl=card.querySelector("#ml-cap");
-  const showCap=async()=>{
-    let t="";
-    try{ const e=await navigator.storage.estimate(); if(e.quota&&e.usage!=null) t=`（已用 ${(e.usage/1048576).toFixed(0)}MB / ${(e.quota/1073741824).toFixed(0)}GB）`; }catch(_){}
-    capEl.textContent=`本机存储 · 我的图库 ${mine.length} 张 · 对局收藏 ${games.length} 张${t}`;
-  };
-  const escS=v=>String(v==null?"":v);
-  const wordForm=({title,init})=>new Promise(res=>{
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:440px">
-      <h3>${title}</h3>
-      <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" value="${escS(init.name)}" placeholder="猜题人可见">
-      <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" value="${escS(init.category_word)}" placeholder="如：交通工具">
-      <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" value="${escS(init.keywords&&init.keywords[0])}" placeholder="如：海">
-      <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" value="${escS(init.keywords&&init.keywords[1])}" placeholder="可选">
-      <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" value="${escS(init.exact)}" placeholder="如：帆船">
-      <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存</button><button class="ghost" id="mf-no">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
-    mk.querySelector("#mf-ok").onclick=()=>{
-      const exact=mk.querySelector("#mf-exact").value.trim();
-      if(!exact){ toast("准确词必填"); return; }
-      res({
-        name:mk.querySelector("#mf-name").value.trim()||exact,
-        category_word:mk.querySelector("#mf-cat").value.trim(),
-        keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
-        exact
-      });
-      mk.remove();
-    };
-  });
-
-  const draw=()=>{
-    const src=tab==="mine"?mine:games;
-    const grid=card.querySelector("#ml-grid");
-    const slice=src.slice(0,shown);
-    grid.innerHTML=slice.length?"":"";
-    if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
-    slice.forEach(g=>{
-      const cell=html("div",{class:"img-cell"+(tab==="mine"&&g.source==="import"?" imported":"")});
-      const isGame=tab==="games";
-      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:""}${tab==="mine"&&g.source==="import"?`<span class="import-tag">他人</span>`:""}`;
-      const im=cell.querySelector("img");
-      if(im) im.onerror=()=>{ if(!cell.querySelector(".img-broken")) cell.appendChild(html("div",{class:"img-broken"},"加载失败")); };
-      cell.querySelector(".mini-del").onclick=(ev)=>{
-        ev.stopPropagation();
-        const tip=g.source==="import"?"该图来自对局收藏，仅从本机移除":"删除这张";
-        if(!window.confirm(`${tip}「${g.name||g.exact||g.zh}」？`)) return;
-        (isGame?gameDel:customDel)(g.id).then(()=>{ if(isGame){ games=games.filter(x=>x.id!==g.id);} else { mine=mine.filter(x=>x.id!==g.id);} draw(); showCap(); toast("已删除"); });
-      };
-      if(!isGame) cell.onclick=()=>viewDetail(g);
-      if(isGame){
-        cell.querySelector(".save-btn").onclick=async()=>{
-          try{
-            const fp=await imgFp(g.img);
-            const dup=mine.find(x=>x.fp===fp);
-            if(dup){ toast("我的图库里已有这张"); return; }
-            const isMine = !g.contributor || g.contributor===nickMemo();
-            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,source:isMine?"own":"import",contributor:g.contributor||"",createdAt:Date.now()});
-            mine=await customList(); draw(); showCap(); toast("已转存到我的图库");
-          }catch(_){ toast("转存失败"); }
-        };
-      }
-      grid.appendChild(cell);
-    });
-    const more=card.querySelector("#ml-more");
-    more.innerHTML=src.length>shown?`<button class="ghost" id="ml-more-btn">加载更多（${src.length-shown} 张）</button>`:"";
-    const mb=more.querySelector("#ml-more-btn");
-    if(mb) mb.onclick=()=>{ shown+=PAGE; draw(); };
-  };
-  /* 词条详情弹层：查看图片的全部词语；自己上传可编辑，他人图只读 */
-  function viewDetail(g){
-    const isOwn=g.source!=="import";
-    const srcLabel=isOwn?"自己上传":(g.contributor?`来自「${esc(g.contributor)}」的对局收藏`:"来自对局收藏");
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:420px">
-      <h3>${esc(g.name||g.exact||g.zh)}</h3>
-      <div style="text-align:center;margin:10px 0"><img src="${esc(g.img)}" alt="" style="max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
-      <div class="kw-line">类别词 <b>${esc(g.category_word||g.category||"—")}</b></div>
-      <div class="kw-line">联想词 <b>${esc((g.keywords||[]).filter(Boolean).join("、")||"—")}</b></div>
-      <div class="kw-line">准确词 <b style="color:#C0392B">${esc(g.exact||"—")}</b></div>
-      <div class="sub" style="margin-top:10px">来源：${srcLabel}</div>
-      <div class="row" style="margin-top:14px">${isOwn?`<button class="primary" id="vd-edit" style="flex:1">编辑词条</button>`:""}<button class="ghost" id="vd-close" style="flex:1">关闭</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    mk.querySelector("#vd-close").onclick=()=>mk.remove();
-    if(isOwn){
-      mk.querySelector("#vd-edit").onclick=async()=>{
-        const r=await wordForm({title:"编辑词条",init:g});
-        if(!r) return;
-        await customPut({...g,...r});
-        mk.remove(); mine=await customList(); draw(); showCap(); toast("已保存");
-      };
-    }
-  }
-  const switchTab=(t)=>{
-    tab=t; shown=PAGE;
-    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>{
-      const isSel=b.id==="ml-"+tab;
-      b.classList.toggle("primary",isSel);
-      b.classList.toggle("ghost",!isSel);
-    });
-    draw();
-  };
-  card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
-  card.querySelector("#ml-games").onclick=()=>switchTab("games");
-  card.querySelector("#ml-upload").onclick=async()=>{
-    const r=await uploadForm();
-    if(!r) return;
-    let img=null;
-    for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
-      try{ const c=await compressImage(r.cropped,side,q); if(c){ img=c; break; } }catch(_){}
-    }
-    if(!img || img.length>1.5e6){ toast("图片太大或压缩失败"); return; }
-    const fp=await imgFp(img);
-    const dup=mine.find(x=>x.fp===fp);
-    if(dup){ toast("图库里已有这张图片"); return; }
-    await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,source:"own",createdAt:Date.now()});
-    mine=await customList(); draw(); showCap(); toast("已存入我的图库");
-  };
-  Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
-}
-
-/* 上传新图片弹层：词条字段 + 明显的「选择图片」按钮 + 预览，单弹层一次完成 */
-const uploadForm=()=>new Promise(res=>{
-  const mk=html("div",{class:"mask"});
-  mk.innerHTML=`<div class="pop" style="max-width:440px">
-    <h3>上传新图片</h3>
-    <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" placeholder="猜题人可见">
-    <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" placeholder="如：交通工具">
-    <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" placeholder="如：海">
-    <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" placeholder="可选">
-    <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" placeholder="如：帆船">
-    <label class="file-drop"><input type="file" id="mf-file" accept="image/*" style="display:none">
-      <span class="file-pick">📁 选择图片</span>
-      <div class="sub" style="margin-top:6px">自动压缩到 512px · 单图 ≤1.5MB</div>
-    </label>
-    <div id="mf-pv" style="display:none;margin-top:10px;text-align:center"><img id="mf-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
-    <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存并上传</button><button class="ghost" id="mf-no">取消</button></div>
-  </div>`;
-  document.body.appendChild(mk);
-  mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
-  let cropped=null;
-  const fileEl=mk.querySelector("#mf-file");
-  fileEl.onchange=()=>{
-    const f=fileEl.files&&fileEl.files[0];
-    if(!f) return;
-    const fr=new FileReader();
-    fr.onload=async()=>{
-      const raw=fr.result;
-      cropped=await cropImageDialog(raw);
-      if(!cropped) return;   // 取消裁剪：停留在弹层，可重选图片
-      const pv=mk.querySelector("#mf-pv"); pv.style.display="block"; mk.querySelector("#mf-pvimg").src=cropped;
-      mk.querySelector("#mf-pvimg").style.objectFit="contain";
-      mk.querySelector("#mf-pvimg").style.width="auto"; mk.querySelector("#mf-pvimg").style.height="auto";
-      mk.querySelector("#mf-pvimg").style.maxWidth="128px"; mk.querySelector("#mf-pvimg").style.maxHeight="128px";
-    };
-    fr.readAsDataURL(f);
-  };
-  mk.querySelector("#mf-ok").onclick=()=>{
-    const exact=mk.querySelector("#mf-exact").value.trim();
-    if(!exact){ toast("准确词必填"); return; }
-    if(!cropped){ toast("请先选择图片"); return; }
-    res({
-      name:mk.querySelector("#mf-name").value.trim()||exact,
-      category_word:mk.querySelector("#mf-cat").value.trim(),
-      keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
-      exact,
-      cropped
-    });
-    mk.remove();
-  };
-});
-/* ===== 自定义图片库（IndexedDB 本地持久化，单机+联机共用） ===== */
-const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
-const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;   // 对局收藏：独立 store，上限 200 张 FIFO
-/* 图片内容指纹：SHA-256（secure context 可用），失败回退字符串哈希。
-   同一张图无论压缩几次，指纹稳定，用于跨端判重（房间去重/已上传标记/对局收藏去重） */
-async function imgFp(dataURL){
-  try{
-    const buf = await (await fetch(String(dataURL||""))).arrayBuffer();
-    const d = await crypto.subtle.digest("SHA-256", buf);
-    return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,16);
-  }catch(e){
-    let h=5381; const s=String(dataURL||"");
-    for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; }
-    return "fb"+h.toString(16);
-  }
-}
-function idbOpen(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(CUSTOM_DB,1);
-    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(CUSTOM_STORE)) r.result.createObjectStore(CUSTOM_STORE,{keyPath:"id"}); };
-    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
-  });
-}
-async function customList(){
-  const db=await idbOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readonly").objectStore(CUSTOM_STORE).getAll(); tx.onsuccess=()=>res(tx.result||[]); tx.onerror=()=>rej(tx.error); });
-}
-async function customPut(item){
-  /* 写入校验：图片必须是合法的 data:image URL，防止坏记录进图库 */
-  const img=String(item&&item.img||"");
-  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
-  const db=await idbOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-async function customDel(id){
-  const db=await idbOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-/* ---- 对局收藏：独立 IndexedDB，只存对局中见过的房间自定义图（系统 64 图不收藏），上限 GAME_CAP 张 FIFO ---- */
-function idbGameOpen(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(GAME_DB,1);
-    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(GAME_STORE)) r.result.createObjectStore(GAME_STORE,{keyPath:"id"}); };
-    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
-  });
-}
-async function gameList(){
-  const db=await idbGameOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readonly").objectStore(GAME_STORE).getAll(); tx.onsuccess=()=>res((tx.result||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))); tx.onerror=()=>rej(tx.error); });
-}
-async function gamePut(item){
-  const img=String(item&&item.img||"");
-  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
-  const db=await idbGameOpen();
-  await new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-  /* FIFO：超出上限删除最旧 */
-  const all=await gameList();
-  if(all.length>GAME_CAP){
-    const stale=all.slice(GAME_CAP);
-    const db2=await idbGameOpen();
-    await new Promise((res,rej)=>{ const tx=db2.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE); stale.forEach(x=>tx.objectStore(GAME_STORE).delete(x.id)); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); });
-  }
-  return item;
-}
-async function gameDel(id){
-  const db=await idbGameOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-async function gameClear(){
-  const db=await idbGameOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).clear(); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-/* 自动收藏：把对局照片墙里的房间自定义图写入收藏（按指纹去重，系统图跳过） */
-async function gameCollect(wall){
-  if(!Array.isArray(wall)) return;
-  for(const g of wall){
-    if(!g || !String(g.img||"").startsWith("data:image/")) continue;   // 只收房间自定义图（dataURL），系统图不收藏
-    try{
-      const fp = await imgFp(g.img);
-      await gamePut({ id:"gp-"+fp, fp, img:g.img, zh:g.zh||"我的图片", category:g.category||"自定义", exact:g.exact||"", keywords:g.keywords||[], aliases:g.aliases||[], category_word:g.category_word||"", contributor:g.contributor||"", createdAt:Date.now() });
-    }catch(_){}
-  }
-}
-
-/* ===== 图片裁剪对话框：1:1 / 4:3 / 3:4 / 自由；拖框+底图缩放；返回原尺寸 JPEG dataURL，取消返回 null ===== */
-function clampNum(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
-function cropImageDialog(raw){
-  return new Promise(res=>{
-    const im=new Image();
-    im.onload=()=>{
-      const iw=im.naturalWidth, ih=im.naturalHeight;
-      const STAGE_H=Math.min(360, Math.round((window.innerHeight||800)*0.55));
-      const mk=html("div",{class:"mask"});
-      mk.innerHTML=`<div class="pop" style="max-width:480px;width:calc(100vw - 40px)">
-        <h3>裁剪图片</h3>
-        <div class="row" style="gap:6px;flex-wrap:wrap" id="crop-ratios">
-          <button class="ghost" data-r="1" style="min-width:52px;background:var(--brand);color:#fff;border-color:var(--brand)">1:1</button>
-          <button class="ghost" data-r="4/3" style="min-width:52px">4:3</button>
-          <button class="ghost" data-r="3/4" style="min-width:52px">3:4</button>
-          <button class="ghost" data-r="" style="min-width:52px">自由</button>
-          <div class="sub" style="align-self:center;margin-left:6px">选择构图比例，拖动裁剪框</div>
-        </div>
-        <div id="crop-stage" style="position:relative;overflow:hidden;border-radius:12px;background:repeating-conic-gradient(#ECE7DA 0 25%, #FFFDF6 0 50%) 0 0/18px 18px;border:1px solid var(--line);margin-top:8px"></div>
-        <div class="row" style="margin-top:10px;justify-content:center;gap:10px">
-          <button class="ghost" id="crop-zo">－ 缩小</button>
-          <button class="ghost" id="crop-zi">放大 ＋</button>
-          <div class="sub" style="align-self:center">也可滚动滚轮缩放 · 拖动图片移动</div>
-        </div>
-        <div class="row" style="margin-top:12px;align-items:center">
-          <div id="crop-pv" style="flex:none;width:72px;height:72px;border:2px solid var(--gold);border-radius:10px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center"><img alt="预览" style="max-width:100%;max-height:100%;object-fit:contain"></div>
-          <div class="sub" style="flex:1;padding:0 10px">裁剪后的图片按所选比例完整展示，不再被二次裁切</div>
-          <button class="ghost" id="crop-no">取消</button>
-          <button class="primary" id="crop-ok" style="margin-left:8px">确认裁剪</button>
-        </div>
-      </div>`;
-      document.body.appendChild(mk);
-      const stage=mk.querySelector("#crop-stage");
-      const sw=Math.min(440, (stage.parentElement.clientWidth||440)-32), sh=STAGE_H;
-      stage.style.width=sw+"px"; stage.style.height=sh+"px";
-      const img=html("img");
-      img.src=raw; img.style.position="absolute"; img.style.userSelect="none"; img.style.touchAction="none";
-      img.style.width=iw+"px"; img.style.height=ih+"px"; img.style.transformOrigin="0 0"; img.style.cursor="move";
-      stage.appendChild(img);
-      const box=html("div");
-      box.style.cssText="position:absolute;border:2px solid #fff;outline:1px solid rgba(0,0,0,.35);box-shadow:0 0 0 9999px rgba(0,0,0,.35);cursor:move;touch-action:none;background:transparent";
-      stage.appendChild(box);
-      const grip=html("div");
-      grip.style.cssText="position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--brand);border:2px solid #fff;border-radius:4px;cursor:nwse-resize;touch-action:none";
-      box.appendChild(grip);
-      let ratio="1", bs=0, tx=0, ty=0;
-      const bs0=Math.min((sw-16)/iw,(sh-16)/ih);
-      function applyImg(){ img.style.transform=`translate(${tx}px,${ty}px) scale(${bs})`; }
-      function applyBox(){ box.style.left=box.x+"px"; box.style.top=box.y+"px"; box.style.width=box.w+"px"; box.style.height=box.h+"px"; }
-      function resetView(){
-        bs=bs0; tx=(sw-iw*bs)/2; ty=(sh-ih*bs)/2;
-        const cx=sw/2, cy=sh/2, s=Math.min(sw,sh)*0.68;
-        box.w=s; box.h=s; box.x=cx-s/2; box.y=cy-s/2;
-        applyImg(); applyBox(); syncRatioBtns(); refreshPv();
-      }
-      function syncRatioBtns(){
-        mk.querySelectorAll("#crop-ratios button").forEach(b=>{
-          b.style.background=(b.dataset.r===ratio)?"var(--brand)":"";
-          b.style.color=(b.dataset.r===ratio)?"#fff":"";
-          b.style.borderColor=(b.dataset.r===ratio)?"var(--brand)":"";
-        });
-      }
-      function setRatio(r){
-        ratio=r;
-        const cx=box.x+box.w/2, cy=box.y+box.h/2;
-        let w,h;
-        const maxW=sw-4, maxH=sh-4;
-        if(r==="1"){ const s=Math.min(maxW,maxH)*0.78; w=h=s; }
-        else if(r==="4/3"){ w=Math.min(maxW,maxH)*0.82; h=w*3/4; }
-        else if(r==="3/4"){ h=Math.min(maxW,maxH)*0.82; w=h*3/4; }
-        else { w=Math.min(maxW,box.w); h=Math.min(maxH,box.h); }
-        box.w=w; box.h=h; box.x=clampNum(cx-w/2,0,sw-w); box.y=clampNum(cy-h/2,0,sh-h);
-        applyBox(); syncRatioBtns(); refreshPv();
-      }
-      function refreshPv(){
-        const out=exportCrop(true);
-        if(out){ mk.querySelector("#crop-pv img").src=out; }
-      }
-      function exportCrop(skipToast){
-        const sx=(box.x-tx)/bs, sy=(box.y-ty)/bs;
-        const cx0=clampNum(sx,0,iw), cy0=clampNum(sy,0,ih);
-        const ew=Math.min(iw-cx0, box.w/bs), eh=Math.min(ih-cy0, box.h/bs);
-        if(ew<2||eh<2){ if(!skipToast) toast("裁剪区域超出图片，请调整裁剪框"); return null; }
-        const c=document.createElement("canvas");
-        c.width=Math.max(1,Math.round(ew)); c.height=Math.max(1,Math.round(eh));
-        c.getContext("2d").drawImage(im, cx0,cy0,ew,eh, 0,0,c.width,c.height);
-        return c.toDataURL("image/jpeg",0.92);
-      }
-      /* 拖拽（框 / 手柄 / 底图） */
-      let drag=null;
-      stage.addEventListener("pointerdown",ev=>{
-        if(ev.target===grip){
-          ev.preventDefault(); ev.stopPropagation();
-          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
-          const rw=box.w, rh=box.h;
-          drag={type:"grip",sx:ev.clientX,sy:ev.clientY,ow:rw,oh:rh};
-        } else if(ev.target===box){
-          ev.preventDefault();
-          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
-          drag={type:"box",sx:ev.clientX,sy:ev.clientY,ox:box.x,oy:box.y};
-        } else if(ev.target===img){
-          ev.preventDefault();
-          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
-          drag={type:"img",sx:ev.clientX,sy:ev.clientY,otx:tx,oty:ty};
-        }
-      });
-      stage.addEventListener("pointermove",ev=>{
-        if(!drag) return;
-        const dx=ev.clientX-drag.sx, dy=ev.clientY-drag.sy;
-        if(drag.type==="box"){
-          box.x=clampNum(drag.ox+dx,0,sw-box.w); box.y=clampNum(drag.oy+dy,0,sh-box.h);
-          applyBox();
-        } else if(drag.type==="img"){
-          tx=clampNum(drag.otx+dx, sw-iw*bs, 0); ty=clampNum(drag.oty+dy, sh-ih*bs, 0);
-          applyImg();
-        } else if(drag.type==="grip"){
-          let nw,nh;
-          if(ratio===""){ nw=clampNum(drag.ow+dx,40,sw); nh=clampNum(drag.oh+dy,40,sh); }
-          else{
-            const rv=ratio==="1"?1:(ratio==="4/3"?4/3:3/4);
-            nw=clampNum(drag.ow+dx,40,sw); nh=nw/rv;
-            if(nh>sh){ nh=sh; nw=nh*rv; }
-          }
-          box.w=nw; box.h=nh;
-          box.x=clampNum(box.x,0,sw-nw); box.y=clampNum(box.y,0,sh-nh);
-          applyBox();
-        }
-      });
-      stage.addEventListener("pointerup",()=>{ if(drag){ drag=null; refreshPv(); } });
-      stage.addEventListener("wheel",ev=>{
-        ev.preventDefault();
-        const f=ev.deltaY<0?1.1:1/1.1;
-        bs=clampNum(bs*f, bs0*0.9, 10);
-        tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0);
-        applyImg();
-      },{passive:false});
-      mk.querySelector("#crop-zo").onclick=()=>{ bs=clampNum(bs/1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
-      mk.querySelector("#crop-zi").onclick=()=>{ bs=clampNum(bs*1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
-      mk.querySelectorAll("#crop-ratios button").forEach(b=>b.onclick=()=>setRatio(b.dataset.r));
-      mk.querySelector("#crop-no").onclick=()=>{ mk.remove(); res(null); };
-      mk.querySelector("#crop-ok").onclick=()=>{
-        const out=exportCrop(false);
-        if(out){ mk.remove(); res(out); }
-      };
-      resetView();
-    };
-    im.onerror=()=>res(null);
-    im.src=raw;
-  });
-}
-
-function fileToDataURL(file){
-  return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
-}
-function compressImage(dataURL, maxSide, quality){
-  /* 降级重试：512/0.82 → 384/0.72 → 256/0.65，全部失败返回 null（调用方拒绝，不再回退原图） */
-  maxSide=maxSide||512; quality=quality||0.82;
-  const tries=[[maxSide,quality],[Math.min(maxSide,384),0.72],[Math.min(maxSide,256),0.65]];
-  return new Promise((res)=>{
-    const im=new Image();
-    im.onload=()=>{
-      const step=(i)=>{
-        if(i>=tries.length){ res(null); return; }
-        try{
-          const [side,q]=tries[i];
-          const k=Math.min(1, side/Math.max(im.width,im.height));
-          const c=document.createElement("canvas");
-          c.width=Math.max(1,Math.round(im.width*k)); c.height=Math.max(1,Math.round(im.height*k));
-          c.getContext("2d").drawImage(im,0,0,c.width,c.height);
-          const out=c.toDataURL("image/jpeg",q);
-          res(out.length>1.5e6 ? step(i+1) : out);
-        }catch(e){ step(i+1); }
-      };
-      step(0);
-    };
-    im.onerror=()=>res(null);
-    im.src=dataURL;
-  });
-}
-
-/* ================= 单人谜题（画好→分享链接→朋友猜） ================= */
-function renderPuzzleEditor(){
-  const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null,bg:"#FFFFFF"};
-  $app.innerHTML="";
-  const wrap=html("div",{class:"wrap"});
-  wrap.innerHTML=`
-  <div class="topbar">
-    <button class="ghost" id="back">← 首页</button>
-    <span class="title">单人出题 · 自由创作</span>
-    <span class="spacer"></span>
-    <button class="primary" id="publish">发布谜题</button>
-  </div>
-  <div class="target-strip" id="target-strip">
-    <div class="tp-photo" id="tp-photo">🖼️</div>
-    <div class="tp-meta"><b id="tp-name">尚未选择目标照片</b><div class="sub" id="tp-sub">从 64 图选一张，或上传自己的照片（发布时作为答案）</div></div>
-    <button class="ghost" id="tp-pick" style="flex:none">选择</button>
-  </div>
-  <div class="editor">
-    <div class="stage-wrap">
-      <div class="stage-row">
-        <div class="shape-rail" id="shape-rail"></div>
-        <div class="shape-rail-mini" id="shape-rail-mini" title="展开形状">⤢</div>
-        <svg class="stage" id="stage"></svg>
-      </div>
-      <div class="hint" id="hint"></div>
-      <div class="canvas-ops">
-        <button id="up">置顶</button>
-        <button id="down">置底</button>
-        <button id="del">删除</button>
-        <button id="undo">↩ 撤销</button>
-        <button id="redo">↪ 重做</button>
-        <button id="clear">清空</button>
-      </div>
-      <div class="tool-bar panel">
-        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
-        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
-        <div class="tb-group"><h3>背景</h3><div class="swatches" id="bgswatches"></div></div>
-        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
-        <div class="tb-group" id="toolbody"></div>
-        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-      </div>
-    </div>
-  </div>`;
-  $app.appendChild(wrap);
-  wrap.querySelector("#back").onclick=()=>location.hash="#/";
-  const svg=wrap.querySelector("#stage");
-  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
-  const tabsEl=wrap.querySelector("#tabs");
-  const swEl=wrap.querySelector("#swatches");
-  const bodyEl=wrap.querySelector("#toolbody");
-  const hintEl=wrap.querySelector("#hint");
-  const cntEl=wrap.querySelector("#cnt");
-  const railEl=wrap.querySelector("#shape-rail"), railMini=wrap.querySelector("#shape-rail-mini");
-  let railCollapsed=false;
-  function renderRail(){
-    railEl.innerHTML="";
-    const grid=html("div",{class:"rail-grid"});
-    SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,true)));
-    railEl.appendChild(grid);
-    const col=html("button",{class:"rail-col",title:"收起形状栏"},"◀");
-    col.onclick=()=>{railCollapsed=true;syncUI();};
-    railEl.appendChild(col);
-  }
-  railMini.onclick=()=>{railCollapsed=false;renderRail();syncUI();};
-  renderRail();
-  TOOLS.forEach(t=>{
-    const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;state.ghostShape=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
-    tabsEl.appendChild(b);
-  });
-  COLORS.forEach(col=>{
-    const s=html("button",{class:"swatch"+(state.color===col?" on":""),"data-col":col});
-    s.style.background=col;
-    s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
-    swEl.appendChild(s);
-  });
-  const bgSwEl=wrap.querySelector("#bgswatches");
-  CANVAS_BGS.forEach(col=>{
-    const s=html("button",{class:"swatch"+(state.bg===col?" on":""),"data-bg":col});
-    s.style.background=col;
-    if(col==="#FFFFFF"){ s.style.border="1.5px dashed #ccc"; s.title="白色"; }
-    s.onclick=()=>{state.bg=col;syncUI();};
-    bgSwEl.appendChild(s);
-  });
-  const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
-  opEl.addEventListener("input",()=>{
-    state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
-    const st=wrap.querySelector("#opacity-state");
-    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); if(st) st.textContent="已应用到选中元素"; }
-    else { if(st) st.textContent="将应用到下一个放置的形状"; }
-  });
-  opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
-  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
-  function syncUI(){
-    [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
-    [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
-    [...(bgSwEl?bgSwEl.children:[])].forEach(s=>s.className="swatch"+(s.dataset.bg===state.bg?" on":""));
-    hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
-    cntEl.textContent=state.els.length;
-    if(state.selected!=null && state.els[state.selected]){
-      const e=state.els[state.selected];
-      state.opacity=e.opacity;
-      opEl.value=Math.round(e.opacity*100); opvEl.textContent=opEl.value+"%";
-    }
-    if(railEl){
-      railEl.classList.toggle("open", !railCollapsed);
-      railMini.classList.toggle("show", railCollapsed);
-    }
-    document.querySelectorAll("[data-shape-btn]").forEach(btn=>{
-      btn.classList.toggle("on", state.pickShape===btn.dataset.kind);
-    });
-    draw();
-  }
-  function addElement(e){
-    if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
-    commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
-  }
-  function addShapeAt(x,y){
-    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
-    addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
-    // 一次一放：放置后清除选中形状与浮动图形，需重新选形状才能再放
-    state.selected=null;
-    state.pickShape=null;
-    state.ghost=null; state.ghostShape=null;
-    document.removeEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function followGhost(e){
-    if(!state.ghost) return;
-    const p=pt(e);
-    state.ghost.x=Math.max(0,Math.min(STAGE,p.x));
-    state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
-    renderGhost();
-  }
-  function enableFloat(kind){
-    state.pickShape=kind; state.ghostShape=kind;
-    state.ghost={x:STAGE/2,y:STAGE/2};
-    document.addEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function cancelFloat(){
-    state.ghost=null; state.ghostShape=null;
-    document.removeEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function togglePick(kind){
-    if(state.ghost && state.ghost.x!=null && state.ghostShape===kind){ cancelFloat(); }
-    else { enableFloat(kind); }
-    state.selected=null;
-  }
-  function makeShapeBtn(s0, inFloat){
-    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
-    b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
-    let pointerUsed=false;
-    b.addEventListener("pointerdown",(ev)=>{
-      if(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches){ return; }
-      pointerUsed=true; ev.preventDefault();
-      state.pickShape=s0.kind; syncUI();
-      if(!state.ghost){ state.ghost={x:null,y:null}; }
-      let dragged=false;
-      const mv=(e)=>{
-        const p=pt(e);
-        if(state.ghost){ state.ghost.x=Math.max(0,Math.min(STAGE,p.x)); state.ghost.y=Math.max(0,Math.min(STAGE,p.y)); dragged=true; renderGhost(); }
-      };
-      const up=()=>{
-        document.removeEventListener("pointermove",mv);
-        document.removeEventListener("pointerup",up);
-        if(dragged){
-          if(state.ghost && state.ghost.x!=null && state.ghost.y!=null){ addShapeAt(state.ghost.x,state.ghost.y); }
-          else { cancelFloat(); }
-        } else { togglePick(s0.kind); }
-      };
-      document.addEventListener("pointermove",mv);
-      document.addEventListener("pointerup",up);
-    });
-    b.addEventListener("click",(ev)=>{
-      if(!pointerUsed){ togglePick(s0.kind); }
-      pointerUsed=false;
-    });
-    return b;
-  }
-  function buildToolBody(){
-    bodyEl.innerHTML="";
-  }
-  buildToolBody();
-  const origSync=syncUI;
-  syncUI=function(){origSync();buildToolBody();};
-  const NS="http://www.w3.org/2000/svg";
-  let ghostG=null;
-  function draw(){
-    renderArtwork(svg,state.els,{bg:state.bg});
-    if(state.selected!=null && state.els[state.selected]){
-      const e=state.els[state.selected];
-      const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
-      g.appendChild(h("rect",{x:-e.w/2-6,y:-e.h/2-6,width:e.w+12,height:e.h+12,rx:8,fill:"none",stroke:"#3B5BDB","stroke-width":1.5,"stroke-dasharray":"5 4"}));
-      const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
-      handles.forEach(([hx,hy])=>{
-        const hg=h("g",{"data-hx":hx,"data-hy":hy});
-        hg.appendChild(h("rect",{x:hx*e.w/2-20,y:hy*e.h/2-20,width:40,height:40,rx:8,fill:"transparent"}));
-        hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
-        g.appendChild(hg);
-      });
-      const rg=h("g",{"data-rot":"1"});
-      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-34,r:24,fill:"transparent"}));
-      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
-      g.appendChild(rg);
-      g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
-      svg.appendChild(g);
-    }
-    renderGhost();
-  }
-  function pt(ev){
-    const m=svg.getScreenCTM();
-    const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
-    return {x:p.x,y:p.y};
-  }
-  function renderGhost(){
-    if(ghostG){ ghostG.remove(); ghostG=null; }
-    if(state.tool!=="shape" || !state.ghost || state.ghost.x==null) return;
-    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
-    ghostG=shapeFor({kind:s0.kind,x:state.ghost.x,y:state.ghost.y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:0.45});
-    ghostG.setAttribute("pointer-events","none");
-    ghostG.setAttribute("data-ghost","1");
-    svg.appendChild(ghostG);
-  }
-  let drag=null;
-  svg.addEventListener("pointerdown",ev=>{
-    const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
-    const rotH=ev.target.closest("[data-rot]");
-    const hand=ev.target.closest("[data-hx]");
-    if(rotH){
-      const e=state.els[state.selected];
-      drag={type:"rot",e,start:performance.now()};commit();
-    } else if(hand){
-      const e=state.els[state.selected];
-      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
-    } else {
-      const gg=ev.target.closest("g[data-kind]");
-      if(gg){
-        const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
-        state.selected=idx;
-        if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
-        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
-        commit(); draw();
-      } else if(state.tool==="pen"){
-        commit();
-        drag={type:"draw",pts:[[p.x,p.y]]};
-      } else if(state.tool==="shape" && state.pickShape){
-        addShapeAt(p.x,p.y);
-      } else {
-        state.selected=null; draw();
-      }
-    }
-  });
-  svg.addEventListener("pointermove",ev=>{
-    const p=pt(ev);
-    if(!drag){
-      if(state.tool==="shape" && state.ghost && state.pickShape){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
-      return;
-    }
-    if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
-    else if(drag.type==="rot"){
-      const e=drag.e;
-      let ang=Math.atan2(p.y-e.y,p.x-e.x)*180/Math.PI+90;
-      e.rot=Math.round(ang); draw();
-    } else if(drag.type==="scale"){
-      const e=drag.e;
-      const rad=-(e.rot||0)*Math.PI/180;
-      const lx=(p.x-e.x)*Math.cos(rad)-(p.y-e.y)*Math.sin(rad);
-      const ly=(p.x-e.x)*Math.sin(rad)+(p.y-e.y)*Math.cos(rad);
-      let nw=Math.max(20,Math.abs(lx)*2), nh=Math.max(20,Math.abs(ly)*2);
-      if(drag.hx!==0 && drag.hy!==0){ const s=Math.max(nw/drag.ow,nh/drag.oh); nw=drag.ow*s; nh=drag.oh*s; }
-      else if(drag.hx!==0){ nw=drag.ow*(nw/drag.ow); nh=drag.oh; }
-      else { nh=drag.oh*(nh/drag.oh); nw=drag.ow; }
-      e.w=nw; e.h=nh; draw();
-    } else if(drag.type==="draw"){
-      const last=drag.pts[drag.pts.length-1];
-      if(Math.hypot(p.x-last[0],p.y-last[1])>4){drag.pts.push([p.x,p.y]);drawTempPath();}
-    }
-  });
-  svg.addEventListener("pointerup",()=>{
-    if(!drag)return;
-    if(drag.type==="draw"){
-      if(drag.pts.length>=2){
-        const xs=drag.pts.map(q=>q[0]),ys=drag.pts.map(q=>q[1]);
-        const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
-        const w=Math.max(12,Math.max(...xs)-Math.min(...xs)), h=Math.max(12,Math.max(...ys)-Math.min(...ys));
-        const d=smoothPath(drag.pts.map(q=>[q[0]-cx,q[1]-cy]));
-        state.els.push({kind:"path",x:cx,y:cy,w,h,rot:0,color:state.color,width:state.strokeW,d});
-        if(state.els.length>RULES.elementCap){state.els.pop();toast(`单作品元素上限 ${RULES.elementCap} 个`);}
-        state.selected=state.els.length-1;
-      } else { state.history.pop(); }
-      syncUI();
-    }
-    drag=null;
-  });
-  function clamp(e){ e.x=Math.max(0,Math.min(STAGE,e.x)); e.y=Math.max(0,Math.min(STAGE,e.y)); }
-  function drawTempPath(){
-    draw();
-    const d=smoothPath(drag.pts);
-    svg.appendChild(h("path",{d,fill:"none",stroke:state.color,"stroke-width":state.strokeW,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.8}));
-  }
-  function smoothPath(pts){
-    if(pts.length===2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
-    let d=`M${pts[0][0]},${pts[0][1]}`;
-    for(let i=1;i<pts.length-1;i++){
-      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
-      d+=` Q${pts[i][0]},${pts[i][1]} ${mx},${my}`;
-    }
-    const last=pts[pts.length-1]; d+=` L${last[0]},${last[1]}`;
-    return d;
-  }
-  wrap.querySelector("#del").onclick=()=>{if(state.selected==null)return;commit();state.els.splice(state.selected,1);state.selected=null;syncUI();};
-  wrap.querySelector("#up").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.push(e);state.selected=state.els.length-1;syncUI();};
-  wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
-  wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
-  wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
-  let clearArmed=false, clearTimer=null;
-  wrap.querySelector("#clear").onclick=()=>{
-    const b=wrap.querySelector("#clear");
-    if(!clearArmed){
-      clearArmed=true; b.classList.add("arm"); b.textContent="再点确认清空";
-      clearTimer=setTimeout(()=>{clearArmed=false;b.classList.remove("arm");b.textContent="清空";},3000);
-      return;
-    }
-    clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
-    commit(); state.els=[]; state.selected=null; state.ghost=null; state.ghostShape=null; document.removeEventListener("pointermove",followGhost); syncUI();
-  };
-  window.addEventListener("keydown",function kd(ev){
-    if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
-    if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
-    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
-  });
-
-  /* ---- 目标照片：从系统图库选 / 上传自己的图（发布时作为答案） ---- */
-  let target=null;   // {kind:"pack",g} | {kind:"custom",g}
-  function drawTarget(){
-    const photo=wrap.querySelector("#tp-photo"), name=wrap.querySelector("#tp-name"), sub=wrap.querySelector("#tp-sub");
-    if(!photo) return;
-    if(!target){
-      photo.innerHTML="🖼️"; name.textContent="尚未选择目标照片";
-      sub.textContent="从 64 图选一张，或上传自己的照片（发布时作为答案）";
-      return;
-    }
-    photo.innerHTML=`<img src="${target.kind==="pack"?("images-thumb/"+target.g.id+".jpg"):esc(target.g.img)}" alt="">`;
-    name.textContent=target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact);
-    sub.textContent=target.kind==="pack"?("系统图库 · 类别："+target.g.category):("自定义 · 类别："+(target.g.category_word||"未设")+" · 准确词："+(target.g.exact||"未设"));
-  }
-  function pickTarget(){
-    const packPromise=loadPack();
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:540px">
-      <h3>选择目标照片</h3>
-      <div class="tabs" id="pt-tabs"><button class="pt-tab on" data-v="pack">系统图库</button><button class="pt-tab" data-v="custom">我的图片</button></div>
-      <div id="pt-pack"><div class="cat-tabs" id="pt-cats"></div><div class="img-grid" id="pt-grid" style="max-height:300px;overflow:auto"></div></div>
-      <div id="pt-custom" style="display:none">
-        <div class="img-grid" id="pt-mygrid" style="max-height:210px;overflow:auto"></div>
-        <div style="margin-top:10px;border-top:1px dashed #E3DDD0;padding-top:10px">
-          <div class="sub" style="margin-bottom:6px">上传自己的照片（自动压缩；保存后点缩略图选中）：</div>
-          <div class="row"><input type="file" id="pt-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="pt-upload">选择图片</button></div>
-          <div id="pt-preview" style="display:none;margin-top:8px">
-            <img id="pt-pvimg" alt="预览" style="max-width:84px;max-height:84px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1.5px solid var(--line);display:block">
-            <input id="pt-name" class="pw-in" placeholder="图片名称（猜题人可见）">
-            <input id="pt-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
-            <input id="pt-kw1" class="pw-in" placeholder="联想词1（如：草原）">
-            <input id="pt-kw2" class="pw-in" placeholder="联想词2（可选）">
-            <input id="pt-exact" class="pw-in" placeholder="准确词（必填，如：长颈鹿）">
-            <button class="primary" id="pt-save" style="width:100%;margin-top:8px">保存到自定义图库</button>
-          </div>
-        </div>
-      </div>
-      <div class="row" style="margin-top:14px"><button class="primary" id="pt-ok" style="flex:1">选为目标</button><button class="ghost" id="pt-cancel">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    let ptSel=null, pack=null, cats=[], cat="", ptRaw="";
-    const catTabs=mk.querySelector("#pt-cats"), grid=mk.querySelector("#pt-grid"), myGrid=mk.querySelector("#pt-mygrid");
-    packPromise.then(pk=>{ pack=pk; cats=[...new Set(pk.images.map(g=>g.category))]; cat=cats[0]||""; drawCats(); drawImgs(); }).catch(()=>toast("系统图库加载失败"));
-    function drawCats(){
-      catTabs.innerHTML="";
-      cats.forEach(c=>{
-        const b=html("button",{class:"cat-tab"+(c===cat?" on":"")},c);
-        b.onclick=()=>{cat=c;drawCats();drawImgs();};
-        catTabs.appendChild(b);
-      });
-    }
-    function drawImgs(){
-      grid.innerHTML="";
-      (pack?pack.images:[]).filter(g=>g.category===cat).forEach(g=>{
-        const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="pack"&&ptSel.g.id===g.id?" on":"")});
-        b.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${esc(g.zh)}"><span>${esc(g.zh)}</span>`;
-        b.onclick=()=>{ptSel={kind:"pack",g};drawImgs();drawMy();};
-        grid.appendChild(b);
-      });
-    }
-    function drawMy(){
-      customList().then(list=>{
-        myGrid.innerHTML="";
-        list.forEach(g=>{
-          const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="custom"&&ptSel.g.id===g.id?" on":"")});
-          b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>`;
-          b.onclick=()=>{ptSel={kind:"custom",g};drawMy();drawImgs();};
-          myGrid.appendChild(b);
-        });
-      });
-    }
-    const ptFile=mk.querySelector("#pt-file");
-    mk.querySelector("#pt-upload").onclick=()=>ptFile.click();
-    ptFile.onchange=async()=>{
-      const f=ptFile.files&&ptFile.files[0]; if(!f) return;
-      const rawD=await fileToDataURL(f);
-      const cropped=await cropImageDialog(rawD);
-      if(!cropped){ ptFile.value=""; return; }
-      ptRaw=await compressImage(cropped,512,0.82);
-      if(!ptRaw){ toast("图片处理失败或过大，请换一张"); ptFile.value=""; return; }
-      mk.querySelector("#pt-pvimg").src=ptRaw;
-      mk.querySelector("#pt-preview").style.display="block";
-    };
-    mk.querySelector("#pt-save").onclick=async()=>{
-      const catv=String(mk.querySelector("#pt-cat").value||"").trim();
-      const exactv=String(mk.querySelector("#pt-exact").value||"").trim();
-      if(!ptRaw){ toast("请先选择图片"); return; }
-      if(!catv||!exactv){ toast("类别词和准确词必填"); return; }
-      const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,source:"own",createdAt:Date.now()};
-      try{ await customPut(item); }catch(e){ toast("图片无效，请重试"); return; }
-      toast("已保存到自定义图库");
-      ptRaw=""; mk.querySelector("#pt-preview").style.display="none"; ptFile.value="";
-      mk.querySelector("#pt-name").value="";mk.querySelector("#pt-cat").value="";mk.querySelector("#pt-kw1").value="";mk.querySelector("#pt-kw2").value="";mk.querySelector("#pt-exact").value="";
-      drawMy();
-    };
-    mk.querySelectorAll("#pt-tabs .pt-tab").forEach(t=>{
-      t.onclick=()=>{
-        mk.querySelectorAll("#pt-tabs .pt-tab").forEach(x=>x.classList.remove("on"));
-        t.classList.add("on");
-        const v=t.dataset.v;
-        mk.querySelector("#pt-pack").style.display=v==="pack"?"block":"none";
-        mk.querySelector("#pt-custom").style.display=v==="custom"?"block":"none";
-        if(v==="pack") drawImgs(); else drawMy();
-      };
-    });
-    mk.querySelector("#pt-cancel").onclick=()=>mk.remove();
-    mk.querySelector("#pt-ok").onclick=()=>{
-      if(!ptSel){ toast("请选择一张目标照片"); return; }
-      target=ptSel; drawTarget(); mk.remove();
-    };
-    drawMy();
-  }
-  wrap.querySelector("#tp-pick").onclick=()=>pickTarget();
-  drawTarget();
-
-  /* ---- 发布谜题（目标照片已在画布上方选定） ---- */
-  let packCache=null;
-  let PACK_DATA=null; async function loadPack(){ if(!PACK_DATA){ PACK_DATA={
+let PACK_DATA=null; async function loadPack(){ if(!PACK_DATA){ PACK_DATA={
   "pack": "pictures-web-64-v3-photo",
   "version": 4,
   "scoring": {
@@ -2139,6 +1027,1124 @@ function renderPuzzleEditor(){
     }
   ]
 }; } return PACK_DATA; }
+/* ================= 共享配置源（与服务端同一 ruleset） ================= */
+const RULESET_ID = "pictures-web-online-v1";
+const RULES = {
+  elementCap: 60,        // 画布元素上限
+  gridW: 4, gridH: 4     // 照片墙 4×4 = 16 张
+};
+const STAGE = 480;                 // 画布逻辑尺寸
+const ICONS = ["☀️","⭐","❤️","➡️","⬆️","🌙","🔥","💧","⚡","❄️","🌊","⛰️","🌳","🌸","🍃","👁️","👄","🌀","⭐","☁️","🌟","❓","➕","🔺"];
+const COLORS = ["#E03131","#F59F00","#F1C40F","#2F9E44","#16A085","#2980B9","#3B5BDB","#8E44AD","#E91E63","#8D6E63","#495057","#F8F5EF"];
+const CANVAS_BGS = ["#FFFFFF","#BFE3F7","#C6EFCE","#FFF3BF","#FFD6E0","#E6D5F5","#DDEBF7","#FCE8D5"];
+const TOOLS = [
+  {id:"shape", name:"形状", hint:"点左侧形状，浮动图形跟手；点画布或拖到画布放置；再点同形状取消"},
+  {id:"pen",   name:"画笔", hint:"在画布上按住拖动绘制细线，用形状拼主体，画笔只做点睛"}
+];
+const SHAPES = [
+  {kind:"circle",     name:"圆形",   w:90,  h:90},
+  {kind:"semicircle", name:"半圆",   w:100, h:50},
+  {kind:"triangle",   name:"三角形", w:100, h:90},
+  {kind:"ellipse",    name:"椭圆",   w:100, h:60},
+  {kind:"diamond",    name:"菱形",   w:90,  h:90},
+  {kind:"star",       name:"五角星", w:96,  h:96},
+  {kind:"rect",       name:"长方形", w:100, h:60},
+  {kind:"square",     name:"正方形", w:80,  h:80},
+  {kind:"waterdrop",  name:"水滴",   w:70,  h:100},
+  {kind:"arrow",      name:"箭头",   w:100, h:90},
+  {kind:"bar",        name:"棒型",   w:14,  h:100},
+  {kind:"cross",      name:"十字",   w:90,  h:90}
+];
+
+/* ================= 工具函数 ================= */
+const $app = document.getElementById("app");
+const $toast = document.getElementById("toast");
+let toastTimer;
+function toast(msg){ $toast.textContent=msg; $toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$toast.classList.remove("show"),2200); }
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function coordLabel(i){return "ABCD"[Math.floor(i/RULES.gridW)] + ((i%RULES.gridW)+1);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function h(tag, attrs={}, ...kids){
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const k in attrs) el.setAttribute(k,attrs[k]);
+  for(const kid of kids){ if(kid==null) continue; el.appendChild(typeof kid==="string"?document.createTextNode(kid):kid); }
+  return el;
+}
+function html(tag, attrs={}, htmlStr){
+  const e=document.createElement(tag);
+  for(const k in attrs){ if(k==="class")e.className=attrs[k]; else if(k.startsWith("on")) e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); }
+  if(htmlStr!=null) e.innerHTML=htmlStr;
+  return e;
+}
+function preloadThumbs(wall){
+  (wall||[]).forEach(g=>{ if(g && g.thumb){ const im=new Image(); im.src=g.thumb; } });
+}
+function levelLabel(level){
+  return { exact:"准确词 +5", keyword:"联想词 +2", category:"类别词 +1" }[level] || "文字命中";
+}
+
+/* ================= 轻量音效（Web Audio 合成，无素材文件；音量克制，供氛围提示） ================= */
+function sfx(name){
+  if(sfx._mute) return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx=sfx._ctx||(sfx._ctx=new AC());
+    if(ctx.state==="suspended") ctx.resume();
+    const now=ctx.currentTime;
+    const tone=(hz,vol,dur,type,delay)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type=type||"sine"; o.frequency.value=hz;
+      g.gain.setValueAtTime(0.0001,now+delay);
+      g.gain.linearRampToValueAtTime(vol,now+delay+0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+delay+dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now+delay); o.stop(now+delay+dur+0.05);
+    };
+    const P={
+      hit:()=>{ tone(659,0.15,0.16,"sine",0); tone(880,0.13,0.22,"sine",0.08); },
+      win:()=>{ tone(523,0.14,0.13,"sine",0); tone(659,0.14,0.13,"sine",0.07); tone(784,0.15,0.22,"sine",0.14); },
+      miss:()=>{ tone(196,0.11,0.18,"triangle",0); },
+      tick:()=>{ tone(1046,0.05,0.05,"square",0); },
+      reveal:()=>{ tone(392,0.15,0.26,"sine",0); tone(523,0.15,0.26,"sine",0.11); tone(659,0.15,0.3,"sine",0.22); tone(784,0.14,0.42,"sine",0.33); },
+      pick:()=>{ tone(784,0.15,0.13,"sine",0); tone(1047,0.13,0.18,"sine",0.06); }
+    };
+    if(P[name]) P[name]();
+  }catch(_){}
+}
+/* ================= 作品渲染（创作/实时观看/揭晓共用） ================= */
+function shapeFor(e){
+  const g = h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`,"data-kind":e.kind});
+  const op=typeof e.opacity==="number"?e.opacity:1;
+  const col=e.color||"#E03131";
+  const w=e.w||80, hh=e.h||80;
+  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:col,opacity:op}));
+  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:col,opacity:op}));
+  else if(e.kind==="cross"){
+    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:col,opacity:op}));
+    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:col,opacity:op}));
+  }
+  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:col,opacity:op}));
+  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:col,opacity:op}));
+  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
+  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
+  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
+  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:col,opacity:op,"fill-rule":"evenodd"}));
+  else if(e.kind==="star"){
+    const sr=w/2, sir=sr*0.382; let sd="";
+    for(let i=0;i<10;i++){ const a=(90+i*36)*Math.PI/180; const rr=(i%2===0)?sr:sir; const sx=rr*Math.cos(a), sy=-rr*Math.sin(a); sd+=(i===0?"M":"L")+sx.toFixed(1)+","+sy.toFixed(1); }
+    g.appendChild(h("path",{d:sd+"Z",fill:col,opacity:op}));
+  }
+  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
+  else if(e.kind==="arrow"){
+    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
+    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:col,opacity:op}));
+  }
+  else if(e.kind==="icon"){
+    const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":hh,opacity:op});
+    t.textContent=e.glyph; g.appendChild(t);
+  }
+  else if(e.kind==="path"){
+    g.appendChild(h("path",{d:e.d,fill:"none",stroke:col,"stroke-width":e.width||3,"stroke-linecap":"round","stroke-linejoin":"round",opacity:op}));
+  }
+  return g;
+}
+function shapeIcon(kind, color){
+  const s0=SHAPES.find(s=>s.kind===kind);
+  const iw=36, ih=36;
+  const sw=s0?Math.max(1,s0.w):iw, sh=s0?Math.max(1,s0.h):ih;
+  const scale=Math.min(iw/sw, ih/sh);
+  const w=Math.max(3,sw*scale), h=Math.max(3,sh*scale);
+  const svgEl=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svgEl.setAttribute("viewBox","0 0 56 56");
+  svgEl.appendChild(shapeFor({kind,x:28,y:28,w,h,rot:0,color:color||"#3B5BDB"}));
+  return svgEl.outerHTML;
+}
+function renderArtwork(svg, els, opts={}){
+  svg.innerHTML="";
+  svg.setAttribute("viewBox",`0 0 ${STAGE} ${STAGE}`);
+  svg.style.height=svg.getBoundingClientRect().width+"px";
+  svg.appendChild(h("rect",{x:0,y:0,width:STAGE,height:STAGE,fill:opts.bg||"#FBFAF6"}));
+  els.forEach(e=>svg.appendChild(shapeFor(e)));
+}
+
+/* ================= 路由 ================= */
+function route(){
+  const hash=location.hash||"#/";
+  const [path,query=""]=hash.slice(1).split("?");
+  const params=Object.fromEntries(new URLSearchParams(query));
+  const parts=path.split("/").filter(Boolean);
+  if(path==="/"||path==="/home"||parts.length===0) renderHome();
+  else if(window.__XHS__ && (parts[0]==="online"||parts[0]==="onlinetest"||parts[0]==="puzzletest")) renderHome();
+  else if(parts[0]==="online") renderOnline();
+  else if(parts[0]==="onlinetest") runOnlineTest();
+  else if(parts[0]==="puzzletest") runPuzzleTest();
+  else if(parts[0]==="guess") renderGuess();
+  else if(parts[0]==="puzzle"){
+    if(parts[1]) renderPuzzleGuess(parts[1]);
+    else renderPuzzleEditor();
+  }
+  else if(parts[0]==="mylib") renderMyLib();
+  else renderHome();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+
+/* ================= 首页（正式版入口） ================= */
+function renderHome(){
+  $app.innerHTML="";
+  const w=html("div",{class:"wrap"});
+  w.innerHTML=`
+  <div class="hero">
+    <h1>巧手猜图</h1>
+    <div class="sub">看一张写实照片，用一套"不够像"的形状把它抽象地拼出来——发给朋友在评论区猜原图；或者反过来，看一张抽象画，猜它原本是什么照片</div>
+    <div class="ruleset">64 张写实照片 · 三级词竞猜 · 限时抽象作画</div>
+  </div>
+  <div class="hero-actions">
+    <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 我来作画 · 发笔记让朋友猜</button>
+    <button class="primary" id="go-guess" style="min-width:220px">🔍 我来猜 · 看画猜照片</button>
+    <button class="primary" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
+  </div>
+  <div class="rule-grid">
+    <div class="rule-card">
+      <div class="big">🔍</div>
+      <h3>猜图模式 · 看画猜照片</h3>
+      <span class="sub">看一张别人拼好的抽象画，<b>前 60 秒文字竞猜</b>：准确词 +5 / 联想词 +2 / 类别词 +1；60 秒后照片墙开放，点大图选出原图。</span>
+    </div>
+    <div class="rule-card">
+      <div class="big">🎨</div>
+      <h3>作画模式 · 抽象还原照片</h3>
+      <span class="sub">选一张照片（系统图或你相册里的图），用<b>12 种半透明形状 + 画笔</b>限时拼出它的神韵，画完一键存相册或发小红书笔记。</span>
+    </div>
+    <div class="rule-card">
+      <div class="big">💬</div>
+      <h3>朋友怎么玩</h3>
+      <span class="sub">你发出去的笔记只放抽象画，朋友在<b>评论区打字猜原图</b>，你再回评揭晓——猜中算他赢。</span>
+    </div>
+  </div>`;
+  if(!window.__XHS__){
+    const ob=document.createElement("button");
+    ob.className="primary"; ob.id="go-online"; ob.style.minWidth="220px";
+    ob.textContent="🕹️ 进入联机对战";
+    document.querySelector(".hero-actions").appendChild(ob);
+  }
+  w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
+  w.querySelector("#go-guess").addEventListener("click",()=>location.hash="#/guess");
+  w.querySelector("#go-mylib").addEventListener("click",()=>location.hash="#/mylib");
+  $app.appendChild(w);
+}
+
+
+/* ================= 我的图库管理页 ================= */
+function renderMyLib(){
+  $app.innerHTML="";
+  const w=html("div",{class:"wrap"});
+  const card=html("div",{class:"card",style:"max-width:640px;margin:0 auto"});
+  card.innerHTML=`
+    <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
+    <div class="sub" id="ml-cap"></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
+    <div class="tabs" id="ml-tabs"></div>
+    <div id="ml-grid" class="img-grid"></div>
+    <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
+  w.appendChild(card); $app.appendChild(w);
+  card.querySelector("#ml-back").onclick=()=>location.hash="#/";
+  const PAGE=60;
+  let tab="mine", mine=[], games=[], shown=PAGE;
+  const capEl=card.querySelector("#ml-cap");
+  const showCap=async()=>{
+    let t="";
+    try{ const e=await navigator.storage.estimate(); if(e.quota&&e.usage!=null) t=`（已用 ${(e.usage/1048576).toFixed(0)}MB / ${(e.quota/1073741824).toFixed(0)}GB）`; }catch(_){}
+    capEl.textContent = window.__XHS__ ? `本机存储 · 我的图库 ${mine.length} 张${t}` : `本机存储 · 我的图库 ${mine.length} 张 · 对局收藏 ${games.length} 张${t}`;
+  };
+  const escS=v=>String(v==null?"":v);
+  const wordForm=({title,init})=>new Promise(res=>{
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:440px">
+      <h3>${title}</h3>
+      <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" value="${escS(init.name)}" placeholder="猜题人可见">
+      <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" value="${escS(init.category_word)}" placeholder="如：交通工具">
+      <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" value="${escS(init.keywords&&init.keywords[0])}" placeholder="如：海">
+      <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" value="${escS(init.keywords&&init.keywords[1])}" placeholder="可选">
+      <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" value="${escS(init.exact)}" placeholder="如：帆船">
+      <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存</button><button class="ghost" id="mf-no">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
+    mk.querySelector("#mf-ok").onclick=()=>{
+      const exact=mk.querySelector("#mf-exact").value.trim();
+      if(!exact){ toast("准确词必填"); return; }
+      res({
+        name:mk.querySelector("#mf-name").value.trim()||exact,
+        category_word:mk.querySelector("#mf-cat").value.trim(),
+        keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
+        exact
+      });
+      mk.remove();
+    };
+  });
+
+  const draw=()=>{
+    const src=tab==="mine"?mine:games;
+    const grid=card.querySelector("#ml-grid");
+    const slice=src.slice(0,shown);
+    grid.innerHTML=slice.length?"":"";
+    if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
+    slice.forEach(g=>{
+      const cell=html("div",{class:"img-cell"+(tab==="mine"&&g.source==="import"?" imported":"")});
+      const isGame=tab==="games";
+      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:""}${tab==="mine"&&g.source==="import"?`<span class="import-tag">他人</span>`:""}`;
+      const im=cell.querySelector("img");
+      if(im) im.onerror=()=>{ if(!cell.querySelector(".img-broken")) cell.appendChild(html("div",{class:"img-broken"},"加载失败")); };
+      cell.querySelector(".mini-del").onclick=(ev)=>{
+        ev.stopPropagation();
+        const tip=g.source==="import"?"该图来自对局收藏，仅从本机移除":"删除这张";
+        if(!window.confirm(`${tip}「${g.name||g.exact||g.zh}」？`)) return;
+        (isGame?gameDel:customDel)(g.id).then(()=>{ if(isGame){ games=games.filter(x=>x.id!==g.id);} else { mine=mine.filter(x=>x.id!==g.id);} draw(); showCap(); toast("已删除"); });
+      };
+      if(!isGame) cell.onclick=()=>viewDetail(g);
+      if(isGame){
+        cell.querySelector(".save-btn").onclick=async()=>{
+          try{
+            const fp=await imgFp(g.img);
+            const dup=mine.find(x=>x.fp===fp);
+            if(dup){ toast("我的图库里已有这张"); return; }
+            const isMine = !g.contributor || g.contributor===nickMemo();
+            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,source:isMine?"own":"import",contributor:g.contributor||"",createdAt:Date.now()});
+            mine=await customList(); draw(); showCap(); toast("已转存到我的图库");
+          }catch(_){ toast("转存失败"); }
+        };
+      }
+      grid.appendChild(cell);
+    });
+    const more=card.querySelector("#ml-more");
+    more.innerHTML=src.length>shown?`<button class="ghost" id="ml-more-btn">加载更多（${src.length-shown} 张）</button>`:"";
+    const mb=more.querySelector("#ml-more-btn");
+    if(mb) mb.onclick=()=>{ shown+=PAGE; draw(); };
+  };
+  /* 词条详情弹层：查看图片的全部词语；自己上传可编辑，他人图只读 */
+  function viewDetail(g){
+    const isOwn=g.source!=="import";
+    const srcLabel=isOwn?"自己上传":(g.contributor?`来自「${esc(g.contributor)}」的对局收藏`:"来自对局收藏");
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:420px">
+      <h3>${esc(g.name||g.exact||g.zh)}</h3>
+      <div style="text-align:center;margin:10px 0"><img src="${esc(g.img)}" alt="" style="max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
+      <div class="kw-line">类别词 <b>${esc(g.category_word||g.category||"—")}</b></div>
+      <div class="kw-line">联想词 <b>${esc((g.keywords||[]).filter(Boolean).join("、")||"—")}</b></div>
+      <div class="kw-line">准确词 <b style="color:#C0392B">${esc(g.exact||"—")}</b></div>
+      <div class="sub" style="margin-top:10px">来源：${srcLabel}</div>
+      <div class="row" style="margin-top:14px">${isOwn?`<button class="primary" id="vd-edit" style="flex:1">编辑词条</button>`:""}<button class="ghost" id="vd-close" style="flex:1">关闭</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#vd-close").onclick=()=>mk.remove();
+    if(isOwn){
+      mk.querySelector("#vd-edit").onclick=async()=>{
+        const r=await wordForm({title:"编辑词条",init:g});
+        if(!r) return;
+        await customPut({...g,...r});
+        mk.remove(); mine=await customList(); draw(); showCap(); toast("已保存");
+      };
+    }
+  }
+  const switchTab=(t)=>{
+    tab=t; shown=PAGE;
+    card.querySelectorAll("#ml-mine,#ml-games").forEach(b=>{
+      const isSel=b.id==="ml-"+tab;
+      b.classList.toggle("primary",isSel);
+      b.classList.toggle("ghost",!isSel);
+    });
+    draw();
+  };
+  
+  if(window.__XHS__){
+    const gb=card.querySelector("#ml-games"); if(gb) gb.style.display="none";
+    const cap=card.querySelector("#ml-cap");
+  }
+  card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
+  card.querySelector("#ml-games").onclick=()=>switchTab("games");
+  card.querySelector("#ml-upload").onclick=async()=>{
+    const r=await uploadForm();
+    if(!r) return;
+    let img=null;
+    for(const [side,q] of [[512,0.82],[384,0.72],[256,0.65]]){
+      try{ const c=await compressImage(r.cropped,side,q); if(c){ img=c; break; } }catch(_){}
+    }
+    if(!img || img.length>1.5e6){ toast("图片太大或压缩失败"); return; }
+    const fp=await imgFp(img);
+    const dup=mine.find(x=>x.fp===fp);
+    if(dup){ toast("图库里已有这张图片"); return; }
+    await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,source:"own",createdAt:Date.now()});
+    mine=await customList(); draw(); showCap(); toast("已存入我的图库");
+  };
+  Promise.all([customList(),gameList()]).then(([a,b])=>{ mine=a; games=b; showCap(); draw(); });
+}
+
+/* 上传新图片弹层：词条字段 + 明显的「选择图片」按钮 + 预览，单弹层一次完成 */
+const uploadForm=()=>new Promise(res=>{
+  const mk=html("div",{class:"mask"});
+  mk.innerHTML=`<div class="pop" style="max-width:440px">
+    <h3>上传新图片</h3>
+    <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" placeholder="猜题人可见">
+    <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" placeholder="如：交通工具">
+    <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" placeholder="如：海">
+    <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" placeholder="可选">
+    <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" placeholder="如：帆船">
+    <label class="file-drop"><input type="file" id="mf-file" accept="image/*" style="display:none">
+      <span class="file-pick">📁 选择图片</span>
+      <div class="sub" style="margin-top:6px">自动压缩到 512px · 单图 ≤1.5MB</div>
+    </label>
+    <div id="mf-pv" style="display:none;margin-top:10px;text-align:center"><img id="mf-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
+    <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存并上传</button><button class="ghost" id="mf-no">取消</button></div>
+  </div>`;
+  document.body.appendChild(mk);
+  mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
+  let cropped=null;
+  const fileEl=mk.querySelector("#mf-file");
+  fileEl.onchange=()=>{
+    const f=fileEl.files&&fileEl.files[0];
+    if(!f) return;
+    const fr=new FileReader();
+    fr.onload=async()=>{
+      const raw=fr.result;
+      cropped=await cropImageDialog(raw);
+      if(!cropped) return;   // 取消裁剪：停留在弹层，可重选图片
+      const pv=mk.querySelector("#mf-pv"); pv.style.display="block"; mk.querySelector("#mf-pvimg").src=cropped;
+      mk.querySelector("#mf-pvimg").style.objectFit="contain";
+      mk.querySelector("#mf-pvimg").style.width="auto"; mk.querySelector("#mf-pvimg").style.height="auto";
+      mk.querySelector("#mf-pvimg").style.maxWidth="128px"; mk.querySelector("#mf-pvimg").style.maxHeight="128px";
+    };
+    fr.readAsDataURL(f);
+  };
+  mk.querySelector("#mf-ok").onclick=()=>{
+    const exact=mk.querySelector("#mf-exact").value.trim();
+    if(!exact){ toast("准确词必填"); return; }
+    if(!cropped){ toast("请先选择图片"); return; }
+    res({
+      name:mk.querySelector("#mf-name").value.trim()||exact,
+      category_word:mk.querySelector("#mf-cat").value.trim(),
+      keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
+      exact,
+      cropped
+    });
+    mk.remove();
+  };
+});
+/* ===== 自定义图片库（IndexedDB 本地持久化，单机+联机共用） ===== */
+const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
+const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;   // 对局收藏：独立 store，上限 200 张 FIFO
+/* 图片内容指纹：SHA-256（secure context 可用），失败回退字符串哈希。
+   同一张图无论压缩几次，指纹稳定，用于跨端判重（房间去重/已上传标记/对局收藏去重） */
+async function imgFp(dataURL){
+  try{
+    const buf = await (await fetch(String(dataURL||""))).arrayBuffer();
+    const d = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,16);
+  }catch(e){
+    let h=5381; const s=String(dataURL||"");
+    for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; }
+    return "fb"+h.toString(16);
+  }
+}
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(CUSTOM_DB,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(CUSTOM_STORE)) r.result.createObjectStore(CUSTOM_STORE,{keyPath:"id"}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function customList(){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readonly").objectStore(CUSTOM_STORE).getAll(); tx.onsuccess=()=>res(tx.result||[]); tx.onerror=()=>rej(tx.error); });
+}
+async function customPut(item){
+  /* 写入校验：图片必须是合法的 data:image URL，防止坏记录进图库 */
+  const img=String(item&&item.img||"");
+  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+async function customDel(id){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(CUSTOM_STORE,"readwrite").objectStore(CUSTOM_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+/* ---- 对局收藏：独立 IndexedDB，只存对局中见过的房间自定义图（系统 64 图不收藏），上限 GAME_CAP 张 FIFO ---- */
+function idbGameOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(GAME_DB,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(GAME_STORE)) r.result.createObjectStore(GAME_STORE,{keyPath:"id"}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function gameList(){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readonly").objectStore(GAME_STORE).getAll(); tx.onsuccess=()=>res((tx.result||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))); tx.onerror=()=>rej(tx.error); });
+}
+async function gamePut(item){
+  const img=String(item&&item.img||"");
+  if(!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img) || img.length<64 || img.length>1.5e6) throw new Error("invalid image");
+  const db=await idbGameOpen();
+  await new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+  /* FIFO：超出上限删除最旧 */
+  const all=await gameList();
+  if(all.length>GAME_CAP){
+    const stale=all.slice(GAME_CAP);
+    const db2=await idbGameOpen();
+    await new Promise((res,rej)=>{ const tx=db2.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE); stale.forEach(x=>tx.objectStore(GAME_STORE).delete(x.id)); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); });
+  }
+  return item;
+}
+async function gameDel(id){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+async function gameClear(){
+  const db=await idbGameOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).clear(); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
+}
+/* 自动收藏：把对局照片墙里的房间自定义图写入收藏（按指纹去重，系统图跳过） */
+async function gameCollect(wall){
+  if(!Array.isArray(wall)) return;
+  for(const g of wall){
+    if(!g || !String(g.img||"").startsWith("data:image/")) continue;   // 只收房间自定义图（dataURL），系统图不收藏
+    try{
+      const fp = await imgFp(g.img);
+      await gamePut({ id:"gp-"+fp, fp, img:g.img, zh:g.zh||"我的图片", category:g.category||"自定义", exact:g.exact||"", keywords:g.keywords||[], aliases:g.aliases||[], category_word:g.category_word||"", contributor:g.contributor||"", createdAt:Date.now() });
+    }catch(_){}
+  }
+}
+
+/* ===== 图片裁剪对话框：1:1 / 4:3 / 3:4 / 自由；拖框+底图缩放；返回原尺寸 JPEG dataURL，取消返回 null ===== */
+function clampNum(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function cropImageDialog(raw){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{
+      const iw=im.naturalWidth, ih=im.naturalHeight;
+      const STAGE_H=Math.min(360, Math.round((window.innerHeight||800)*0.55));
+      const mk=html("div",{class:"mask"});
+      mk.innerHTML=`<div class="pop" style="max-width:480px;width:calc(100vw - 40px)">
+        <h3>裁剪图片</h3>
+        <div class="row" style="gap:6px;flex-wrap:wrap" id="crop-ratios">
+          <button class="ghost" data-r="1" style="min-width:52px;background:var(--brand);color:#fff;border-color:var(--brand)">1:1</button>
+          <button class="ghost" data-r="4/3" style="min-width:52px">4:3</button>
+          <button class="ghost" data-r="3/4" style="min-width:52px">3:4</button>
+          <button class="ghost" data-r="" style="min-width:52px">自由</button>
+          <div class="sub" style="align-self:center;margin-left:6px">选择构图比例，拖动裁剪框</div>
+        </div>
+        <div id="crop-stage" style="position:relative;overflow:hidden;border-radius:12px;background:repeating-conic-gradient(#ECE7DA 0 25%, #FFFDF6 0 50%) 0 0/18px 18px;border:1px solid var(--line);margin-top:8px"></div>
+        <div class="row" style="margin-top:10px;justify-content:center;gap:10px">
+          <button class="ghost" id="crop-zo">－ 缩小</button>
+          <button class="ghost" id="crop-zi">放大 ＋</button>
+          <div class="sub" style="align-self:center">也可滚动滚轮缩放 · 拖动图片移动</div>
+        </div>
+        <div class="row" style="margin-top:12px;align-items:center">
+          <div id="crop-pv" style="flex:none;width:72px;height:72px;border:2px solid var(--gold);border-radius:10px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center"><img alt="预览" style="max-width:100%;max-height:100%;object-fit:contain"></div>
+          <div class="sub" style="flex:1;padding:0 10px">裁剪后的图片按所选比例完整展示，不再被二次裁切</div>
+          <button class="ghost" id="crop-no">取消</button>
+          <button class="primary" id="crop-ok" style="margin-left:8px">确认裁剪</button>
+        </div>
+      </div>`;
+      document.body.appendChild(mk);
+      const stage=mk.querySelector("#crop-stage");
+      const sw=Math.min(440, (stage.parentElement.clientWidth||440)-32), sh=STAGE_H;
+      stage.style.width=sw+"px"; stage.style.height=sh+"px";
+      const img=html("img");
+      img.src=raw; img.style.position="absolute"; img.style.userSelect="none"; img.style.touchAction="none";
+      img.style.width=iw+"px"; img.style.height=ih+"px"; img.style.transformOrigin="0 0"; img.style.cursor="move";
+      stage.appendChild(img);
+      const box=html("div");
+      box.style.cssText="position:absolute;border:2px solid #fff;outline:1px solid rgba(0,0,0,.35);box-shadow:0 0 0 9999px rgba(0,0,0,.35);cursor:move;touch-action:none;background:transparent";
+      stage.appendChild(box);
+      const grip=html("div");
+      grip.style.cssText="position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--brand);border:2px solid #fff;border-radius:4px;cursor:nwse-resize;touch-action:none";
+      box.appendChild(grip);
+      let ratio="1", bs=0, tx=0, ty=0;
+      const bs0=Math.min((sw-16)/iw,(sh-16)/ih);
+      function applyImg(){ img.style.transform=`translate(${tx}px,${ty}px) scale(${bs})`; }
+      function applyBox(){ box.style.left=box.x+"px"; box.style.top=box.y+"px"; box.style.width=box.w+"px"; box.style.height=box.h+"px"; }
+      function resetView(){
+        bs=bs0; tx=(sw-iw*bs)/2; ty=(sh-ih*bs)/2;
+        const cx=sw/2, cy=sh/2, s=Math.min(sw,sh)*0.68;
+        box.w=s; box.h=s; box.x=cx-s/2; box.y=cy-s/2;
+        applyImg(); applyBox(); syncRatioBtns(); refreshPv();
+      }
+      function syncRatioBtns(){
+        mk.querySelectorAll("#crop-ratios button").forEach(b=>{
+          b.style.background=(b.dataset.r===ratio)?"var(--brand)":"";
+          b.style.color=(b.dataset.r===ratio)?"#fff":"";
+          b.style.borderColor=(b.dataset.r===ratio)?"var(--brand)":"";
+        });
+      }
+      function setRatio(r){
+        ratio=r;
+        const cx=box.x+box.w/2, cy=box.y+box.h/2;
+        let w,h;
+        const maxW=sw-4, maxH=sh-4;
+        if(r==="1"){ const s=Math.min(maxW,maxH)*0.78; w=h=s; }
+        else if(r==="4/3"){ w=Math.min(maxW,maxH)*0.82; h=w*3/4; }
+        else if(r==="3/4"){ h=Math.min(maxW,maxH)*0.82; w=h*3/4; }
+        else { w=Math.min(maxW,box.w); h=Math.min(maxH,box.h); }
+        box.w=w; box.h=h; box.x=clampNum(cx-w/2,0,sw-w); box.y=clampNum(cy-h/2,0,sh-h);
+        applyBox(); syncRatioBtns(); refreshPv();
+      }
+      function refreshPv(){
+        const out=exportCrop(true);
+        if(out){ mk.querySelector("#crop-pv img").src=out; }
+      }
+      function exportCrop(skipToast){
+        const sx=(box.x-tx)/bs, sy=(box.y-ty)/bs;
+        const cx0=clampNum(sx,0,iw), cy0=clampNum(sy,0,ih);
+        const ew=Math.min(iw-cx0, box.w/bs), eh=Math.min(ih-cy0, box.h/bs);
+        if(ew<2||eh<2){ if(!skipToast) toast("裁剪区域超出图片，请调整裁剪框"); return null; }
+        const c=document.createElement("canvas");
+        c.width=Math.max(1,Math.round(ew)); c.height=Math.max(1,Math.round(eh));
+        c.getContext("2d").drawImage(im, cx0,cy0,ew,eh, 0,0,c.width,c.height);
+        return c.toDataURL("image/jpeg",0.92);
+      }
+      /* 拖拽（框 / 手柄 / 底图） */
+      let drag=null;
+      stage.addEventListener("pointerdown",ev=>{
+        if(ev.target===grip){
+          ev.preventDefault(); ev.stopPropagation();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          const rw=box.w, rh=box.h;
+          drag={type:"grip",sx:ev.clientX,sy:ev.clientY,ow:rw,oh:rh};
+        } else if(ev.target===box){
+          ev.preventDefault();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          drag={type:"box",sx:ev.clientX,sy:ev.clientY,ox:box.x,oy:box.y};
+        } else if(ev.target===img){
+          ev.preventDefault();
+          try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+          drag={type:"img",sx:ev.clientX,sy:ev.clientY,otx:tx,oty:ty};
+        }
+      });
+      stage.addEventListener("pointermove",ev=>{
+        if(!drag) return;
+        const dx=ev.clientX-drag.sx, dy=ev.clientY-drag.sy;
+        if(drag.type==="box"){
+          box.x=clampNum(drag.ox+dx,0,sw-box.w); box.y=clampNum(drag.oy+dy,0,sh-box.h);
+          applyBox();
+        } else if(drag.type==="img"){
+          tx=clampNum(drag.otx+dx, sw-iw*bs, 0); ty=clampNum(drag.oty+dy, sh-ih*bs, 0);
+          applyImg();
+        } else if(drag.type==="grip"){
+          let nw,nh;
+          if(ratio===""){ nw=clampNum(drag.ow+dx,40,sw); nh=clampNum(drag.oh+dy,40,sh); }
+          else{
+            const rv=ratio==="1"?1:(ratio==="4/3"?4/3:3/4);
+            nw=clampNum(drag.ow+dx,40,sw); nh=nw/rv;
+            if(nh>sh){ nh=sh; nw=nh*rv; }
+          }
+          box.w=nw; box.h=nh;
+          box.x=clampNum(box.x,0,sw-nw); box.y=clampNum(box.y,0,sh-nh);
+          applyBox();
+        }
+      });
+      stage.addEventListener("pointerup",()=>{ if(drag){ drag=null; refreshPv(); } });
+      stage.addEventListener("wheel",ev=>{
+        ev.preventDefault();
+        const f=ev.deltaY<0?1.1:1/1.1;
+        bs=clampNum(bs*f, bs0*0.9, 10);
+        tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0);
+        applyImg();
+      },{passive:false});
+      mk.querySelector("#crop-zo").onclick=()=>{ bs=clampNum(bs/1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
+      mk.querySelector("#crop-zi").onclick=()=>{ bs=clampNum(bs*1.15, bs0*0.9, 10); tx=clampNum(tx, sw-iw*bs, 0); ty=clampNum(ty, sh-ih*bs, 0); applyImg(); };
+      mk.querySelectorAll("#crop-ratios button").forEach(b=>b.onclick=()=>setRatio(b.dataset.r));
+      mk.querySelector("#crop-no").onclick=()=>{ mk.remove(); res(null); };
+      mk.querySelector("#crop-ok").onclick=()=>{
+        const out=exportCrop(false);
+        if(out){ mk.remove(); res(out); }
+      };
+      resetView();
+    };
+    im.onerror=()=>res(null);
+    im.src=raw;
+  });
+}
+
+function fileToDataURL(file){
+  return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
+}
+function compressImage(dataURL, maxSide, quality){
+  /* 降级重试：512/0.82 → 384/0.72 → 256/0.65，全部失败返回 null（调用方拒绝，不再回退原图） */
+  maxSide=maxSide||512; quality=quality||0.82;
+  const tries=[[maxSide,quality],[Math.min(maxSide,384),0.72],[Math.min(maxSide,256),0.65]];
+  return new Promise((res)=>{
+    const im=new Image();
+    im.onload=()=>{
+      const step=(i)=>{
+        if(i>=tries.length){ res(null); return; }
+        try{
+          const [side,q]=tries[i];
+          const k=Math.min(1, side/Math.max(im.width,im.height));
+          const c=document.createElement("canvas");
+          c.width=Math.max(1,Math.round(im.width*k)); c.height=Math.max(1,Math.round(im.height*k));
+          c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+          const out=c.toDataURL("image/jpeg",q);
+          res(out.length>1.5e6 ? step(i+1) : out);
+        }catch(e){ step(i+1); }
+      };
+      step(0);
+    };
+    im.onerror=()=>res(null);
+    im.src=dataURL;
+  });
+}
+
+/* ================= 单人谜题（画好→分享链接→朋友猜） ================= */
+function renderPuzzleEditor(){
+  const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null,bg:"#FFFFFF"};
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  wrap.innerHTML=`
+  <div class="topbar">
+    <button class="ghost" id="back">← 首页</button>
+    <span class="title">单人出题 · 自由创作</span>
+    <span class="spacer"></span>
+    <button class="primary" id="publish">发布谜题</button>
+  </div>
+  <div class="target-strip" id="target-strip">
+    <div class="tp-photo" id="tp-photo">🖼️</div>
+    <div class="tp-meta"><b id="tp-name">尚未选择目标照片</b><div class="sub" id="tp-sub">从 64 图选一张，或上传自己的照片（发布时作为答案）</div></div>
+    <button class="ghost" id="tp-pick" style="flex:none">选择</button>
+  </div>
+  <div class="editor">
+    <div class="stage-wrap">
+      <div class="stage-row">
+        <div class="shape-rail" id="shape-rail"></div>
+        <div class="shape-rail-mini" id="shape-rail-mini" title="展开形状">⤢</div>
+        <svg class="stage" id="stage"></svg>
+      </div>
+      <div class="hint" id="hint"></div>
+      <div class="canvas-ops">
+        <button id="up">置顶</button>
+        <button id="down">置底</button>
+        <button id="del">删除</button>
+        <button id="undo">↩ 撤销</button>
+        <button id="redo">↪ 重做</button>
+        <button id="clear">清空</button>
+      </div>
+      <div class="tool-bar panel">
+        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
+        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
+        <div class="tb-group"><h3>背景</h3><div class="swatches" id="bgswatches"></div></div>
+        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
+        <div class="tb-group" id="toolbody"></div>
+        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
+      </div>
+    </div>
+  </div>`;
+  $app.appendChild(wrap);
+  wrap.querySelector("#back").onclick=()=>location.hash="#/";
+  const svg=wrap.querySelector("#stage");
+  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
+  const tabsEl=wrap.querySelector("#tabs");
+  const swEl=wrap.querySelector("#swatches");
+  const bodyEl=wrap.querySelector("#toolbody");
+  const hintEl=wrap.querySelector("#hint");
+  const cntEl=wrap.querySelector("#cnt");
+  const railEl=wrap.querySelector("#shape-rail"), railMini=wrap.querySelector("#shape-rail-mini");
+  let railCollapsed=false;
+  function renderRail(){
+    railEl.innerHTML="";
+    const grid=html("div",{class:"rail-grid"});
+    SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,true)));
+    railEl.appendChild(grid);
+    const col=html("button",{class:"rail-col",title:"收起形状栏"},"◀");
+    col.onclick=()=>{railCollapsed=true;syncUI();};
+    railEl.appendChild(col);
+  }
+  railMini.onclick=()=>{railCollapsed=false;renderRail();syncUI();};
+  renderRail();
+  TOOLS.forEach(t=>{
+    const b=html("button",{class:state.tool===t.id?"on":""},t.name);
+    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;state.ghostShape=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
+    tabsEl.appendChild(b);
+  });
+  COLORS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.color===col?" on":""),"data-col":col});
+    s.style.background=col;
+    s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
+    swEl.appendChild(s);
+  });
+  const bgSwEl=wrap.querySelector("#bgswatches");
+  CANVAS_BGS.forEach(col=>{
+    const s=html("button",{class:"swatch"+(state.bg===col?" on":""),"data-bg":col});
+    s.style.background=col;
+    if(col==="#FFFFFF"){ s.style.border="1.5px dashed #ccc"; s.title="白色"; }
+    s.onclick=()=>{state.bg=col;syncUI();};
+    bgSwEl.appendChild(s);
+  });
+  const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
+  opEl.addEventListener("input",()=>{
+    state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
+    const st=wrap.querySelector("#opacity-state");
+    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); if(st) st.textContent="已应用到选中元素"; }
+    else { if(st) st.textContent="将应用到下一个放置的形状"; }
+  });
+  opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
+  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
+  function syncUI(){
+    [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
+    [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
+    [...(bgSwEl?bgSwEl.children:[])].forEach(s=>s.className="swatch"+(s.dataset.bg===state.bg?" on":""));
+    hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
+    cntEl.textContent=state.els.length;
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      state.opacity=e.opacity;
+      opEl.value=Math.round(e.opacity*100); opvEl.textContent=opEl.value+"%";
+    }
+    if(railEl){
+      railEl.classList.toggle("open", !railCollapsed);
+      railMini.classList.toggle("show", railCollapsed);
+    }
+    document.querySelectorAll("[data-shape-btn]").forEach(btn=>{
+      btn.classList.toggle("on", state.pickShape===btn.dataset.kind);
+    });
+    draw();
+  }
+  function addElement(e){
+    if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
+    commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
+  }
+  function addShapeAt(x,y){
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
+    // 一次一放：放置后清除选中形状与浮动图形，需重新选形状才能再放
+    state.selected=null;
+    state.pickShape=null;
+    state.ghost=null; state.ghostShape=null;
+    document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
+  function followGhost(e){
+    if(!state.ghost) return;
+    const p=pt(e);
+    state.ghost.x=Math.max(0,Math.min(STAGE,p.x));
+    state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
+    renderGhost();
+  }
+  function enableFloat(kind){
+    state.pickShape=kind; state.ghostShape=kind;
+    state.ghost={x:STAGE/2,y:STAGE/2};
+    document.addEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
+  function cancelFloat(){
+    state.ghost=null; state.ghostShape=null;
+    document.removeEventListener("pointermove",followGhost);
+    renderGhost(); syncUI();
+  }
+  function togglePick(kind){
+    if(state.ghost && state.ghost.x!=null && state.ghostShape===kind){ cancelFloat(); }
+    else { enableFloat(kind); }
+    state.selected=null;
+  }
+  function makeShapeBtn(s0, inFloat){
+    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
+    b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
+    let pointerUsed=false;
+    b.addEventListener("pointerdown",(ev)=>{
+      if(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches){ return; }
+      pointerUsed=true; ev.preventDefault();
+      state.pickShape=s0.kind; syncUI();
+      if(!state.ghost){ state.ghost={x:null,y:null}; }
+      let dragged=false;
+      const mv=(e)=>{
+        const p=pt(e);
+        if(state.ghost){ state.ghost.x=Math.max(0,Math.min(STAGE,p.x)); state.ghost.y=Math.max(0,Math.min(STAGE,p.y)); dragged=true; renderGhost(); }
+      };
+      const up=()=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",up);
+        if(dragged){
+          if(state.ghost && state.ghost.x!=null && state.ghost.y!=null){ addShapeAt(state.ghost.x,state.ghost.y); }
+          else { cancelFloat(); }
+        } else { togglePick(s0.kind); }
+      };
+      document.addEventListener("pointermove",mv);
+      document.addEventListener("pointerup",up);
+    });
+    b.addEventListener("click",(ev)=>{
+      if(!pointerUsed){ togglePick(s0.kind); }
+      pointerUsed=false;
+    });
+    return b;
+  }
+  function buildToolBody(){
+    bodyEl.innerHTML="";
+  }
+  buildToolBody();
+  const origSync=syncUI;
+  syncUI=function(){origSync();buildToolBody();};
+  const NS="http://www.w3.org/2000/svg";
+  let ghostG=null;
+  function draw(){
+    renderArtwork(svg,state.els,{bg:state.bg});
+    if(state.selected!=null && state.els[state.selected]){
+      const e=state.els[state.selected];
+      const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
+      g.appendChild(h("rect",{x:-e.w/2-6,y:-e.h/2-6,width:e.w+12,height:e.h+12,rx:8,fill:"none",stroke:"#3B5BDB","stroke-width":1.5,"stroke-dasharray":"5 4"}));
+      const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
+      handles.forEach(([hx,hy])=>{
+        const hg=h("g",{"data-hx":hx,"data-hy":hy});
+        hg.appendChild(h("rect",{x:hx*e.w/2-20,y:hy*e.h/2-20,width:40,height:40,rx:8,fill:"transparent"}));
+        hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
+        g.appendChild(hg);
+      });
+      const rg=h("g",{"data-rot":"1"});
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-34,r:24,fill:"transparent"}));
+      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
+      g.appendChild(rg);
+      g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
+      svg.appendChild(g);
+    }
+    renderGhost();
+  }
+  function pt(ev){
+    const m=svg.getScreenCTM();
+    const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
+    return {x:p.x,y:p.y};
+  }
+  function renderGhost(){
+    if(ghostG){ ghostG.remove(); ghostG=null; }
+    if(state.tool!=="shape" || !state.ghost || state.ghost.x==null) return;
+    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
+    ghostG=shapeFor({kind:s0.kind,x:state.ghost.x,y:state.ghost.y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:0.45});
+    ghostG.setAttribute("pointer-events","none");
+    ghostG.setAttribute("data-ghost","1");
+    svg.appendChild(ghostG);
+  }
+  let drag=null;
+  svg.addEventListener("pointerdown",ev=>{
+    const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
+    const rotH=ev.target.closest("[data-rot]");
+    const hand=ev.target.closest("[data-hx]");
+    if(rotH){
+      const e=state.els[state.selected];
+      drag={type:"rot",e,start:performance.now()};commit();
+    } else if(hand){
+      const e=state.els[state.selected];
+      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
+    } else {
+      const gg=ev.target.closest("g[data-kind]");
+      if(gg){
+        const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
+        state.selected=idx;
+        if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
+        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
+        commit(); draw();
+      } else if(state.tool==="pen"){
+        commit();
+        drag={type:"draw",pts:[[p.x,p.y]]};
+      } else if(state.tool==="shape" && state.pickShape){
+        addShapeAt(p.x,p.y);
+      } else {
+        state.selected=null; draw();
+      }
+    }
+  });
+  svg.addEventListener("pointermove",ev=>{
+    const p=pt(ev);
+    if(!drag){
+      if(state.tool==="shape" && state.ghost && state.pickShape){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
+      return;
+    }
+    if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
+    else if(drag.type==="rot"){
+      const e=drag.e;
+      let ang=Math.atan2(p.y-e.y,p.x-e.x)*180/Math.PI+90;
+      e.rot=Math.round(ang); draw();
+    } else if(drag.type==="scale"){
+      const e=drag.e;
+      const rad=-(e.rot||0)*Math.PI/180;
+      const lx=(p.x-e.x)*Math.cos(rad)-(p.y-e.y)*Math.sin(rad);
+      const ly=(p.x-e.x)*Math.sin(rad)+(p.y-e.y)*Math.cos(rad);
+      let nw=Math.max(20,Math.abs(lx)*2), nh=Math.max(20,Math.abs(ly)*2);
+      if(drag.hx!==0 && drag.hy!==0){ const s=Math.max(nw/drag.ow,nh/drag.oh); nw=drag.ow*s; nh=drag.oh*s; }
+      else if(drag.hx!==0){ nw=drag.ow*(nw/drag.ow); nh=drag.oh; }
+      else { nh=drag.oh*(nh/drag.oh); nw=drag.ow; }
+      e.w=nw; e.h=nh; draw();
+    } else if(drag.type==="draw"){
+      const last=drag.pts[drag.pts.length-1];
+      if(Math.hypot(p.x-last[0],p.y-last[1])>4){drag.pts.push([p.x,p.y]);drawTempPath();}
+    }
+  });
+  svg.addEventListener("pointerup",()=>{
+    if(!drag)return;
+    if(drag.type==="draw"){
+      if(drag.pts.length>=2){
+        const xs=drag.pts.map(q=>q[0]),ys=drag.pts.map(q=>q[1]);
+        const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
+        const w=Math.max(12,Math.max(...xs)-Math.min(...xs)), h=Math.max(12,Math.max(...ys)-Math.min(...ys));
+        const d=smoothPath(drag.pts.map(q=>[q[0]-cx,q[1]-cy]));
+        state.els.push({kind:"path",x:cx,y:cy,w,h,rot:0,color:state.color,width:state.strokeW,d});
+        if(state.els.length>RULES.elementCap){state.els.pop();toast(`单作品元素上限 ${RULES.elementCap} 个`);}
+        state.selected=state.els.length-1;
+      } else { state.history.pop(); }
+      syncUI();
+    }
+    drag=null;
+  });
+  function clamp(e){ e.x=Math.max(0,Math.min(STAGE,e.x)); e.y=Math.max(0,Math.min(STAGE,e.y)); }
+  function drawTempPath(){
+    draw();
+    const d=smoothPath(drag.pts);
+    svg.appendChild(h("path",{d,fill:"none",stroke:state.color,"stroke-width":state.strokeW,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.8}));
+  }
+  function smoothPath(pts){
+    if(pts.length===2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+    let d=`M${pts[0][0]},${pts[0][1]}`;
+    for(let i=1;i<pts.length-1;i++){
+      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+      d+=` Q${pts[i][0]},${pts[i][1]} ${mx},${my}`;
+    }
+    const last=pts[pts.length-1]; d+=` L${last[0]},${last[1]}`;
+    return d;
+  }
+  wrap.querySelector("#del").onclick=()=>{if(state.selected==null)return;commit();state.els.splice(state.selected,1);state.selected=null;syncUI();};
+  wrap.querySelector("#up").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.push(e);state.selected=state.els.length-1;syncUI();};
+  wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
+  wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
+  wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
+  let clearArmed=false, clearTimer=null;
+  wrap.querySelector("#clear").onclick=()=>{
+    const b=wrap.querySelector("#clear");
+    if(!clearArmed){
+      clearArmed=true; b.classList.add("arm"); b.textContent="再点确认清空";
+      clearTimer=setTimeout(()=>{clearArmed=false;b.classList.remove("arm");b.textContent="清空";},3000);
+      return;
+    }
+    clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
+    commit(); state.els=[]; state.selected=null; state.ghost=null; state.ghostShape=null; document.removeEventListener("pointermove",followGhost); syncUI();
+  };
+  window.addEventListener("keydown",function kd(ev){
+    if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
+    if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
+    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
+  });
+
+  /* ---- 目标照片：从系统图库选 / 上传自己的图（发布时作为答案） ---- */
+  let target=null;   // {kind:"pack",g} | {kind:"custom",g}
+  function drawTarget(){
+    const photo=wrap.querySelector("#tp-photo"), name=wrap.querySelector("#tp-name"), sub=wrap.querySelector("#tp-sub");
+    if(!photo) return;
+    if(!target){
+      photo.innerHTML="🖼️"; name.textContent="尚未选择目标照片";
+      sub.textContent="从 64 图选一张，或上传自己的照片（发布时作为答案）";
+      return;
+    }
+    photo.innerHTML=`<img src="${target.kind==="pack"?("images-thumb/"+target.g.id+".jpg"):esc(target.g.img)}" alt="">`;
+    name.textContent=target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact);
+    sub.textContent=target.kind==="pack"?("系统图库 · 类别："+target.g.category):("自定义 · 类别："+(target.g.category_word||"未设")+" · 准确词："+(target.g.exact||"未设"));
+  }
+  function pickTarget(){
+    const packPromise=loadPack();
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:540px">
+      <h3>选择目标照片</h3>
+      <div class="tabs" id="pt-tabs"><button class="pt-tab on" data-v="pack">系统图库</button><button class="pt-tab" data-v="custom">我的图片</button></div>
+      <div id="pt-pack"><div class="cat-tabs" id="pt-cats"></div><div class="img-grid" id="pt-grid" style="max-height:300px;overflow:auto"></div></div>
+      <div id="pt-custom" style="display:none">
+        <div class="img-grid" id="pt-mygrid" style="max-height:210px;overflow:auto"></div>
+        <div style="margin-top:10px;border-top:1px dashed #E3DDD0;padding-top:10px">
+          <div class="sub" style="margin-bottom:6px">上传自己的照片（自动压缩；保存后点缩略图选中）：</div>
+          <div class="row"><input type="file" id="pt-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="pt-upload">选择图片</button></div>
+          <div id="pt-preview" style="display:none;margin-top:8px">
+            <img id="pt-pvimg" alt="预览" style="max-width:84px;max-height:84px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1.5px solid var(--line);display:block">
+            <input id="pt-name" class="pw-in" placeholder="图片名称（猜题人可见）">
+            <input id="pt-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
+            <input id="pt-kw1" class="pw-in" placeholder="联想词1（如：草原）">
+            <input id="pt-kw2" class="pw-in" placeholder="联想词2（可选）">
+            <input id="pt-exact" class="pw-in" placeholder="准确词（必填，如：长颈鹿）">
+            <button class="primary" id="pt-save" style="width:100%;margin-top:8px">保存到自定义图库</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="primary" id="pt-ok" style="flex:1">选为目标</button><button class="ghost" id="pt-cancel">取消</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    let ptSel=null, pack=null, cats=[], cat="", ptRaw="";
+    const catTabs=mk.querySelector("#pt-cats"), grid=mk.querySelector("#pt-grid"), myGrid=mk.querySelector("#pt-mygrid");
+    packPromise.then(pk=>{ pack=pk; cats=[...new Set(pk.images.map(g=>g.category))]; cat=cats[0]||""; drawCats(); drawImgs(); }).catch(()=>toast("系统图库加载失败"));
+    function drawCats(){
+      catTabs.innerHTML="";
+      cats.forEach(c=>{
+        const b=html("button",{class:"cat-tab"+(c===cat?" on":"")},c);
+        b.onclick=()=>{cat=c;drawCats();drawImgs();};
+        catTabs.appendChild(b);
+      });
+    }
+    function drawImgs(){
+      grid.innerHTML="";
+      (pack?pack.images:[]).filter(g=>g.category===cat).forEach(g=>{
+        const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="pack"&&ptSel.g.id===g.id?" on":"")});
+        b.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${esc(g.zh)}"><span>${esc(g.zh)}</span>`;
+        b.onclick=()=>{ptSel={kind:"pack",g};drawImgs();drawMy();};
+        grid.appendChild(b);
+      });
+    }
+    function drawMy(){
+      customList().then(list=>{
+        myGrid.innerHTML="";
+        list.forEach(g=>{
+          const b=html("button",{class:"img-cell"+(ptSel&&ptSel.kind==="custom"&&ptSel.g.id===g.id?" on":"")});
+          b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact)}"><span>${esc(g.name||g.exact)}</span>`;
+          b.onclick=()=>{ptSel={kind:"custom",g};drawMy();drawImgs();};
+          myGrid.appendChild(b);
+        });
+      });
+    }
+    const ptFile=mk.querySelector("#pt-file");
+    mk.querySelector("#pt-upload").onclick=()=>ptFile.click();
+    ptFile.onchange=async()=>{
+      const f=ptFile.files&&ptFile.files[0]; if(!f) return;
+      const rawD=await fileToDataURL(f);
+      const cropped=await cropImageDialog(rawD);
+      if(!cropped){ ptFile.value=""; return; }
+      ptRaw=await compressImage(cropped,512,0.82);
+      if(!ptRaw){ toast("图片处理失败或过大，请换一张"); ptFile.value=""; return; }
+      mk.querySelector("#pt-pvimg").src=ptRaw;
+      mk.querySelector("#pt-preview").style.display="block";
+    };
+    mk.querySelector("#pt-save").onclick=async()=>{
+      const catv=String(mk.querySelector("#pt-cat").value||"").trim();
+      const exactv=String(mk.querySelector("#pt-exact").value||"").trim();
+      if(!ptRaw){ toast("请先选择图片"); return; }
+      if(!catv||!exactv){ toast("类别词和准确词必填"); return; }
+      const item={id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:ptRaw,name:String(mk.querySelector("#pt-name").value||"").trim()||exactv,category_word:catv,keywords:[String(mk.querySelector("#pt-kw1").value||"").trim(),String(mk.querySelector("#pt-kw2").value||"").trim()].filter(Boolean).slice(0,2),aliases:[],exact:exactv,source:"own",createdAt:Date.now()};
+      try{ await customPut(item); }catch(e){ toast("图片无效，请重试"); return; }
+      toast("已保存到自定义图库");
+      ptRaw=""; mk.querySelector("#pt-preview").style.display="none"; ptFile.value="";
+      mk.querySelector("#pt-name").value="";mk.querySelector("#pt-cat").value="";mk.querySelector("#pt-kw1").value="";mk.querySelector("#pt-kw2").value="";mk.querySelector("#pt-exact").value="";
+      drawMy();
+    };
+    mk.querySelectorAll("#pt-tabs .pt-tab").forEach(t=>{
+      t.onclick=()=>{
+        mk.querySelectorAll("#pt-tabs .pt-tab").forEach(x=>x.classList.remove("on"));
+        t.classList.add("on");
+        const v=t.dataset.v;
+        mk.querySelector("#pt-pack").style.display=v==="pack"?"block":"none";
+        mk.querySelector("#pt-custom").style.display=v==="custom"?"block":"none";
+        if(v==="pack") drawImgs(); else drawMy();
+      };
+    });
+    mk.querySelector("#pt-cancel").onclick=()=>mk.remove();
+    mk.querySelector("#pt-ok").onclick=()=>{
+      if(!ptSel){ toast("请选择一张目标照片"); return; }
+      target=ptSel; drawTarget(); mk.remove();
+    };
+    drawMy();
+  }
+  wrap.querySelector("#tp-pick").onclick=()=>pickTarget();
+  drawTarget();
+
+  /* ---- 发布谜题（目标照片已在画布上方选定） ---- */
+  let packCache=null;
+  
   wrap.querySelector("#publish").onclick=()=>{
     if(state.els.length===0){ toast("先画点什么再发布吧"); return; }
     if(!target){ toast("先在上方选择目标照片"); return; }
