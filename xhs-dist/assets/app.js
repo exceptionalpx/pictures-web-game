@@ -1185,7 +1185,7 @@ function route(){
   else if(parts[0]==="guess") renderGuess();
   else if(parts[0]==="puzzle"){
     if(parts[1]) renderPuzzleGuess(parts[1]);
-    else renderPuzzleEditor();
+    else renderPuzzleEditor(params.load||null);
   }
   else if(parts[0]==="mylib") renderMyLib();
   else renderHome();
@@ -1297,16 +1297,20 @@ function renderMyLib(){
       }
       puzzles.forEach(p=>{
         const cell=html("div",{class:"img-cell",style:"cursor:pointer"});
-        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:${esc(p.bg||"#FBFAF6")};border-radius:6px;overflow:hidden"><svg style="width:100%;height:100%;display:block" viewBox="0 0 600 600"></svg></div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
-        const svg=cell.querySelector("svg");
-        try{ renderArtwork(svg, p.canvas||[], {bg:p.bg||"#FBFAF6"}); }catch(_){}
+        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:${esc(p.bg||"#FBFAF6")};border-radius:6px;overflow:hidden"><svg style="width:100%;height:100%;display:block" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet"></svg></div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
         cell.querySelector(".mini-del").onclick=(ev)=>{
           ev.stopPropagation();
           if(!window.confirm(`删除谜题「${p.exact||p.zh}」？`)) return;
           puzzleDel(p.id).then(()=>{ puzzles=puzzles.filter(x=>x.id!==p.id); draw(); toast("已删除"); });
         };
-        cell.onclick=()=>{ location.hash="#/puzzle-editor?load="+p.id; };
+        cell.onclick=()=>{ location.hash="#/puzzle?load="+p.id; };
         grid.appendChild(cell);
+        const svg=cell.querySelector("svg");
+        try{
+          svg.innerHTML="";
+          svg.appendChild(h("rect",{x:0,y:0,width:600,height:600,fill:p.bg||"#FBFAF6"}));
+          (p.canvas||[]).forEach(e=>svg.appendChild(shapeFor(e)));
+        }catch(_){}
       });
       return;
     }
@@ -1740,7 +1744,7 @@ function compressImage(dataURL, maxSide, quality){
 }
 
 /* ================= 单人谜题（画好→分享链接→朋友猜） ================= */
-function renderPuzzleEditor(){
+function renderPuzzleEditor(loadId){
   const state={els:[],selected:null,tool:"shape",pickShape:"circle",color:COLORS[0],opacity:0.7,strokeW:3,history:[],future:[],ghost:null,bg:"#FFFFFF"};
   $app.innerHTML="";
   const wrap=html("div",{class:"wrap"});
@@ -2278,6 +2282,21 @@ function renderPuzzleEditor(){
       catch(e){ toast("请长按链接手动复制"); }
     };
     mask.querySelector("#trylink").onclick=()=>{mask.remove();location.hash="#/puzzle/"+id;};
+  }
+  if(loadId){
+    (async ()=>{
+      try{
+        const list=await puzzleList();
+        const p=list.find(x=>x.id===loadId);
+        if(p){
+          state.els=(p.canvas||[]).slice();
+          state.bg=p.bg||"#FFFFFF";
+          if(p.exact) document.querySelector("#tp-name").textContent=p.exact;
+          syncUI();
+          toast("已加载谜题，可继续编辑");
+        }
+      }catch(_){}
+    })();
   }
   syncUI();
 }
