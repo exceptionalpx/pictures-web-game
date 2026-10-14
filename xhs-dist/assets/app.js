@@ -1117,27 +1117,31 @@ function shapeFor(e){
   const op=typeof e.opacity==="number"?e.opacity:1;
   const col=e.color||"#E03131";
   const w=e.w||80, hh=e.h||80;
-  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:col,opacity:op}));
-  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:col,opacity:op}));
+  const isStroke=!!e.stroke;
+  const fillAttr=isStroke?"none":col;
+  const strokeAttr=isStroke?col:"none";
+  const strokeW=isStroke?3.5:0;
+  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
   else if(e.kind==="cross"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:col,opacity:op}));
-    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:col,opacity:op}));
+    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
   }
-  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:col,opacity:op}));
-  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:col,opacity:op}));
-  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
-  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
-  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
-  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:col,opacity:op,"fill-rule":"evenodd"}));
+  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,"fill-rule":"evenodd",opacity:op}));
   else if(e.kind==="star"){
     const sr=w/2, sir=sr*0.382; let sd="";
     for(let i=0;i<10;i++){ const a=(90+i*36)*Math.PI/180; const rr=(i%2===0)?sr:sir; const sx=rr*Math.cos(a), sy=-rr*Math.sin(a); sd+=(i===0?"M":"L")+sx.toFixed(1)+","+sy.toFixed(1); }
-    g.appendChild(h("path",{d:sd+"Z",fill:col,opacity:op}));
+    g.appendChild(h("path",{d:sd+"Z",fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
   }
-  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
+  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
   else if(e.kind==="arrow"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
-    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:col,opacity:op}));
+    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
   }
   else if(e.kind==="icon"){
     const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":hh,opacity:op});
@@ -1293,7 +1297,9 @@ function renderMyLib(){
       }
       puzzles.forEach(p=>{
         const cell=html("div",{class:"img-cell",style:"cursor:pointer"});
-        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:#FBFAF6;display:flex;align-items:center;justify-content:center;font-size:24px;border-radius:6px">🎨</div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
+        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:${esc(p.bg||"#FBFAF6")};border-radius:6px;overflow:hidden"><svg style="width:100%;height:100%;display:block" viewBox="0 0 600 600"></svg></div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
+        const svg=cell.querySelector("svg");
+        try{ renderArtwork(svg, p.canvas||[], {bg:p.bg||"#FBFAF6"}); }catch(_){}
         cell.querySelector(".mini-del").onclick=(ev)=>{
           ev.stopPropagation();
           if(!window.confirm(`删除谜题「${p.exact||p.zh}」？`)) return;
@@ -2471,13 +2477,13 @@ const GUESS_WALL_OPEN_MS=60000;
 function seededRand(seed){ let s=seed||1; return function(){ s=(s*9301+49297)%233280; return s/233280; }; }
 function buildSampleArtwork(seed){
   const rand=seededRand(seed);
-  const kinds=["circle","triangle","diamond","star","rect","ellipse","waterdrop","arrow","bar"];
+  const kinds=["circle","triangle","rect","star","diamond"];
   const els=[];
-  const n=11+Math.floor(rand()*4);
+  const n=5;
   for(let i=0;i<n;i++){
     const kind=kinds[Math.floor(rand()*kinds.length)];
-    const w=45+rand()*70, h=45+rand()*70;
-    els.push({kind:kind,x:30+rand()*(420-w),y:30+rand()*(420-h),w:w,h:h,rot:Math.floor(rand()*360),color:COLORS[Math.floor(rand()*COLORS.length)],opacity:0.35+rand()*0.3});
+    const w=60+rand()*80, h=60+rand()*80;
+    els.push({kind:kind,x:60+rand()*(400-w),y:60+rand()*(400-h),w:w,h:h,rot:Math.floor(rand()*360),color:COLORS[Math.floor(rand()*COLORS.length)],opacity:0.95,stroke:true});
   }
   return els;
 }
@@ -2515,8 +2521,8 @@ async function renderGuess(){
         <button class="primary" id="g-send">猜</button>
       </div>
       <div id="g-fb" class="guess-fb"></div>
-      <div id="g-wall" style="display:none;margin-top:12px">
-        <h3>照片墙已开放 · 点大图选答案</h3>
+      <div id="g-wall" style="margin-top:12px">
+        <h3>照片墙 · 点图直接选答案</h3>
         <div class="img-grid" id="g-wall-grid"></div>
       </div>
       <div id="g-reveal" style="display:none;margin-top:12px"></div>
@@ -2575,6 +2581,8 @@ async function renderGuess(){
     send.onclick=doGuess;
     input.addEventListener("keydown",e=>{ if(e.key==="Enter") doGuess(); });
     refreshProg();
+    const roundStart=Date.now();
+    openWall();
     function openWall(){
       if(wallOpen) return; wallOpen=true;
       const wallBox=main.querySelector("#g-wall");
@@ -2605,12 +2613,15 @@ async function renderGuess(){
       done=true;
       clearInterval(timerId);
       input.disabled=true; send.disabled=true;
+      const secs=Math.round((Date.now()-roundStart)/1000);
+      const mm=Math.floor(secs/60), ss=secs%60;
+      const timeStr=mm>0?`${mm}分${ss}秒`:`${ss}秒`;
       const rv=main.querySelector("#g-reveal");
       rv.style.display="block";
       rv.innerHTML=`<div class="fb hit" style="padding:12px">
         <b>谜底揭晓：${esc(ans.zh)}</b>（${esc(ans.category)}）<br>
         <img src="./images-thumb/${esc(ans.id)}.jpg" style="width:160px;border-radius:10px;margin-top:8px"><br>
-        <span class="sub">类别词：${esc(ans.category_word)} · 联想词：${esc((ans.keywords||[]).join("、"))} · 当前总分：${score}</span>
+        <span class="sub">用时 ${timeStr} · 类别词：${esc(ans.category_word)} · 联想词：${esc((ans.keywords||[]).join("、"))} · 当前总分：${score}</span>
       </div>
       <div style="text-align:center;margin-top:14px">
         <button class="primary" id="g-next">${idx+1>=GUESS_DECK.length?"查看总成绩":"下一张 →"}</button>
@@ -2632,14 +2643,13 @@ async function renderGuess(){
       main.querySelector("#g-again").onclick=()=>{ idx=0; score=0; loadRound(); };
       main.querySelector("#g-home").onclick=()=>location.hash="#/";
     }
-    let timeLeft=GUESS_WALL_OPEN_MS/1000;
+    let elapsed=0;
     const timerEl=wrap.querySelector("#g-timer");
-    timerEl.textContent=timeLeft;
+    timerEl.textContent="0s";
     timerId=setInterval(()=>{
-      timeLeft--;
-      timerEl.textContent=timeLeft;
-      if(timeLeft<=10) timerEl.classList.add("urgent");
-      if(timeLeft<=0){ clearInterval(timerId); openWall(); timerEl.textContent="照片墙开放"; }
+      elapsed++;
+      const m=Math.floor(elapsed/60), s=elapsed%60;
+      timerEl.textContent=m>0?`${m}m${s}s`:`${s}s`;
     },1000);
   }
   loadRound();
