@@ -790,17 +790,17 @@ function cropImageDialog(raw){
 /* 独立上传表单弹窗：选图 → 裁剪 → 填词语 → 返回 {cropped,name,exact,category_word,keywords}；取消返回 null */
 function uploadForm(){
   return new Promise(resolve=>{
+    const CATS=["动物","食物","交通工具","地标建筑","职业","自然现象","节日文化","运动"];
     const mk=html("div",{class:"mask"});
     mk.innerHTML=`<div class="pop" style="max-width:480px;width:calc(100vw - 40px)">
       <h3>上传新图片</h3>
       <div class="row"><input type="file" id="uf-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="uf-pick">选择图片</button></div>
       <div id="uf-preview" style="display:none;margin-top:10px">
         <img id="uf-img" alt="预览" style="max-width:96px;max-height:96px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1.5px solid var(--line);display:block">
-        <input id="uf-name" class="pw-in" placeholder="图片名称（猜题人可见，选填）">
-        <input id="uf-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
-        <input id="uf-kw1" class="pw-in" placeholder="联想词1（如：草原）">
-        <input id="uf-kw2" class="pw-in" placeholder="联想词2（可选）">
-        <input id="uf-exact" class="pw-in" placeholder="准确词（必填，如：长颈鹿）">
+        <select id="uf-cat" class="pw-in">${CATS.map(c=>`<option value="${c}">${c}</option>`).join("")}</select>
+        <input id="uf-exact" class="pw-in" placeholder="准确词（必填，如：奶茶）">
+        <input id="uf-kw1" class="pw-in" placeholder="联想词1（选填，如：珍珠）">
+        <input id="uf-kw2" class="pw-in" placeholder="联想词2（选填）">
       </div>
       <div class="row" style="margin-top:14px"><button class="ghost" id="uf-cancel" style="flex:1">取消</button><button class="primary" id="uf-ok" style="flex:1">确认</button></div>
     </div>`;
@@ -824,11 +824,10 @@ function uploadForm(){
       if(!cropped){ toast("请先选择并裁剪图片"); return; }
       const cat=String(mk.querySelector("#uf-cat").value||"").trim();
       const exact=String(mk.querySelector("#uf-exact").value||"").trim();
-      if(!cat||!exact){ toast("类别词和准确词必填"); return; }
-      const name=String(mk.querySelector("#uf-name").value||"").trim()||exact;
+      if(!cat||!exact){ toast("类别和准确词必填"); return; }
       const kws=[String(mk.querySelector("#uf-kw1").value||"").trim(),String(mk.querySelector("#uf-kw2").value||"").trim()].filter(Boolean).slice(0,2);
       mk.remove();
-      resolve({cropped, name, exact, category_word:cat, keywords:kws});
+      resolve({cropped, name:exact, exact, category_word:cat, keywords:kws});
     };
   });
 }
