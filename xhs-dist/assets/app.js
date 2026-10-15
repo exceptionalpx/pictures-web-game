@@ -83,6 +83,9 @@ async function puzzleDel(id){
 }
 
 /* ================= 小红书容器 API 封装（window.xhs 由容器注入，含降级） ================= */
+/* 我的图库 / 对局收藏：仍用 IndexedDB（图片 dataURL 较大，不适合 setStorage 单 key） */
+const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
+const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;
 function xhsMini(){ return window.xhs && window.xhs.miniTool; }
 /* 统一 Promise 化调用：传回调时返回 undefined，否则返回 Promise；这里统一包成 Promise */
 function xhsCall(name, opts){
