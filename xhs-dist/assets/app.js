@@ -1,1032 +1,189 @@
 "use strict";
-window.__XHS__ = true; // 小红书小工具离线模式
-let PACK_DATA=null; async function loadPack(){ if(!PACK_DATA){ PACK_DATA={
-  "pack": "pictures-web-64-v3-photo",
-  "version": 4,
-  "scoring": {
-    "category_word": 1,
-    "keyword": 2,
-    "exact": 5
-  },
-  "note": "巧手猜图网页版 64 图词表 v4：每图 = 1 类别词(+1，同类共用) + 2 联想词(+2，全库唯一) + 1 准确词(+5) + aliases 近似名(+2，命中按联想词计分)。词条全部 1 字以上、exact 不与联想词/别名子串重叠、无空白标点。",
-  "style_template": "realistic photograph of {SUBJECT}, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-  "images": [
-    {
-      "id": "ani-elephant",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "大象",
-      "keywords": [
-        "非洲",
-        "长鼻"
-      ],
-      "exact": "大象",
-      "en_prompt": "realistic photograph of a standing elephant with big ears and long trunk, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "象",
-        "非洲象"
-      ]
-    },
-    {
-      "id": "ani-giraffe",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "长颈鹿",
-      "keywords": [
-        "草原",
-        "长脖子"
-      ],
-      "exact": "长颈鹿",
-      "en_prompt": "realistic photograph of a giraffe with very long neck and spotted body, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "长颈",
-        "非洲鹿"
-      ]
-    },
-    {
-      "id": "ani-penguin",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "企鹅",
-      "keywords": [
-        "南极",
-        "黑白"
-      ],
-      "exact": "企鹅",
-      "en_prompt": "realistic photograph of a penguin standing with black back and white belly, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "鹅"
-      ]
-    },
-    {
-      "id": "ani-shark",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "鲨鱼",
-      "keywords": [
-        "海洋",
-        "尖牙"
-      ],
-      "exact": "鲨鱼",
-      "en_prompt": "realistic photograph of a shark with dorsal fin and sharp teeth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "大白鲨",
-        "鱼"
-      ]
-    },
-    {
-      "id": "ani-butterfly",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "蝴蝶",
-      "keywords": [
-        "花朵",
-        "翅膀"
-      ],
-      "exact": "蝴蝶",
-      "en_prompt": "realistic photograph of a butterfly with two large patterned wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "蝶",
-        "彩蝶"
-      ]
-    },
-    {
-      "id": "ani-owl",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "猫头鹰",
-      "keywords": [
-        "夜间",
-        "圆眼"
-      ],
-      "exact": "猫头鹰",
-      "en_prompt": "realistic photograph of an owl with big round eyes and pointed ears, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "夜猫子",
-        "枭"
-      ]
-    },
-    {
-      "id": "ani-turtle",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "乌龟",
-      "keywords": [
-        "慢吞吞",
-        "龟壳"
-      ],
-      "exact": "乌龟",
-      "en_prompt": "realistic photograph of a turtle with domed shell and small head, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "龟",
-        "甲鱼"
-      ]
-    },
-    {
-      "id": "ani-bee",
-      "category": "动物",
-      "category_word": "动物",
-      "zh": "蜜蜂",
-      "keywords": [
-        "蜂蜜",
-        "采蜜"
-      ],
-      "exact": "蜜蜂",
-      "en_prompt": "realistic photograph of a striped bee with wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "蜂",
-        "嗡嗡"
-      ]
-    },
-    {
-      "id": "food-pizza",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "披萨",
-      "keywords": [
-        "奶酪",
-        "拉丝"
-      ],
-      "exact": "披萨",
-      "en_prompt": "realistic photograph of a round pizza slice with cheese topping, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "饼",
-        "意大利饼"
-      ]
-    },
-    {
-      "id": "food-burger",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "汉堡",
-      "keywords": [
-        "快餐",
-        "面包"
-      ],
-      "exact": "汉堡",
-      "en_prompt": "realistic photograph of a hamburger with bun, meat patty and layers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "堡",
-        "牛肉堡"
-      ]
-    },
-    {
-      "id": "food-sushi",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "寿司",
-      "keywords": [
-        "日料",
-        "海苔"
-      ],
-      "exact": "寿司",
-      "en_prompt": "realistic photograph of a sushi roll wrapped in nori seaweed, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "饭团",
-        "紫菜卷"
-      ]
-    },
-    {
-      "id": "food-icecream",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "冰淇淋",
-      "keywords": [
-        "甜品",
-        "蛋筒"
-      ],
-      "exact": "冰淇淋",
-      "en_prompt": "realistic photograph of an ice cream cone with two scoops, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "雪糕",
-        "冰激凌"
-      ]
-    },
-    {
-      "id": "food-coffee",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "咖啡",
-      "keywords": [
-        "饮品",
-        "提神"
-      ],
-      "exact": "咖啡",
-      "en_prompt": "realistic photograph of a coffee cup with saucer and steam, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "拿铁",
-        "卡布奇诺"
-      ]
-    },
-    {
-      "id": "food-hotpot",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "火锅",
-      "keywords": [
-        "川味",
-        "涮肉"
-      ],
-      "exact": "火锅",
-      "en_prompt": "realistic photograph of a steaming hot pot with divided broth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "涮锅",
-        "暖锅"
-      ]
-    },
-    {
-      "id": "food-mooncake",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "月饼",
-      "keywords": [
-        "中秋",
-        "馅料"
-      ],
-      "exact": "月饼",
-      "en_prompt": "realistic photograph of a round mooncake with patterned top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "中秋点心",
-        "圆饼"
-      ]
-    },
-    {
-      "id": "food-banana",
-      "category": "食物",
-      "category_word": "食物",
-      "zh": "香蕉",
-      "keywords": [
-        "水果",
-        "黄色"
-      ],
-      "exact": "香蕉",
-      "en_prompt": "realistic photograph of a curved banana bunch, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "芭蕉",
-        "蕉"
-      ]
-    },
-    {
-      "id": "veh-sailboat",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "帆船",
-      "keywords": [
-        "船只",
-        "大海"
-      ],
-      "exact": "帆船",
-      "en_prompt": "realistic photograph of a sailboat with white triangular sails on a mast, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "船",
-        "帆"
-      ]
-    },
-    {
-      "id": "veh-balloon",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "热气球",
-      "keywords": [
-        "吊篮",
-        "升空"
-      ],
-      "exact": "热气球",
-      "en_prompt": "realistic photograph of a hot air balloon with striped envelope and basket, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "气球",
-        "气艇"
-      ]
-    },
-    {
-      "id": "veh-rocket",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "火箭",
-      "keywords": [
-        "发射",
-        "火焰"
-      ],
-      "exact": "火箭",
-      "en_prompt": "realistic photograph of a rocket with fins and exhaust flame, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "飞船",
-        "太空船"
-      ]
-    },
-    {
-      "id": "veh-train",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "火车",
-      "keywords": [
-        "铁轨",
-        "车厢"
-      ],
-      "exact": "火车",
-      "en_prompt": "realistic photograph of a locomotive train with windows and wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "列车",
-        "高铁"
-      ]
-    },
-    {
-      "id": "veh-helicopter",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "直升机",
-      "keywords": [
-        "螺旋桨",
-        "空中"
-      ],
-      "exact": "直升机",
-      "en_prompt": "realistic photograph of a helicopter with top rotor and tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "飞机",
-        "旋翼机"
-      ]
-    },
-    {
-      "id": "veh-bicycle",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "自行车",
-      "keywords": [
-        "骑行",
-        "车轮"
-      ],
-      "exact": "自行车",
-      "en_prompt": "realistic photograph of a bicycle with two wheels and handlebar, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "单车",
-        "脚踏车"
-      ]
-    },
-    {
-      "id": "veh-motorcycle",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "摩托车",
-      "keywords": [
-        "飞驰",
-        "引擎"
-      ],
-      "exact": "摩托车",
-      "en_prompt": "realistic photograph of a motorcycle with large wheels and seat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "机车",
-        "摩托"
-      ]
-    },
-    {
-      "id": "veh-ship",
-      "category": "交通工具",
-      "category_word": "交通工具",
-      "zh": "轮船",
-      "keywords": [
-        "甲板",
-        "航行"
-      ],
-      "exact": "轮船",
-      "en_prompt": "realistic photograph of a cruise ship with decks and funnel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "船",
-        "邮轮"
-      ]
-    },
-    {
-      "id": "land-eiffel",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "埃菲尔铁塔",
-      "keywords": [
-        "巴黎",
-        "风景"
-      ],
-      "exact": "埃菲尔铁塔",
-      "en_prompt": "realistic photograph of the Eiffel Tower with lattice structure, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "铁塔",
-        "巴黎铁塔"
-      ]
-    },
-    {
-      "id": "land-pyramid",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "金字塔",
-      "keywords": [
-        "埃及",
-        "古迹"
-      ],
-      "exact": "金字塔",
-      "en_prompt": "realistic photograph of a pyramid with triangular faces, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "法老陵墓",
-        "三角塔"
-      ]
-    },
-    {
-      "id": "land-lighthouse",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "灯塔",
-      "keywords": [
-        "海岸",
-        "灯光"
-      ],
-      "exact": "灯塔",
-      "en_prompt": "realistic photograph of a lighthouse with light beam on a rock, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "塔",
-        "灯楼"
-      ]
-    },
-    {
-      "id": "land-windmill",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "风车",
-      "keywords": [
-        "田园",
-        "叶片"
-      ],
-      "exact": "风车",
-      "en_prompt": "realistic photograph of a windmill with four turning blades, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "磨坊"
-      ]
-    },
-    {
-      "id": "land-castle",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "城堡",
-      "keywords": [
-        "欧洲",
-        "塔楼"
-      ],
-      "exact": "城堡",
-      "en_prompt": "realistic photograph of a castle with towers and battlements, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "古堡",
-        "堡垒"
-      ]
-    },
-    {
-      "id": "land-greatwall",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "长城",
-      "keywords": [
-        "中国",
-        "蜿蜒"
-      ],
-      "exact": "长城",
-      "en_prompt": "realistic photograph of the Great Wall winding on mountains with watchtowers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "城墙",
-        "烽火台"
-      ]
-    },
-    {
-      "id": "land-pearl",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "东方明珠",
-      "keywords": [
-        "上海",
-        "电视塔"
-      ],
-      "exact": "东方明珠",
-      "en_prompt": "realistic photograph of the Oriental Pearl Tower with spheres and spire, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "明珠塔",
-        "陆家嘴塔"
-      ]
-    },
-    {
-      "id": "land-colosseum",
-      "category": "地标建筑",
-      "category_word": "建筑",
-      "zh": "斗兽场",
-      "keywords": [
-        "罗马",
-        "竞技"
-      ],
-      "exact": "斗兽场",
-      "en_prompt": "realistic photograph of the Roman Colosseum with arched tiers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "竞技场",
-        "罗马竞技场"
-      ]
-    },
-    {
-      "id": "job-astronaut",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "宇航员",
-      "keywords": [
-        "航天",
-        "登月"
-      ],
-      "exact": "宇航员",
-      "en_prompt": "realistic photograph of an astronaut in spacesuit with helmet, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "太空人",
-        "航天员"
-      ]
-    },
-    {
-      "id": "job-firefighter",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "消防员",
-      "keywords": [
-        "灭火",
-        "消防车"
-      ],
-      "exact": "消防员",
-      "en_prompt": "realistic photograph of a firefighter with helmet and axe, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "救火队员",
-        "消防队员"
-      ]
-    },
-    {
-      "id": "job-chef",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "厨师",
-      "keywords": [
-        "烹饪",
-        "高帽"
-      ],
-      "exact": "厨师",
-      "en_prompt": "realistic photograph of a chef with tall white hat and apron, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "大厨",
-        "炊事员"
-      ]
-    },
-    {
-      "id": "job-doctor",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "医生",
-      "keywords": [
-        "治病",
-        "白大褂"
-      ],
-      "exact": "医生",
-      "en_prompt": "realistic photograph of a doctor with stethoscope and white coat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "大夫",
-        "医师"
-      ]
-    },
-    {
-      "id": "job-fisherman",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "渔民",
-      "keywords": [
-        "捕鱼",
-        "渔船"
-      ],
-      "exact": "渔民",
-      "en_prompt": "realistic photograph of a fisherman casting a fishing net, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "渔夫",
-        "渔人"
-      ]
-    },
-    {
-      "id": "job-police",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "警察",
-      "keywords": [
-        "治安",
-        "制服"
-      ],
-      "exact": "警察",
-      "en_prompt": "realistic photograph of a police officer in uniform with cap and badge, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "民警",
-        "警官"
-      ]
-    },
-    {
-      "id": "job-teacher",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "教师",
-      "keywords": [
-        "教学",
-        "黑板"
-      ],
-      "exact": "教师",
-      "en_prompt": "realistic photograph of a teacher pointing at a blackboard, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "老师",
-        "教员"
-      ]
-    },
-    {
-      "id": "job-painter",
-      "category": "职业",
-      "category_word": "职业",
-      "zh": "画家",
-      "keywords": [
-        "创作",
-        "调色盘"
-      ],
-      "exact": "画家",
-      "en_prompt": "realistic photograph of a painter holding a palette and brush, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "画师",
-        "美术家"
-      ]
-    },
-    {
-      "id": "nat-rainbow",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "彩虹",
-      "keywords": [
-        "雨后",
-        "七色"
-      ],
-      "exact": "彩虹",
-      "en_prompt": "realistic photograph of a rainbow arch with seven color bands, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "虹",
-        "七彩"
-      ]
-    },
-    {
-      "id": "nat-lightning",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "闪电",
-      "keywords": [
-        "乌云",
-        "电光"
-      ],
-      "exact": "闪电",
-      "en_prompt": "realistic photograph of a lightning bolt zigzag shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "雷",
-        "霹雳"
-      ]
-    },
-    {
-      "id": "nat-shootingstar",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "流星",
-      "keywords": [
-        "夜空",
-        "许愿"
-      ],
-      "exact": "流星",
-      "en_prompt": "realistic photograph of a shooting star with long glowing tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "陨星"
-      ]
-    },
-    {
-      "id": "nat-snowmountain",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "雪山",
-      "keywords": [
-        "山峰",
-        "积雪"
-      ],
-      "exact": "雪山",
-      "en_prompt": "realistic photograph of a snowy mountain peak, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "雪峰"
-      ]
-    },
-    {
-      "id": "nat-volcano",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "火山",
-      "keywords": [
-        "爆发",
-        "岩浆"
-      ],
-      "exact": "火山",
-      "en_prompt": "realistic photograph of a volcano with cone shape and crater, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "喷火口",
-        "熔岩山"
-      ]
-    },
-    {
-      "id": "nat-snowflake",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "雪花",
-      "keywords": [
-        "六角",
-        "飘落"
-      ],
-      "exact": "雪花",
-      "en_prompt": "realistic photograph of a six-pointed snowflake, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "雪片",
-        "冰晶"
-      ]
-    },
-    {
-      "id": "nat-sunrise",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "日出",
-      "keywords": [
-        "朝阳",
-        "地平线"
-      ],
-      "exact": "日出",
-      "en_prompt": "realistic photograph of a sunrise with half sun above horizon line, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "晨曦",
-        "旭日"
-      ]
-    },
-    {
-      "id": "nat-starrysky",
-      "category": "自然现象",
-      "category_word": "自然",
-      "zh": "星空",
-      "keywords": [
-        "繁星",
-        "银河"
-      ],
-      "exact": "星空",
-      "en_prompt": "realistic photograph of a starry night sky with moon and many stars, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "星夜",
-        "星河"
-      ]
-    },
-    {
-      "id": "cul-lantern",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "灯笼",
-      "keywords": [
-        "红红",
-        "挂饰"
-      ],
-      "exact": "灯笼",
-      "en_prompt": "realistic photograph of a red Chinese lantern with tassel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "灯",
-        "花灯"
-      ]
-    },
-    {
-      "id": "cul-dragonboat",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "龙舟",
-      "keywords": [
-        "端午",
-        "划船"
-      ],
-      "exact": "龙舟",
-      "en_prompt": "realistic photograph of a dragon boat with dragon head and paddles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "龙船"
-      ]
-    },
-    {
-      "id": "cul-liondance",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "舞狮",
-      "keywords": [
-        "狮头",
-        "喜庆"
-      ],
-      "exact": "舞狮",
-      "en_prompt": "realistic photograph of a lion dance mask with mane and open mouth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "狮子",
-        "醒狮"
-      ]
-    },
-    {
-      "id": "cul-christmastree",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "圣诞树",
-      "keywords": [
-        "礼物",
-        "彩灯"
-      ],
-      "exact": "圣诞树",
-      "en_prompt": "realistic photograph of a christmas tree with star on top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "松树",
-        "云杉"
-      ]
-    },
-    {
-      "id": "cul-pumpkin",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "南瓜灯",
-      "keywords": [
-        "鬼脸",
-        "雕刻"
-      ],
-      "exact": "南瓜灯",
-      "en_prompt": "realistic photograph of a jack-o-lantern carved pumpkin with scary face, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "南瓜",
-        "杰克灯"
-      ]
-    },
-    {
-      "id": "cul-kite",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "风筝",
-      "keywords": [
-        "放飞",
-        "长线"
-      ],
-      "exact": "风筝",
-      "en_prompt": "realistic photograph of a diamond kite with tail and string, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "纸鸢"
-      ]
-    },
-    {
-      "id": "cul-redenvelope",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "红包",
-      "keywords": [
-        "压岁",
-        "拜年"
-      ],
-      "exact": "红包",
-      "en_prompt": "realistic photograph of a red envelope with gold seal, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "利是"
-      ]
-    },
-    {
-      "id": "cul-foldingfan",
-      "category": "节日文化",
-      "category_word": "节日",
-      "zh": "折扇",
-      "keywords": [
-        "扇面",
-        "凉风"
-      ],
-      "exact": "折扇",
-      "en_prompt": "realistic photograph of an open folding fan with pleated shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "扇子"
-      ]
-    },
-    {
-      "id": "spt-football",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "足球",
-      "keywords": [
-        "绿茵场",
-        "射门"
-      ],
-      "exact": "足球",
-      "en_prompt": "realistic photograph of a soccer ball with black and white pentagon patches, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "皮球",
-        "蹴鞠"
-      ]
-    },
-    {
-      "id": "spt-tennis",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "网球",
-      "keywords": [
-        "球场",
-        "对打"
-      ],
-      "exact": "网球",
-      "en_prompt": "realistic photograph of a tennis racket with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "球拍"
-      ]
-    },
-    {
-      "id": "spt-archery",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "射箭",
-      "keywords": [
-        "靶心",
-        "拉弓"
-      ],
-      "exact": "射箭",
-      "en_prompt": "realistic photograph of a bow with arrow and target, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "弓箭",
-        "箭"
-      ]
-    },
-    {
-      "id": "spt-golf",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "高尔夫",
-      "keywords": [
-        "球杆",
-        "草地"
-      ],
-      "exact": "高尔夫",
-      "en_prompt": "realistic photograph of a golf club with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "小白球",
-        "挥杆"
-      ]
-    },
-    {
-      "id": "spt-skiing",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "滑雪",
-      "keywords": [
-        "雪道",
-        "疾驰"
-      ],
-      "exact": "滑雪",
-      "en_prompt": "realistic photograph of a pair of skis with poles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "双板",
-        "雪杖"
-      ]
-    },
-    {
-      "id": "spt-surfing",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "冲浪",
-      "keywords": [
-        "海浪",
-        "平衡"
-      ],
-      "exact": "冲浪",
-      "en_prompt": "realistic photograph of a surfboard riding a wave, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "踏浪",
-        "浪尖"
-      ]
-    },
-    {
-      "id": "spt-baseball",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "棒球",
-      "keywords": [
-        "球棒",
-        "赛场"
-      ],
-      "exact": "棒球",
-      "en_prompt": "realistic photograph of a baseball bat with a ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "垒球"
-      ]
-    },
-    {
-      "id": "spt-skateboard",
-      "category": "运动",
-      "category_word": "运动",
-      "zh": "滑板",
-      "keywords": [
-        "跳跃",
-        "滑行"
-      ],
-      "exact": "滑板",
-      "en_prompt": "realistic photograph of a skateboard with four wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark",
-      "aliases": [
-        "陆冲",
-        "长板"
-      ]
-    }
-  ]
-}; } return PACK_DATA; }
+/* =====================================================================
+ * 巧手猜图 · 小红书小工具离线版
+ * 纯本地、不联网；64 图题库内联；玩家作画 → 生成分享图 → 发小红书 / 存相册
+ * ===================================================================== */
+window.__XHS__ = true;
+
+/* ================= 内联 64 图题库（离线无需 fetch） ================= */
+let PACK_DATA = {"pack":"pictures-web-64-v3-photo","version":4,"scoring":{"category_word":1,"keyword":2,"exact":5},"note":"巧手猜图网页版 64 图词表 v4：每图 = 1 类别词(+1，同类共用) + 2 联想词(+2，全库唯一) + 1 准确词(+5) + aliases 近似名(+2，命中按联想词计分)。词条全部 1 字以上、exact 不与联想词/别名子串重叠、无空白标点。","style_template":"realistic photograph of {SUBJECT}, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","images":[{"id":"ani-elephant","category":"动物","category_word":"动物","zh":"大象","keywords":["非洲","长鼻"],"exact":"大象","en_prompt":"realistic photograph of a standing elephant with big ears and long trunk, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["象","非洲象"]},{"id":"ani-giraffe","category":"动物","category_word":"动物","zh":"长颈鹿","keywords":["草原","长脖子"],"exact":"长颈鹿","en_prompt":"realistic photograph of a giraffe with very long neck and spotted body, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["长颈","非洲鹿"]},{"id":"ani-penguin","category":"动物","category_word":"动物","zh":"企鹅","keywords":["南极","黑白"],"exact":"企鹅","en_prompt":"realistic photograph of a penguin standing with black back and white belly, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["鹅"]},{"id":"ani-shark","category":"动物","category_word":"动物","zh":"鲨鱼","keywords":["海洋","尖牙"],"exact":"鲨鱼","en_prompt":"realistic photograph of a shark with dorsal fin and sharp teeth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["大白鲨","鱼"]},{"id":"ani-butterfly","category":"动物","category_word":"动物","zh":"蝴蝶","keywords":["花朵","翅膀"],"exact":"蝴蝶","en_prompt":"realistic photograph of a butterfly with two large patterned wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["蝶","彩蝶"]},{"id":"ani-owl","category":"动物","category_word":"动物","zh":"猫头鹰","keywords":["夜间","圆眼"],"exact":"猫头鹰","en_prompt":"realistic photograph of an owl with big round eyes and pointed ears, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["夜猫子","枭"]},{"id":"ani-turtle","category":"动物","category_word":"动物","zh":"乌龟","keywords":["慢吞吞","龟壳"],"exact":"乌龟","en_prompt":"realistic photograph of a turtle with domed shell and small head, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["龟","甲鱼"]},{"id":"ani-bee","category":"动物","category_word":"动物","zh":"蜜蜂","keywords":["蜂蜜","采蜜"],"exact":"蜜蜂","en_prompt":"realistic photograph of a striped bee with wings, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["蜂","嗡嗡"]},{"id":"food-pizza","category":"食物","category_word":"食物","zh":"披萨","keywords":["奶酪","拉丝"],"exact":"披萨","en_prompt":"realistic photograph of a round pizza slice with cheese topping, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["饼","意大利饼"]},{"id":"food-burger","category":"食物","category_word":"食物","zh":"汉堡","keywords":["快餐","面包"],"exact":"汉堡","en_prompt":"realistic photograph of a hamburger with bun, meat patty and layers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["堡","牛肉堡"]},{"id":"food-sushi","category":"食物","category_word":"食物","zh":"寿司","keywords":["日料","海苔"],"exact":"寿司","en_prompt":"realistic photograph of a sushi roll wrapped in nori seaweed, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["饭团","紫菜卷"]},{"id":"food-icecream","category":"食物","category_word":"食物","zh":"冰淇淋","keywords":["甜品","蛋筒"],"exact":"冰淇淋","en_prompt":"realistic photograph of an ice cream cone with two scoops, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["雪糕","冰激凌"]},{"id":"food-coffee","category":"食物","category_word":"食物","zh":"咖啡","keywords":["饮品","提神"],"exact":"咖啡","en_prompt":"realistic photograph of a coffee cup with saucer and steam, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["拿铁","卡布奇诺"]},{"id":"food-hotpot","category":"食物","category_word":"食物","zh":"火锅","keywords":["川味","涮肉"],"exact":"火锅","en_prompt":"realistic photograph of a steaming hot pot with divided broth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["涮锅","暖锅"]},{"id":"food-mooncake","category":"食物","category_word":"食物","zh":"月饼","keywords":["中秋","馅料"],"exact":"月饼","en_prompt":"realistic photograph of a round mooncake with patterned top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["中秋点心","圆饼"]},{"id":"food-banana","category":"食物","category_word":"食物","zh":"香蕉","keywords":["水果","黄色"],"exact":"香蕉","en_prompt":"realistic photograph of a curved banana bunch, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["芭蕉","蕉"]},{"id":"veh-sailboat","category":"交通工具","category_word":"交通工具","zh":"帆船","keywords":["船只","大海"],"exact":"帆船","en_prompt":"realistic photograph of a sailboat with white triangular sails on a mast, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["船","帆"]},{"id":"veh-balloon","category":"交通工具","category_word":"交通工具","zh":"热气球","keywords":["吊篮","升空"],"exact":"热气球","en_prompt":"realistic photograph of a hot air balloon with striped envelope and basket, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["气球","气艇"]},{"id":"veh-rocket","category":"交通工具","category_word":"交通工具","zh":"火箭","keywords":["发射","火焰"],"exact":"火箭","en_prompt":"realistic photograph of a rocket with fins and exhaust flame, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["飞船","太空船"]},{"id":"veh-train","category":"交通工具","category_word":"交通工具","zh":"火车","keywords":["铁轨","车厢"],"exact":"火车","en_prompt":"realistic photograph of a locomotive train with windows and wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["列车","高铁"]},{"id":"veh-helicopter","category":"交通工具","category_word":"交通工具","zh":"直升机","keywords":["螺旋桨","空中"],"exact":"直升机","en_prompt":"realistic photograph of a helicopter with top rotor and tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["飞机","旋翼机"]},{"id":"veh-bicycle","category":"交通工具","category_word":"交通工具","zh":"自行车","keywords":["骑行","车轮"],"exact":"自行车","en_prompt":"realistic photograph of a bicycle with two wheels and handlebar, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["单车","脚踏车"]},{"id":"veh-motorcycle","category":"交通工具","category_word":"交通工具","zh":"摩托车","keywords":["飞驰","引擎"],"exact":"摩托车","en_prompt":"realistic photograph of a motorcycle with large wheels and seat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["机车","摩托"]},{"id":"veh-ship","category":"交通工具","category_word":"交通工具","zh":"轮船","keywords":["甲板","航行"],"exact":"轮船","en_prompt":"realistic photograph of a cruise ship with decks and funnel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["船","邮轮"]},{"id":"land-eiffel","category":"地标建筑","category_word":"建筑","zh":"埃菲尔铁塔","keywords":["巴黎","风景"],"exact":"埃菲尔铁塔","en_prompt":"realistic photograph of the Eiffel Tower with lattice structure, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["铁塔","巴黎铁塔"]},{"id":"land-pyramid","category":"地标建筑","category_word":"建筑","zh":"金字塔","keywords":["埃及","古迹"],"exact":"金字塔","en_prompt":"realistic photograph of a pyramid with triangular faces, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["法老陵墓","三角塔"]},{"id":"land-lighthouse","category":"地标建筑","category_word":"建筑","zh":"灯塔","keywords":["海岸","灯光"],"exact":"灯塔","en_prompt":"realistic photograph of a lighthouse with light beam on a rock, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["塔","灯楼"]},{"id":"land-windmill","category":"地标建筑","category_word":"建筑","zh":"风车","keywords":["田园","叶片"],"exact":"风车","en_prompt":"realistic photograph of a windmill with four turning blades, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["磨坊"]},{"id":"land-castle","category":"地标建筑","category_word":"建筑","zh":"城堡","keywords":["欧洲","塔楼"],"exact":"城堡","en_prompt":"realistic photograph of a castle with towers and battlements, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["古堡","堡垒"]},{"id":"land-greatwall","category":"地标建筑","category_word":"建筑","zh":"长城","keywords":["中国","蜿蜒"],"exact":"长城","en_prompt":"realistic photograph of the Great Wall winding on mountains with watchtowers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["城墙","烽火台"]},{"id":"land-pearl","category":"地标建筑","category_word":"建筑","zh":"东方明珠","keywords":["上海","电视塔"],"exact":"东方明珠","en_prompt":"realistic photograph of the Oriental Pearl Tower with spheres and spire, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["明珠塔","陆家嘴塔"]},{"id":"land-colosseum","category":"地标建筑","category_word":"建筑","zh":"斗兽场","keywords":["罗马","竞技"],"exact":"斗兽场","en_prompt":"realistic photograph of the Roman Colosseum with arched tiers, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["竞技场","罗马竞技场"]},{"id":"job-astronaut","category":"职业","category_word":"职业","zh":"宇航员","keywords":["航天","登月"],"exact":"宇航员","en_prompt":"realistic photograph of an astronaut in spacesuit with helmet, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["太空人","航天员"]},{"id":"job-firefighter","category":"职业","category_word":"职业","zh":"消防员","keywords":["灭火","消防车"],"exact":"消防员","en_prompt":"realistic photograph of a firefighter with helmet and axe, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["救火队员","消防队员"]},{"id":"job-chef","category":"职业","category_word":"职业","zh":"厨师","keywords":["烹饪","高帽"],"exact":"厨师","en_prompt":"realistic photograph of a chef with tall white hat and apron, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["大厨","炊事员"]},{"id":"job-doctor","category":"职业","category_word":"职业","zh":"医生","keywords":["治病","白大褂"],"exact":"医生","en_prompt":"realistic photograph of a doctor with stethoscope and white coat, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["大夫","医师"]},{"id":"job-fisherman","category":"职业","category_word":"职业","zh":"渔民","keywords":["捕鱼","渔船"],"exact":"渔民","en_prompt":"realistic photograph of a fisherman casting a fishing net, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["渔夫","渔人"]},{"id":"job-police","category":"职业","category_word":"职业","zh":"警察","keywords":["治安","制服"],"exact":"警察","en_prompt":"realistic photograph of a police officer in uniform with cap and badge, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["民警","警官"]},{"id":"job-teacher","category":"职业","category_word":"职业","zh":"教师","keywords":["教学","黑板"],"exact":"教师","en_prompt":"realistic photograph of a teacher pointing at a blackboard, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["老师","教员"]},{"id":"job-painter","category":"职业","category_word":"职业","zh":"画家","keywords":["创作","调色盘"],"exact":"画家","en_prompt":"realistic photograph of a painter holding a palette and brush, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["画师","美术家"]},{"id":"nat-rainbow","category":"自然现象","category_word":"自然","zh":"彩虹","keywords":["雨后","七色"],"exact":"彩虹","en_prompt":"realistic photograph of a rainbow arch with seven color bands, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["虹","七彩"]},{"id":"nat-lightning","category":"自然现象","category_word":"自然","zh":"闪电","keywords":["乌云","电光"],"exact":"闪电","en_prompt":"realistic photograph of a lightning bolt zigzag shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["雷","霹雳"]},{"id":"nat-shootingstar","category":"自然现象","category_word":"自然","zh":"流星","keywords":["夜空","许愿"],"exact":"流星","en_prompt":"realistic photograph of a shooting star with long glowing tail, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["陨星"]},{"id":"nat-snowmountain","category":"自然现象","category_word":"自然","zh":"雪山","keywords":["山峰","积雪"],"exact":"雪山","en_prompt":"realistic photograph of a snowy mountain peak, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["雪峰"]},{"id":"nat-volcano","category":"自然现象","category_word":"自然","zh":"火山","keywords":["爆发","岩浆"],"exact":"火山","en_prompt":"realistic photograph of a volcano with cone shape and crater, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["喷火口","熔岩山"]},{"id":"nat-snowflake","category":"自然现象","category_word":"自然","zh":"雪花","keywords":["六角","飘落"],"exact":"雪花","en_prompt":"realistic photograph of a six-pointed snowflake, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["雪片","冰晶"]},{"id":"nat-sunrise","category":"自然现象","category_word":"自然","zh":"日出","keywords":["朝阳","地平线"],"exact":"日出","en_prompt":"realistic photograph of a sunrise with half sun above horizon line, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["晨曦","旭日"]},{"id":"nat-starrysky","category":"自然现象","category_word":"自然","zh":"星空","keywords":["繁星","银河"],"exact":"星空","en_prompt":"realistic photograph of a starry night sky with moon and many stars, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["星夜","星河"]},{"id":"cul-lantern","category":"节日文化","category_word":"节日","zh":"灯笼","keywords":["红红","挂饰"],"exact":"灯笼","en_prompt":"realistic photograph of a red Chinese lantern with tassel, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["灯","花灯"]},{"id":"cul-dragonboat","category":"节日文化","category_word":"节日","zh":"龙舟","keywords":["端午","划船"],"exact":"龙舟","en_prompt":"realistic photograph of a dragon boat with dragon head and paddles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["龙船"]},{"id":"cul-liondance","category":"节日文化","category_word":"节日","zh":"舞狮","keywords":["狮头","喜庆"],"exact":"舞狮","en_prompt":"realistic photograph of a lion dance mask with mane and open mouth, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["狮子","醒狮"]},{"id":"cul-christmastree","category":"节日文化","category_word":"节日","zh":"圣诞树","keywords":["礼物","彩灯"],"exact":"圣诞树","en_prompt":"realistic photograph of a christmas tree with star on top, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["松树","云杉"]},{"id":"cul-pumpkin","category":"节日文化","category_word":"节日","zh":"南瓜灯","keywords":["鬼脸","雕刻"],"exact":"南瓜灯","en_prompt":"realistic photograph of a jack-o-lantern carved pumpkin with scary face, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["南瓜","杰克灯"]},{"id":"cul-kite","category":"节日文化","category_word":"节日","zh":"风筝","keywords":["放飞","长线"],"exact":"风筝","en_prompt":"realistic photograph of a diamond kite with tail and string, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["纸鸢"]},{"id":"cul-redenvelope","category":"节日文化","category_word":"节日","zh":"红包","keywords":["压岁","拜年"],"exact":"红包","en_prompt":"realistic photograph of a red envelope with gold seal, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["利是"]},{"id":"cul-foldingfan","category":"节日文化","category_word":"节日","zh":"折扇","keywords":["扇面","凉风"],"exact":"折扇","en_prompt":"realistic photograph of an open folding fan with pleated shape, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["扇子"]},{"id":"spt-football","category":"运动","category_word":"运动","zh":"足球","keywords":["绿茵场","射门"],"exact":"足球","en_prompt":"realistic photograph of a soccer ball with black and white pentagon patches, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["皮球","蹴鞠"]},{"id":"spt-tennis","category":"运动","category_word":"运动","zh":"网球","keywords":["球场","对打"],"exact":"网球","en_prompt":"realistic photograph of a tennis racket with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["球拍"]},{"id":"spt-archery","category":"运动","category_word":"运动","zh":"射箭","keywords":["靶心","拉弓"],"exact":"射箭","en_prompt":"realistic photograph of a bow with arrow and target, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["弓箭","箭"]},{"id":"spt-golf","category":"运动","category_word":"运动","zh":"高尔夫","keywords":["球杆","草地"],"exact":"高尔夫","en_prompt":"realistic photograph of a golf club with a small ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["小白球","挥杆"]},{"id":"spt-skiing","category":"运动","category_word":"运动","zh":"滑雪","keywords":["雪道","疾驰"],"exact":"滑雪","en_prompt":"realistic photograph of a pair of skis with poles, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["双板","雪杖"]},{"id":"spt-surfing","category":"运动","category_word":"运动","zh":"冲浪","keywords":["海浪","平衡"],"exact":"冲浪","en_prompt":"realistic photograph of a surfboard riding a wave, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["踏浪","浪尖"]},{"id":"spt-baseball","category":"运动","category_word":"运动","zh":"棒球","keywords":["球棒","赛场"],"exact":"棒球","en_prompt":"realistic photograph of a baseball bat with a ball, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["垒球"]},{"id":"spt-skateboard","category":"运动","category_word":"运动","zh":"滑板","keywords":["跳跃","滑行"],"exact":"滑板","en_prompt":"realistic photograph of a skateboard with four wheels, single subject, clean soft-focus background, natural lighting, professional photography, centered composition, no text, no watermark","aliases":["陆冲","长板"]}]};
+/* 全局 loadPack：无论哪个视图调用都拿到同一份内联题库 */
+function loadPack(){
+  return Promise.resolve(PACK_DATA);
+}
+
+/* ================= 本地持久化存储：优先 xhs.miniTool.setStorage（官方持久化），回退 localStorage ================= */
+/* 谜题库数据小（形状坐标 JSON，几百字节/条），整表存单 key，总配额 10MB 足够 */
+const PUZZLE_KEY="qiaoshou_puzzles_v1";
+let _puzzleCache=null; // 内存缓存，避免每次读写都 JSON.parse
+async function getLocalData(key){
+  try{
+    const r=await xhsCall("getStorage",{key});
+    if(r && typeof r.data==="string") return JSON.parse(r.data);
+  }catch(e){}
+  try{
+    const s=localStorage.getItem(key);
+    if(s) return JSON.parse(s);
+  }catch(e){}
+  return null;
+}
+async function setLocalData(key,obj){
+  const s=JSON.stringify(obj);
+  if(s.length>900*1024) throw new Error("storage quota"); // 单 key 1MB 上限，留余量
+  let ok=false;
+  try{ await xhsCall("setStorage",{key,data:s}); ok=true; }catch(e){}
+  if(!ok){ try{ localStorage.setItem(key,s); ok=true; }catch(e){} }
+  return ok;
+}
+/* 首次启动：把旧 IndexedDB 里的谜题库迁移到官方 setStorage（一次性） */
+async function migratePuzzleFromIDB(){
+  try{
+    const cur=await getLocalData(PUZZLE_KEY);
+    if(cur && cur.length) return;
+    const hasIDB=typeof indexedDB!=="undefined";
+    if(!hasIDB) return;
+    const old=await new Promise((res)=>{
+      try{
+        const r=indexedDB.open("qiaoshou-puzzles",1);
+        r.onupgradeneeded=()=>{ try{r.result.createObjectStore("puzzles",{keyPath:"id"});}catch(_){} };
+        r.onsuccess=()=>{
+          try{
+            const db=r.result;
+            if(!db.objectStoreNames.contains("puzzles")){ res([]); return; }
+            const tx=db.transaction("puzzles","readonly").objectStore("puzzles").getAll();
+            tx.onsuccess=()=>res(tx.result||[]);
+            tx.onerror=()=>res([]);
+          }catch(_){ res([]); }
+        };
+        r.onerror=()=>res([]);
+      }catch(_){ res([]); }
+    });
+    if(old && old.length){ await setLocalData(PUZZLE_KEY, old); }
+  }catch(e){}
+}
+async function puzzleList(){
+  if(_puzzleCache) return _puzzleCache.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  await migratePuzzleFromIDB();
+  const arr=(await getLocalData(PUZZLE_KEY))||[];
+  _puzzleCache=arr;
+  return arr.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+}
+async function puzzlePut(item){
+  const arr=(await getLocalData(PUZZLE_KEY))||[];
+  const i=arr.findIndex(x=>x.id===item.id);
+  if(i>=0) arr[i]=item; else arr.push(item);
+  await setLocalData(PUZZLE_KEY,arr);
+  _puzzleCache=arr;
+}
+async function puzzleDel(id){
+  const arr=(await getLocalData(PUZZLE_KEY))||[];
+  const next=arr.filter(x=>x.id!==id);
+  await setLocalData(PUZZLE_KEY,next);
+  _puzzleCache=next;
+}
+
+/* ================= 小红书容器 API 封装（window.xhs 由容器注入，含降级） ================= */
+function xhsMini(){ return window.xhs && window.xhs.miniTool; }
+/* 统一 Promise 化调用：传回调时返回 undefined，否则返回 Promise；这里统一包成 Promise */
+function xhsCall(name, opts){
+  const api=xhsMini();
+  return new Promise((res,rej)=>{
+    if(!api || typeof api[name]!=="function"){ rej(new Error("api_unavailable")); return; }
+    let settled=false;
+    const wrapped=Object.assign({},opts||{},{
+      success:(r)=>{ settled=true; res(r); },
+      fail:(e)=>{ settled=true; rej(e); }
+    });
+    try{
+      const p=api[name](wrapped);
+      if(p && typeof p.then==="function"){ p.then(res,rej); }
+    }catch(e){ rej(e); }
+  });
+}
+/* 把 dataURI 写为临时文件（大 media 建议先落文件），返回 filePath；失败回退原 dataURI */
+async function toTempFile(dataURI){
+  try{
+    const r=await xhsCall("writeTempFile",{data:dataURI});
+    if(r && r.filePath) return r.filePath;
+  }catch(e){}
+  return dataURI;
+}
+/* 发小红书笔记：携带 1 张分享图（photo_publish） */
+async function postNoteImage(dataURI, title, content){
+  const url=await toTempFile(dataURI);
+  return xhsCall("postNote",{
+    title:title||"巧手猜图",
+    content:content||"来猜猜我画的是什么？",
+    pageType:"photo_publish",
+    mediaInfo:{ image_resources:[{url:url}] }
+  });
+}
+/* 保存图片到相册 */
+async function saveImageToAlbum(dataURI){
+  const url=await toTempFile(dataURI);
+  return xhsCall("saveImageToPhotosAlbum",{filePath:url});
+}
+
+/* ================= 猜图模式：8 幅原创画（答案 = 64 题库对应词） ================= */
+const GUESS_DECK=[
+  "spt-skateboard","cul-redenvelope","nat-rainbow","job-chef",
+  "land-pyramid","veh-balloon","ani-butterfly","food-pizza"
+];
+const GUESS_ARTWORK=[
+  /* ① 滑板：椭圆板面 + 2 圆轮子 */
+  {bg:"#E8F4FD", els:[
+    {kind:"ellipse",x:240,y:250,w:300,h:56,color:"#E03131",opacity:0.9},
+    {kind:"circle",x:160,y:335,w:70,h:70,color:"#E03131",opacity:0.9},
+    {kind:"circle",x:320,y:335,w:70,h:70,color:"#E03131",opacity:0.9}
+  ]},
+  /* ② 红包：矩形信封 + 三角封口 + 圆纽扣 */
+  {bg:"#FFF3BF", els:[
+    {kind:"rect",x:240,y:270,w:230,h:270,color:"#E03131",opacity:0.9},
+    {kind:"triangle",x:240,y:200,w:230,h:120,color:"#E03131",opacity:0.9},
+    {kind:"circle",x:240,y:305,w:46,h:46,color:"#F59F00",opacity:0.95}
+  ]},
+  /* ③ 彩虹：3 个半圆（红/橙/绿） */
+  {bg:"#F0F9FF", els:[
+    {kind:"semicircle",x:240,y:340,w:340,h:170,color:"#E03131",opacity:0.9},
+    {kind:"semicircle",x:240,y:340,w:260,h:130,color:"#F59F00",opacity:0.9},
+    {kind:"semicircle",x:240,y:340,w:180,h:90,color:"#2F9E44",opacity:0.9}
+  ]},
+  /* ④ 厨师：方块帽 + 圆头 + 水滴身 + 椭圆勺 + 柄 */
+  {bg:"#FCE8D5", els:[
+    {kind:"rect",x:240,y:155,w:150,h:75,color:"#FFFFFF",opacity:0.95},
+    {kind:"circle",x:240,y:240,w:130,h:130,color:"#F5B891",opacity:0.95},
+    {kind:"waterdrop",x:240,y:350,w:180,h:200,color:"#FFFFFF",opacity:0.95},
+    {kind:"bar",x:135,y:215,w:14,h:120,color:"#9AA5B1",opacity:0.9},
+    {kind:"ellipse",x:130,y:295,w:60,h:42,color:"#7B8794",opacity:0.9}
+  ]},
+  /* ⑤ 金字塔：菱形 + 竖线分隔 */
+  {bg:"#FFF8E7", els:[
+    {kind:"diamond",x:240,y:275,w:310,h:270,color:"#F5C518",opacity:0.9},
+    {kind:"bar",x:240,y:300,w:10,h:210,color:"#D99B0F",opacity:0.85}
+  ]},
+  /* ⑥ 热气球：水滴气球旋转 180（圆头在上、尖尾朝下）+ 矩形篮子 */
+  {bg:"#F0F9FF", els:[
+    {kind:"waterdrop",x:240,y:215,w:210,h:270,rot:180,color:"#E03131",opacity:0.9},
+    {kind:"rect",x:240,y:385,w:90,h:65,color:"#8D6E63",opacity:0.95}
+  ]},
+  /* ⑦ 蝴蝶：4 个翅膀根部聚拢到中心 + 细长身体 */
+  {bg:"#F0FDF4", els:[
+    {kind:"ellipse",x:172,y:205,w:136,h:100,color:"#E03131",opacity:0.85},
+    {kind:"ellipse",x:308,y:205,w:136,h:100,color:"#E03131",opacity:0.85},
+    {kind:"ellipse",x:178,y:300,w:124,h:88,color:"#F59F00",opacity:0.85},
+    {kind:"ellipse",x:302,y:300,w:124,h:88,color:"#F59F00",opacity:0.85},
+    {kind:"bar",x:240,y:252,w:15,h:150,color:"#5B4636",opacity:0.9}
+  ]},
+  /* ⑧ 披萨：圆饼底 + 3 个三角切片（芝士） */
+  {bg:"#FFF0F0", els:[
+    {kind:"circle",x:240,y:255,w:310,h:310,color:"#E8833A",opacity:0.9},
+    {kind:"triangle",x:182,y:218,w:110,h:100,rot:-22,color:"#F5C518",opacity:0.95},
+    {kind:"triangle",x:298,y:225,w:110,h:100,rot:24,color:"#F5C518",opacity:0.95},
+    {kind:"triangle",x:240,y:310,w:120,h:100,rot:180,color:"#F5C518",opacity:0.95}
+  ]}
+];
+
+"use strict";
 /* ================= 共享配置源（与服务端同一 ruleset） ================= */
 const RULESET_ID = "pictures-web-online-v1";
 const RULES = {
@@ -1117,31 +274,27 @@ function shapeFor(e){
   const op=typeof e.opacity==="number"?e.opacity:1;
   const col=e.color||"#E03131";
   const w=e.w||80, hh=e.h||80;
-  const isStroke=!!e.stroke;
-  const fillAttr=isStroke?"none":col;
-  const strokeAttr=isStroke?col:"none";
-  const strokeW=isStroke?3.5:0;
-  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  if(e.kind==="rect"||e.kind==="square") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:3,fill:col,opacity:op}));
+  else if(e.kind==="bar") g.appendChild(h("rect",{x:-w/2,y:-hh/2,width:w,height:hh,rx:2,fill:col,opacity:op}));
   else if(e.kind==="cross"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+    g.appendChild(h("rect",{x:-w/2,y:-hh/6,width:w,height:hh/3,fill:col,opacity:op}));
+    g.appendChild(h("rect",{x:-w/6,y:-hh/2,width:w/3,height:hh,fill:col,opacity:op}));
   }
-  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,"fill-rule":"evenodd",opacity:op}));
+  else if(e.kind==="circle") g.appendChild(h("circle",{r:w/2,fill:col,opacity:op}));
+  else if(e.kind==="ellipse") g.appendChild(h("ellipse",{cx:0,cy:0,rx:w/2,ry:hh/2,fill:col,opacity:op}));
+  else if(e.kind==="semicircle") g.appendChild(h("path",{d:`M${-w/2},0 A${w/2} ${w/2} 0 0 1 ${w/2},0 Z`,fill:col,opacity:op}));
+  else if(e.kind==="triangle") g.appendChild(h("polygon",{points:`0,${-hh/2} ${-w/2},${hh/2} ${w/2},${hh/2}`,fill:col,opacity:op}));
+  else if(e.kind==="diamond") g.appendChild(h("polygon",{points:`0,${-hh/2} ${w/2},0 0,${hh/2} ${-w/2},0`,fill:col,opacity:op}));
+  else if(e.kind==="crescent") g.appendChild(h("path",{d:`M0,${-w/2} A${w/2} ${w/2} 0 1 1 0,${w/2} A${w*0.35} ${w*0.35} 0 0 0 0,${-w/2} Z`,fill:col,opacity:op,"fill-rule":"evenodd"}));
   else if(e.kind==="star"){
     const sr=w/2, sir=sr*0.382; let sd="";
     for(let i=0;i<10;i++){ const a=(90+i*36)*Math.PI/180; const rr=(i%2===0)?sr:sir; const sx=rr*Math.cos(a), sy=-rr*Math.sin(a); sd+=(i===0?"M":"L")+sx.toFixed(1)+","+sy.toFixed(1); }
-    g.appendChild(h("path",{d:sd+"Z",fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+    g.appendChild(h("path",{d:sd+"Z",fill:col,opacity:op}));
   }
-  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+  else if(e.kind==="waterdrop") g.appendChild(h("path",{d:`M0,${-hh/2} Q${w/2},${-hh*0.05} ${w/2},${hh*0.22} A${w/2} ${hh*0.55} 0 1 1 ${-w/2},${hh*0.22} Q${-w/2},${-hh*0.05} 0,${-hh/2} Z`,fill:col,opacity:op}));
   else if(e.kind==="arrow"){
-    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
-    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:fillAttr,stroke:strokeAttr,"stroke-width":strokeW,opacity:op}));
+    g.appendChild(h("rect",{x:-w/2,y:-hh*0.12,width:w*0.72,height:hh*0.24,fill:col,opacity:op}));
+    g.appendChild(h("polygon",{points:`${w*0.22},${-hh*0.42} ${w/2},0 ${w*0.22},${hh*0.42}`,fill:col,opacity:op}));
   }
   else if(e.kind==="icon"){
     const t=h("text",{x:0,y:0,"text-anchor":"middle","dominant-baseline":"central","font-size":hh,opacity:op});
@@ -1171,74 +324,78 @@ function renderArtwork(svg, els, opts={}){
   els.forEach(e=>svg.appendChild(shapeFor(e)));
 }
 
-/* ================= 路由 ================= */
+/* ================= 离线版路由（覆盖 main 的 route） ================= */
 function route(){
   const hash=location.hash||"#/";
   const [path,query=""]=hash.slice(1).split("?");
   const params=Object.fromEntries(new URLSearchParams(query));
   const parts=path.split("/").filter(Boolean);
+  /* 小红书离线版：所有联网/自检入口重定向回首页 */
+  if(window.__XHS__ && (parts[0]==="online"||parts[0]==="onlinetest"||parts[0]==="puzzletest")){
+    location.hash="#/"; return;
+  }
   if(path==="/"||path==="/home"||parts.length===0) renderHome();
-  else if(window.__XHS__ && (parts[0]==="online"||parts[0]==="onlinetest"||parts[0]==="puzzletest")) renderHome();
+  else if(parts[0]==="guess") renderGuess();
   else if(parts[0]==="online") renderOnline();
   else if(parts[0]==="onlinetest") runOnlineTest();
   else if(parts[0]==="puzzletest") runPuzzleTest();
-  else if(parts[0]==="guess") renderGuess();
   else if(parts[0]==="puzzle"){
-    if(parts[1]) renderPuzzleGuess(parts[1]);
-    else renderPuzzleEditor(params.load||null);
+    /* load 参数或 puzzle/<id> 都按谜题库恢复处理（离线无服务端谜题） */
+    if(params.load) renderPuzzleEditor(params.load);
+    else if(parts[1]) renderPuzzleEditor(parts[1]);
+    else renderPuzzleEditor();
   }
   else if(parts[0]==="mylib") renderMyLib();
   else renderHome();
   window.scrollTo(0,0);
 }
-window.addEventListener("hashchange",route);
 
-/* ================= 首页（正式版入口） ================= */
+/* ================= 离线版首页（作画 / 猜图 / 我的图库） ================= */
 function renderHome(){
   $app.innerHTML="";
   const w=html("div",{class:"wrap"});
   w.innerHTML=`
   <div class="hero">
     <h1>巧手猜图</h1>
-    <div class="sub">看一张写实照片，用一套"不够像"的形状把它抽象地拼出来——发给朋友在评论区猜原图；或者反过来，看一张抽象画，猜它原本是什么照片</div>
-    <div class="ruleset">64 张写实照片 · 三级词竞猜 · 限时抽象作画</div>
+    <div class="sub">用一套「不够像」的形状，把照片里的东西抽象地画出来；也可以看别人的画猜词。全程离线，随时创作。</div>
+    <div class="ruleset">纯离线 · 64 张写实照片 · 8 道原创猜题</div>
   </div>
   <div class="hero-actions">
-    <button class="primary alt" id="go-puzzle" style="min-width:220px">🎨 我来作画 · 发笔记让朋友猜</button>
-    <button class="primary" id="go-guess" style="min-width:220px">🔍 我来猜 · 看画猜照片</button>
+    <button class="primary" id="go-puzzle" style="min-width:220px">🎨 我来作画</button>
+    <button class="primary alt" id="go-guess" style="min-width:220px">🔍 我来猜</button>
     <button class="primary" id="go-mylib" style="min-width:220px">🗂️ 我的图库</button>
   </div>
   <div class="rule-grid">
     <div class="rule-card">
-      <div class="big">🔍</div>
-      <h3>猜图模式 · 看画猜照片</h3>
-      <span class="sub">看一张别人拼好的抽象画，<b>前 60 秒文字竞猜</b>：准确词 +5 / 联想词 +2 / 类别词 +1；60 秒后照片墙开放，点大图选出原图。</span>
-    </div>
-    <div class="rule-card">
       <div class="big">🎨</div>
-      <h3>作画模式 · 抽象还原照片</h3>
-      <span class="sub">选一张照片（系统图或你相册里的图），用<b>12 种半透明形状 + 画笔</b>限时拼出它的神韵，画完一键存相册或发小红书笔记。</span>
+      <h3>我来作画 · 拼出抽象画</h3>
+      <span class="sub">从 64 张照片里选一张目标（或上传自己的照片），用<b>12 种形状 + 画笔</b>把它抽象地拼出来，画布随时可改。</span>
     </div>
     <div class="rule-card">
-      <div class="big">💬</div>
-      <h3>朋友怎么玩</h3>
-      <span class="sub">你发出去的笔记只放抽象画，朋友在<b>评论区打字猜原图</b>，你再回评揭晓——猜中算他赢。</span>
+      <div class="big">📕</div>
+      <h3>生成分享图 · 发小红书</h3>
+      <span class="sub">画好后一键生成 2:3 分享图（不含谜底），直接发小红书笔记或保存到相册，让朋友在评论区猜答案。</span>
+    </div>
+    <div class="rule-card">
+      <div class="big">🔍</div>
+      <h3>我来猜 · 8 道原创题</h3>
+      <span class="sub">看 8 幅抽象画猜词，可打字也可从照片墙里选；记录每题用时，全部猜中查看总结。</span>
     </div>
   </div>`;
-  if(!window.__XHS__){
-    const ob=document.createElement("button");
-    ob.className="primary"; ob.id="go-online"; ob.style.minWidth="220px";
-    ob.textContent="🕹️ 进入联机对战";
-    document.querySelector(".hero-actions").appendChild(ob);
-  }
   w.querySelector("#go-puzzle").addEventListener("click",()=>location.hash="#/puzzle");
   w.querySelector("#go-guess").addEventListener("click",()=>location.hash="#/guess");
   w.querySelector("#go-mylib").addEventListener("click",()=>location.hash="#/mylib");
   $app.appendChild(w);
 }
 
+/* 谜题/作品缩略图：把形状数组渲染成内联 SVG 字符串 */
+function thumbSVG(rec){
+  const bg=rec.bg||"#FFFFFF";
+  const parts=(rec.canvas||[]).map(e=>shapeFor(e).outerHTML).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${STAGE} ${STAGE}" style="width:100%;height:100%;display:block"><rect x="0" y="0" width="${STAGE}" height="${STAGE}" fill="${bg}"/>${parts}</svg>`;
+}
 
-/* ================= 我的图库管理页 ================= */
+/* ================= 离线版「我的图库 / 我的谜题库」（无对局收藏） ================= */
 function renderMyLib(){
   $app.innerHTML="";
   const w=html("div",{class:"wrap"});
@@ -1246,19 +403,22 @@ function renderMyLib(){
   card.innerHTML=`
     <div class="row" style="align-items:center"><h1 style="margin:0">我的图库</h1><button class="ghost" id="ml-back" style="flex:none">返回首页</button></div>
     <div class="sub" id="ml-cap"></div>
-    <div class="row" style="margin-top:10px"><button class="primary" id="ml-upload" style="flex:1">上传新图片</button><button class="primary" id="ml-mine" style="flex:1">我的图库</button><button class="ghost" id="ml-puzzles" style="flex:1">我的谜题库</button><button class="ghost" id="ml-games" style="flex:1">对局收藏</button></div>
-    <div class="tabs" id="ml-tabs"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="ml-upload" style="flex:1">上传新图片</button>
+      <button class="primary" id="ml-mine" style="flex:1">我的图库</button>
+      <button class="ghost" id="ml-puzzles" style="flex:1">我的谜题库</button>
+    </div>
     <div id="ml-grid" class="img-grid"></div>
     <div id="ml-more" style="text-align:center;margin-top:10px"></div>`;
   w.appendChild(card); $app.appendChild(w);
   card.querySelector("#ml-back").onclick=()=>location.hash="#/";
   const PAGE=60;
-  let tab="mine", mine=[], games=[], puzzles=[], shown=PAGE;
+  let tab="mine", mine=[], puzzles=[], shown=PAGE;
   const capEl=card.querySelector("#ml-cap");
   const showCap=async()=>{
     let t="";
     try{ const e=await navigator.storage.estimate(); if(e.quota&&e.usage!=null) t=`（已用 ${(e.usage/1048576).toFixed(0)}MB / ${(e.quota/1073741824).toFixed(0)}GB）`; }catch(_){}
-    capEl.textContent = window.__XHS__ ? `本机存储 · 我的图库 ${mine.length} 张${t}` : `本机存储 · 我的图库 ${mine.length} 张 · 对局收藏 ${games.length} 张${t}`;
+    capEl.textContent=`本机存储 · 我的图库 ${mine.length} 张 · 谜题库 ${puzzles.length} 道${t}`;
   };
   const escS=v=>String(v==null?"":v);
   const wordForm=({title,init})=>new Promise(res=>{
@@ -1287,73 +447,64 @@ function renderMyLib(){
     };
   });
 
-  const draw=()=>{
+  /* 绘制我的图库 tab */
+  const drawMine=()=>{
     const grid=card.querySelector("#ml-grid");
-    if(tab==="puzzles"){
-      grid.innerHTML="";
-      if(!puzzles.length){
-        grid.innerHTML=`<div class="note" style="grid-column:1/-1">还没有谜题，点「我来作画」画完发布后会自动保存到这里</div>`;
-        return;
-      }
-      puzzles.forEach(p=>{
-        const cell=html("div",{class:"img-cell",style:"cursor:pointer"});
-        cell.innerHTML=`<div style="width:100%;aspect-ratio:1;background:${esc(p.bg||"#FBFAF6")};border-radius:6px;overflow:hidden"><svg style="width:100%;height:100%;display:block" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet"></svg></div><span>${esc(p.exact||p.zh||"未命名")}</span><button class="mini-del" title="删除">✕</button>`;
-        cell.querySelector(".mini-del").onclick=(ev)=>{
-          ev.stopPropagation();
-          if(!window.confirm(`删除谜题「${p.exact||p.zh}」？`)) return;
-          puzzleDel(p.id).then(()=>{ puzzles=puzzles.filter(x=>x.id!==p.id); draw(); toast("已删除"); });
-        };
-        cell.onclick=()=>{ location.hash="#/puzzle?load="+p.id; };
-        grid.appendChild(cell);
-        const svg=cell.querySelector("svg");
-        try{
-          svg.innerHTML="";
-          svg.appendChild(h("rect",{x:0,y:0,width:600,height:600,fill:p.bg||"#FBFAF6"}));
-          (p.canvas||[]).forEach(e=>svg.appendChild(shapeFor(e)));
-        }catch(_){}
-      });
-      return;
-    }
-    const src=tab==="mine"?mine:games;
-    const slice=src.slice(0,shown);
-    grid.innerHTML=slice.length?"":"";
-    if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">${tab==="mine"?"还没有图片，点「上传新图片」开始收藏":"还没有对局收藏，联机对局中见过的房间自定义图会自动存到这里"}</div>`; }
+    const slice=mine.slice(0,shown);
+    grid.innerHTML="";
+    if(!slice.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">还没有图片，点「上传新图片」开始收藏</div>`; return; }
     slice.forEach(g=>{
-      const cell=html("div",{class:"img-cell"+(tab==="mine"&&g.source==="import"?" imported":"")});
-      const isGame=tab==="games";
-      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>${isGame?`<button class="save-btn">转存我的图库</button>`:""}${tab==="mine"&&g.source==="import"?`<span class="import-tag">他人</span>`:""}`;
+      const cell=html("div",{class:"img-cell"});
+      cell.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span><button class="mini-del" title="删除">✕</button>`;
       const im=cell.querySelector("img");
       if(im) im.onerror=()=>{ if(!cell.querySelector(".img-broken")) cell.appendChild(html("div",{class:"img-broken"},"加载失败")); };
       cell.querySelector(".mini-del").onclick=(ev)=>{
         ev.stopPropagation();
-        const tip=g.source==="import"?"该图来自对局收藏，仅从本机移除":"删除这张";
-        if(!window.confirm(`${tip}「${g.name||g.exact||g.zh}」？`)) return;
-        (isGame?gameDel:customDel)(g.id).then(()=>{ if(isGame){ games=games.filter(x=>x.id!==g.id);} else { mine=mine.filter(x=>x.id!==g.id);} draw(); showCap(); toast("已删除"); });
+        if(!window.confirm(`删除「${g.name||g.exact||g.zh}」？`)) return;
+        customDel(g.id).then(()=>{ mine=mine.filter(x=>x.id!==g.id); draw(); showCap(); toast("已删除"); });
       };
-      if(!isGame) cell.onclick=()=>viewDetail(g);
-      if(isGame){
-        cell.querySelector(".save-btn").onclick=async()=>{
-          try{
-            const fp=await imgFp(g.img);
-            const dup=mine.find(x=>x.fp===fp);
-            if(dup){ toast("我的图库里已有这张"); return; }
-            const isMine = !g.contributor || g.contributor===nickMemo();
-            await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img:g.img,name:g.name||g.zh||g.exact,exact:g.exact||"",category_word:g.category_word||g.category||"",keywords:g.keywords||[],aliases:g.aliases||[],fp,source:isMine?"own":"import",contributor:g.contributor||"",createdAt:Date.now()});
-            mine=await customList(); draw(); showCap(); toast("已转存到我的图库");
-          }catch(_){ toast("转存失败"); }
-        };
-      }
+      cell.onclick=()=>viewDetail(g);
       grid.appendChild(cell);
     });
     const more=card.querySelector("#ml-more");
-    more.innerHTML=src.length>shown?`<button class="ghost" id="ml-more-btn">加载更多（${src.length-shown} 张）</button>`:"";
+    more.innerHTML=mine.length>shown?`<button class="ghost" id="ml-more-btn">加载更多（${mine.length-shown} 张）</button>`:"";
     const mb=more.querySelector("#ml-more-btn");
     if(mb) mb.onclick=()=>{ shown+=PAGE; draw(); };
   };
-  /* 词条详情弹层：查看图片的全部词语；自己上传可编辑，他人图只读 */
+
+  /* 绘制我的谜题库 tab：缩略图 + 名称 + 草稿标记；点击继续编辑 */
+  const drawPuzzles=()=>{
+    const grid=card.querySelector("#ml-grid");
+    grid.innerHTML="";
+    const drafts=puzzles.filter(p=>p.draft);
+    const published=puzzles.filter(p=>!p.draft);
+    const list=drafts.concat(published);
+    if(!list.length){ grid.innerHTML=`<div class="note" style="grid-column:1/-1">还没有谜题。画好后点「发布谜题」，或退出时自动保存草稿</div>`; card.querySelector("#ml-more").innerHTML=""; return; }
+    list.slice(0,shown).forEach(p=>{
+      const title=p.zh||p.exact||"未命名谜题";
+      const cell=html("div",{class:"img-cell"+(p.draft?" draft-cell":"")});
+      cell.innerHTML=`<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#fff">${thumbSVG(p)}</div>
+        <span>${esc(title)}${p.draft?" · 草稿":""}</span>
+        <button class="mini-del" title="删除">✕</button>`;
+      cell.querySelector(".mini-del").onclick=(ev)=>{
+        ev.stopPropagation();
+        if(!window.confirm(`删除${p.draft?"草稿":"谜题"}「${title}」？`)) return;
+        puzzleDel(p.id).then(()=>{ puzzles=puzzles.filter(x=>x.id!==p.id); draw(); showCap(); toast("已删除"); });
+      };
+      cell.onclick=()=>{ location.hash=`#/puzzle?load=${encodeURIComponent(p.id)}`; };
+      grid.appendChild(cell);
+    });
+    card.querySelector("#ml-more").innerHTML="";
+  };
+
+  function draw(){
+    if(tab==="mine") drawMine();
+    else drawPuzzles();
+  }
+
+  /* 词条详情：查看图片的全部词语；自己上传可编辑 */
   function viewDetail(g){
     const isOwn=g.source!=="import";
-    const srcLabel=isOwn?"自己上传":(g.contributor?`来自「${esc(g.contributor)}」的对局收藏`:"来自对局收藏");
     const mk=html("div",{class:"mask"});
     mk.innerHTML=`<div class="pop" style="max-width:420px">
       <h3>${esc(g.name||g.exact||g.zh)}</h3>
@@ -1361,7 +512,6 @@ function renderMyLib(){
       <div class="kw-line">类别词 <b>${esc(g.category_word||g.category||"—")}</b></div>
       <div class="kw-line">联想词 <b>${esc((g.keywords||[]).filter(Boolean).join("、")||"—")}</b></div>
       <div class="kw-line">准确词 <b style="color:#C0392B">${esc(g.exact||"—")}</b></div>
-      <div class="sub" style="margin-top:10px">来源：${srcLabel}</div>
       <div class="row" style="margin-top:14px">${isOwn?`<button class="primary" id="vd-edit" style="flex:1">编辑词条</button>`:""}<button class="ghost" id="vd-close" style="flex:1">关闭</button></div>
     </div>`;
     document.body.appendChild(mk);
@@ -1375,21 +525,16 @@ function renderMyLib(){
       };
     }
   }
+
   const switchTab=(t)=>{
     tab=t; shown=PAGE;
-    card.querySelectorAll("#ml-mine,#ml-games,#ml-puzzles").forEach(b=>{
-      const isSel=b.id==="ml-"+tab;
-      b.classList.toggle("primary",isSel);
-      b.classList.toggle("ghost",!isSel);
-    });
+    card.querySelector("#ml-mine").classList.toggle("primary",t==="mine");
+    card.querySelector("#ml-mine").classList.toggle("ghost",t!=="mine");
+    card.querySelector("#ml-puzzles").classList.toggle("primary",t==="puzzles");
+    card.querySelector("#ml-puzzles").classList.toggle("ghost",t!=="puzzles");
     draw();
   };
-
-  if(window.__XHS__){
-    const gb=card.querySelector("#ml-games"); if(gb) gb.style.display="none";
-  }
   card.querySelector("#ml-mine").onclick=()=>switchTab("mine");
-  card.querySelector("#ml-games").onclick=()=>switchTab("games");
   card.querySelector("#ml-puzzles").onclick=()=>switchTab("puzzles");
   card.querySelector("#ml-upload").onclick=async()=>{
     const r=await uploadForm();
@@ -1405,64 +550,10 @@ function renderMyLib(){
     await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:r.name,exact:r.exact,category_word:r.category_word,keywords:r.keywords,aliases:[],fp,source:"own",createdAt:Date.now()});
     mine=await customList(); draw(); showCap(); toast("已存入我的图库");
   };
-  Promise.all([customList(),gameList(),puzzleList()]).then(([a,b,c])=>{ mine=a; games=b; puzzles=c; showCap(); draw(); });
+  Promise.all([customList(),puzzleList()]).then(([a,b])=>{ mine=a; puzzles=b; showCap(); draw(); });
 }
 
-/* 上传新图片弹层：词条字段 + 明显的「选择图片」按钮 + 预览，单弹层一次完成 */
-const uploadForm=()=>new Promise(res=>{
-  const mk=html("div",{class:"mask"});
-  mk.innerHTML=`<div class="pop" style="max-width:440px">
-    <h3>上传新图片</h3>
-    <div class="field-label">图片名称</div><input id="mf-name" class="pw-in" placeholder="猜题人可见">
-    <div class="field-label">类别词</div><input id="mf-cat" class="pw-in" placeholder="如：交通工具">
-    <div class="field-label">联想词 1</div><input id="mf-kw1" class="pw-in" placeholder="如：海">
-    <div class="field-label">联想词 2</div><input id="mf-kw2" class="pw-in" placeholder="可选">
-    <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="mf-exact" class="pw-in" placeholder="如：帆船">
-    <label class="file-drop"><input type="file" id="mf-file" accept="image/*" style="display:none">
-      <span class="file-pick">📁 选择图片</span>
-      <div class="sub" style="margin-top:6px">自动压缩到 512px · 单图 ≤1.5MB</div>
-    </label>
-    <div id="mf-pv" style="display:none;margin-top:10px;text-align:center"><img id="mf-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4"></div>
-    <div class="row" style="margin-top:14px"><button class="primary" id="mf-ok" style="flex:1">保存并上传</button><button class="ghost" id="mf-no">取消</button></div>
-  </div>`;
-  document.body.appendChild(mk);
-  mk.querySelector("#mf-no").onclick=()=>{ mk.remove(); res(null); };
-  let cropped=null;
-  const fileEl=mk.querySelector("#mf-file");
-  fileEl.onchange=()=>{
-    const f=fileEl.files&&fileEl.files[0];
-    if(!f) return;
-    const fr=new FileReader();
-    fr.onload=async()=>{
-      const raw=fr.result;
-      cropped=await cropImageDialog(raw);
-      if(!cropped) return;   // 取消裁剪：停留在弹层，可重选图片
-      const pv=mk.querySelector("#mf-pv"); pv.style.display="block"; mk.querySelector("#mf-pvimg").src=cropped;
-      mk.querySelector("#mf-pvimg").style.objectFit="contain";
-      mk.querySelector("#mf-pvimg").style.width="auto"; mk.querySelector("#mf-pvimg").style.height="auto";
-      mk.querySelector("#mf-pvimg").style.maxWidth="128px"; mk.querySelector("#mf-pvimg").style.maxHeight="128px";
-    };
-    fr.readAsDataURL(f);
-  };
-  mk.querySelector("#mf-ok").onclick=()=>{
-    const exact=mk.querySelector("#mf-exact").value.trim();
-    if(!exact){ toast("准确词必填"); return; }
-    if(!cropped){ toast("请先选择图片"); return; }
-    res({
-      name:mk.querySelector("#mf-name").value.trim()||exact,
-      category_word:mk.querySelector("#mf-cat").value.trim(),
-      keywords:[mk.querySelector("#mf-kw1").value.trim(),mk.querySelector("#mf-kw2").value.trim()].filter(Boolean),
-      exact,
-      cropped
-    });
-    mk.remove();
-  };
-});
-/* ===== 自定义图片库（IndexedDB 本地持久化，单机+联机共用） ===== */
-const CUSTOM_DB="pw-custom-images", CUSTOM_STORE="images";
-const GAME_DB="pw-game-cache", GAME_STORE="images", GAME_CAP=200;   // 对局收藏：独立 store，上限 200 张 FIFO
-/* 图片内容指纹：SHA-256（secure context 可用），失败回退字符串哈希。
-   同一张图无论压缩几次，指纹稳定，用于跨端判重（房间去重/已上传标记/对局收藏去重） */
+
 async function imgFp(dataURL){
   try{
     const buf = await (await fetch(String(dataURL||""))).arrayBuffer();
@@ -1529,27 +620,6 @@ async function gameDel(id){
 async function gameClear(){
   const db=await idbGameOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction(GAME_STORE,"readwrite").objectStore(GAME_STORE).clear(); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-/* ---- 我的谜题库：离线版作画后保存的谜题（canvas+答案+词） ---- */
-const PUZZLE_DB="qiaoshou-puzzles", PUZZLE_STORE="puzzles";
-function idbPuzzleOpen(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(PUZZLE_DB,1);
-    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(PUZZLE_STORE)) r.result.createObjectStore(PUZZLE_STORE,{keyPath:"id"}); };
-    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
-  });
-}
-async function puzzleList(){
-  const db=await idbPuzzleOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readonly").objectStore(PUZZLE_STORE).getAll(); tx.onsuccess=()=>res((tx.result||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))); tx.onerror=()=>rej(tx.error); });
-}
-async function puzzlePut(item){
-  const db=await idbPuzzleOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readwrite").objectStore(PUZZLE_STORE).put(item); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
-}
-async function puzzleDel(id){
-  const db=await idbPuzzleOpen();
-  return new Promise((res,rej)=>{ const tx=db.transaction(PUZZLE_STORE,"readwrite").objectStore(PUZZLE_STORE).delete(id); tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error); });
 }
 /* 自动收藏：把对局照片墙里的房间自定义图写入收藏（按指纹去重，系统图跳过） */
 async function gameCollect(wall){
@@ -1714,6 +784,52 @@ function cropImageDialog(raw){
   });
 }
 
+/* 独立上传表单弹窗：选图 → 裁剪 → 填词语 → 返回 {cropped,name,exact,category_word,keywords}；取消返回 null */
+function uploadForm(){
+  return new Promise(resolve=>{
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="pop" style="max-width:480px;width:calc(100vw - 40px)">
+      <h3>上传新图片</h3>
+      <div class="row"><input type="file" id="uf-file" accept="image/*" style="flex:1;font-size:13px"><button class="ghost" id="uf-pick">选择图片</button></div>
+      <div id="uf-preview" style="display:none;margin-top:10px">
+        <img id="uf-img" alt="预览" style="max-width:96px;max-height:96px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1.5px solid var(--line);display:block">
+        <input id="uf-name" class="pw-in" placeholder="图片名称（猜题人可见，选填）">
+        <input id="uf-cat" class="pw-in" placeholder="类别词（必填，如：动物）">
+        <input id="uf-kw1" class="pw-in" placeholder="联想词1（如：草原）">
+        <input id="uf-kw2" class="pw-in" placeholder="联想词2（可选）">
+        <input id="uf-exact" class="pw-in" placeholder="准确词（必填，如：长颈鹿）">
+      </div>
+      <div class="row" style="margin-top:14px"><button class="ghost" id="uf-cancel" style="flex:1">取消</button><button class="primary" id="uf-ok" style="flex:1">确认</button></div>
+    </div>`;
+    document.body.appendChild(mk);
+    let cropped=null;
+    const fileInput=mk.querySelector("#uf-file");
+    mk.querySelector("#uf-pick").onclick=()=>fileInput.click();
+    fileInput.onchange=async()=>{
+      const f=fileInput.files&&fileInput.files[0]; if(!f) return;
+      try{
+        const raw=await fileToDataURL(f);
+        const c=await cropImageDialog(raw);
+        if(!c){ fileInput.value=""; return; }
+        cropped=c;
+        mk.querySelector("#uf-img").src=c;
+        mk.querySelector("#uf-preview").style.display="block";
+      }catch(e){ toast("图片读取失败"); fileInput.value=""; }
+    };
+    mk.querySelector("#uf-cancel").onclick=()=>{ mk.remove(); resolve(null); };
+    mk.querySelector("#uf-ok").onclick=()=>{
+      if(!cropped){ toast("请先选择并裁剪图片"); return; }
+      const cat=String(mk.querySelector("#uf-cat").value||"").trim();
+      const exact=String(mk.querySelector("#uf-exact").value||"").trim();
+      if(!cat||!exact){ toast("类别词和准确词必填"); return; }
+      const name=String(mk.querySelector("#uf-name").value||"").trim()||exact;
+      const kws=[String(mk.querySelector("#uf-kw1").value||"").trim(),String(mk.querySelector("#uf-kw2").value||"").trim()].filter(Boolean).slice(0,2);
+      mk.remove();
+      resolve({cropped, name, exact, category_word:cat, keywords:kws});
+    };
+  });
+}
+
 function fileToDataURL(file){
   return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(file); });
 }
@@ -1753,7 +869,6 @@ function renderPuzzleEditor(loadId){
     <button class="ghost" id="back">← 首页</button>
     <span class="title">单人出题 · 自由创作</span>
     <span class="spacer"></span>
-    <button class="primary" id="publish">发布谜题</button>
   </div>
   <div class="target-strip" id="target-strip">
     <div class="tp-photo" id="tp-photo">🖼️</div>
@@ -1784,10 +899,13 @@ function renderPuzzleEditor(loadId){
         <div class="tb-group" id="toolbody"></div>
         <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
       </div>
+      <div class="publish-bar" style="margin-top:14px">
+        <button class="primary" id="publish" style="width:100%;min-height:52px;font-size:17px">发布谜题</button>
+      </div>
     </div>
   </div>`;
   $app.appendChild(wrap);
-  wrap.querySelector("#back").onclick=()=>location.hash="#/";
+  wrap.querySelector("#back").onclick=async()=>{ await saveDraft(); location.hash="#/"; };
   const svg=wrap.querySelector("#stage");
   window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
   const tabsEl=wrap.querySelector("#tabs");
@@ -1835,7 +953,7 @@ function renderPuzzleEditor(loadId){
     else { if(st) st.textContent="将应用到下一个放置的形状"; }
   });
   opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
-  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
+  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; if(typeof scheduleAutoSave==="function") scheduleAutoSave(); }
   function syncUI(){
     [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
     [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
@@ -1950,6 +1068,17 @@ function renderPuzzleEditor(loadId){
       rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
       g.appendChild(rg);
       g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
+      /* 浮动 +1 复制按钮：path 不显示；右边缘自动翻到左侧 */
+      if(e.kind!=="path"){
+        const onRight=(e.x + e.w/2 + 46) <= STAGE;
+        const bx=onRight ? (e.w/2+24) : (-e.w/2-24);
+        const by=-e.h/2-24;
+        const cg=h("g",{"data-copy":"1",style:"cursor:pointer"});
+        cg.appendChild(h("circle",{cx:bx,cy:by,r:22,fill:"transparent"}));
+        cg.appendChild(h("circle",{cx:bx,cy:by,r:16,fill:"#3B5BDB",stroke:"#fff","stroke-width":2}));
+        cg.appendChild(h("text",{x:bx,y:by+4,"text-anchor":"middle","font-size":"13","font-weight":"700",fill:"#fff","pointer-events":"none"},"+1"));
+        g.appendChild(cg);
+      }
       svg.appendChild(g);
     }
     renderGhost();
@@ -1973,20 +1102,37 @@ function renderPuzzleEditor(loadId){
     const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
     const rotH=ev.target.closest("[data-rot]");
     const hand=ev.target.closest("[data-hx]");
+    const cpBtn=ev.target.closest("[data-copy]");
+    if(cpBtn){
+      /* 浮动 +1：深拷贝选中元素，偏移 18px，自动选中新副本 */
+      if(state.selected!=null && state.els[state.selected]){
+        const src=state.els[state.selected];
+        const copy=JSON.parse(JSON.stringify(src));
+        copy.x=src.x+18; copy.y=src.y+18;
+        clamp(copy);
+        if(state.els.length>=RULES.elementCap){ toast(`单作品元素上限 ${RULES.elementCap} 个`); return; }
+        commit();
+        state.els.push(copy);
+        state.selected=state.els.length-1;
+        if(opEl){ state.opacity=copy.opacity; opEl.value=Math.round(copy.opacity*100); opvEl.textContent=opEl.value+"%"; }
+        syncUI(); draw();
+      }
+      return;
+    }
     if(rotH){
       const e=state.els[state.selected];
-      drag={type:"rot",e,start:performance.now()};commit();
+      drag={type:"rot",e,start:performance.now(),before:JSON.stringify(state.els),startRot:e.rot||0};
     } else if(hand){
       const e=state.els[state.selected];
-      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
+      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h,before:JSON.stringify(state.els),startW:e.w,startH:e.h};
     } else {
       const gg=ev.target.closest("g[data-kind]");
       if(gg){
         const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
         state.selected=idx;
         if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
-        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
-        commit(); draw();
+        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y,before:JSON.stringify(state.els),startX:state.els[idx].x,startY:state.els[idx].y};
+        draw();
       } else if(state.tool==="pen"){
         commit();
         drag={type:"draw",pts:[[p.x,p.y]]};
@@ -2036,6 +1182,22 @@ function renderPuzzleEditor(loadId){
         state.selected=state.els.length-1;
       } else { state.history.pop(); }
       syncUI();
+    } else if(drag.type==="move"){
+      /* 只有真的位移>2px 才入撤销栈，点选不污染历史 */
+      if(Math.abs(drag.e.x-drag.startX)>2 || Math.abs(drag.e.y-drag.startY)>2){
+        state.history.push(drag.before); if(state.history.length>60) state.history.shift(); state.future=[];
+        scheduleAutoSave();
+      }
+    } else if(drag.type==="rot"){
+      if((drag.e.rot||0)!==drag.startRot){
+        state.history.push(drag.before); if(state.history.length>60) state.history.shift(); state.future=[];
+        scheduleAutoSave();
+      }
+    } else if(drag.type==="scale"){
+      if(Math.abs(drag.e.w-drag.startW)>1 || Math.abs(drag.e.h-drag.startH)>1){
+        state.history.push(drag.before); if(state.history.length>60) state.history.shift(); state.future=[];
+        scheduleAutoSave();
+      }
     }
     drag=null;
   });
@@ -2193,8 +1355,6 @@ function renderPuzzleEditor(loadId){
   drawTarget();
 
   /* ---- 发布谜题（目标照片已在画布上方选定） ---- */
-  let packCache=null;
-  
   wrap.querySelector("#publish").onclick=()=>{
     if(state.els.length===0){ toast("先画点什么再发布吧"); return; }
     if(!target){ toast("先在上方选择目标照片"); return; }
@@ -2206,7 +1366,7 @@ function renderPuzzleEditor(loadId){
     <div class="modal center" style="max-width:420px">
       <h2>发布谜题</h2>
       <div style="text-align:center">
-        <div class="tp-photo" style="width:120px;height:120px;margin:0 auto;border:2px solid var(--gold);overflow:hidden;border-radius:12px">${target.kind==="pack"?`<img src="images-thumb/${esc(target.g.id)}.jpg" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`:`<img src="${esc(target.g.img)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`}</div>
+        <div class="tp-photo" style="width:140px;height:140px;margin:0 auto;border:2px solid var(--gold)">${target.kind==="pack"?`<img src="images-thumb/${esc(target.g.id)}.jpg" alt="">`:`<img src="${esc(target.g.img)}" alt="">`}</div>
         <div style="margin-top:8px"><b>${target.kind==="pack"?esc(target.g.zh):esc(target.g.name||target.g.exact)}</b></div>
         <div class="sub">${target.kind==="pack"?("类别："+esc(target.g.category)):("类别："+esc(target.g.category_word||"未设")+" · 联想："+esc((target.g.keywords||[]).join("、")||"未设")+" · 准确："+esc(target.g.exact))}</div>
       </div>
@@ -2219,2252 +1379,112 @@ function renderPuzzleEditor(loadId){
     $app.appendChild(mask);
     mask.querySelector("#cancel").onclick=()=>mask.remove();
     mask.querySelector("#confirm").onclick=async()=>{
-      const btn=mask.querySelector("#confirm"); btn.disabled=true; btn.textContent="发布中…";
-      if(window.__XHS__){
-        /* 离线小工具分支：导出 2:3 分享图，走相册/发笔记 */
-        try{
-          /* 先保存到我的谜题库 */
-          const pzId="pz"+Date.now().toString(36);
-          const pz={
-            id:pzId,
-            createdAt:Date.now(),
-            canvas:state.els,
-            bg:state.bg||"#FFFFFF",
-            answerMode:target.kind==="pack"?"image":"custom_image",
-            imageId:target.kind==="pack"?target.g.id:null,
-            img:target.kind==="pack"?null:target.g.img,
-            zh:target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact||"") ,
-            category_word:target.kind==="pack"?target.g.category:(target.g.category_word||""),
-            keywords:target.kind==="pack"?[]:(target.g.keywords||[]),
-            exact:target.kind==="pack"?target.g.zh:(target.g.exact||"")
-          };
-          await puzzlePut(pz);
-          const dataUri=await exportShareImage(state.els, state.bg||"#FFFFFF");
-          mask.remove();
-          showOfflineShare(dataUri);
-          toast("已保存到我的谜题库");
-        }catch(e){
-          toast("生成分享图失败："+(e&&e.message||e));
-          btn.disabled=false; btn.textContent="确认发布";
-        }
-        return;
+      const btn=mask.querySelector("#confirm"); btn.disabled=true; btn.textContent="保存中…";
+      const rec=buildRecord();
+      /* 草稿恢复后发布：删除原草稿，转为正式谜题 */
+      if(currentId && currentId.indexOf("draft-")===0){
+        try{ await puzzleDel(currentId); }catch(_){}
+        rec.id="pz"+Date.now();
       }
-      const body={canvas:state.els,answerMode:target.kind==="pack"?"image":"custom_image",bg:state.bg||"#FFFFFF"};
-      if(target.kind==="pack") body.imageId=target.g.id;
-      else { body.words={ exact:target.g.exact, keywords:target.g.keywords||[], aliases:target.g.aliases||[], category_word:target.g.category_word||"" }; body.img=target.g.img; }
+      rec.draft=false;
       try{
-        const r=await fetch("/api/puzzle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-        const j=await r.json();
-        if(!j.ok){toast("发布失败："+(j.err||"未知错误"));btn.disabled=false;btn.textContent="确认发布";return;}
-        mask.remove(); showPublished(j.id);
-      }catch(e){toast("网络错误，请重试");btn.disabled=false;btn.textContent="确认发布";}
+        await puzzlePut(rec);
+        currentId=rec.id;
+        mask.remove();
+        showOfflineShare(rec);
+      }catch(e){ toast("保存失败，请重试"); btn.disabled=false; btn.textContent="确认发布"; }
     };
   }
-  function showPublished(id){
-    const link=location.origin+location.pathname+"#/puzzle/"+id;
-    const mask=html("div",{class:"mask"});
-    mask.innerHTML=`
-    <div class="modal center">
-      <h2>🎉 谜题已发布</h2>
-      <div class="puzzle-code">${id}</div>
-      <div class="note" style="text-align:center">把链接发给朋友，打开即可看画猜词</div>
-      <input class="link-box" id="linkbox" value="${esc(link)}" readonly>
-      <div class="row" style="justify-content:center;margin-top:12px">
-        <button class="primary" id="copylink">复制链接</button>
-        <button class="ghost" id="trylink">自己先试试</button>
-      </div>
-    </div>`;
-    $app.appendChild(mask);
-    const copyBtn=mask.querySelector("#copylink");
-    copyBtn.onclick=()=>{
-      const lb=mask.querySelector("#linkbox"); lb.select();
-      try{ document.execCommand("copy"); toast("链接已复制"); }
-      catch(e){ toast("请长按链接手动复制"); }
+  let currentId = loadId || null;
+  /* 从当前画布 + 目标构造谜题记录（目标可能为空，用于草稿） */
+  function buildRecord(){
+    const rec={
+      id: currentId || ("pz"+Date.now()),
+      canvas: state.els,
+      bg: state.bg||"#FFFFFF",
+      answerMode:"image",
+      zh:"未命名",
+      category_word:"",
+      keywords:[],
+      exact:"",
+      createdAt: Date.now(),
+      draft:false
     };
-    mask.querySelector("#trylink").onclick=()=>{mask.remove();location.hash="#/puzzle/"+id;};
+    if(target){
+      rec.answerMode = target.kind==="pack"?"image":"custom_image";
+      rec.zh = target.kind==="pack"?target.g.zh:(target.g.name||target.g.exact);
+      rec.category_word = target.kind==="pack"?target.g.category:target.g.category_word;
+      rec.keywords = target.g.keywords||[];
+      rec.exact = target.g.exact;
+      if(target.kind==="pack") rec.imageId=target.g.id;
+      else rec.img=target.g.img;
+    }
+    return rec;
   }
-  if(loadId){
-    (async ()=>{
-      try{
-        const list=await puzzleList();
-        const p=list.find(x=>x.id===loadId);
-        if(p){
-          state.els=(p.canvas||[]).slice();
-          state.bg=p.bg||"#FFFFFF";
-          if(p.exact) document.querySelector("#tp-name").textContent=p.exact;
-          syncUI();
-          toast("已加载谜题，可继续编辑");
-        }
-      }catch(_){}
-    })();
+  /* 退出时自动保存草稿（画布非空才存）；同一草稿沿用 currentId；返回 promise 供调用方 await */
+  let _draftTimer=null;
+  async function saveDraft(){
+    if(state.els.length===0) return;
+    const rec=buildRecord();
+    if(!currentId) currentId="draft-"+Date.now();
+    rec.id=currentId; rec.draft=true;
+    if(!target) rec.zh="未命名草稿";
+    try{ await puzzlePut(rec); }catch(e){}
   }
-  syncUI();
-}
-
-/* ================= 离线小工具：分享图导出 + xhs API ================= */
-function xhsCall(method, params){
-  const mt=window.xhs&&window.xhs.miniTool;
-  if(!mt||typeof mt[method]!=="function") return Promise.reject({errMsg:"api:not_supported:"+method});
-  return new Promise((resolve,reject)=>{
+  /* 画布变化后 debounce 2 秒自动存草稿（不靠 beforeunload，小工具里它不触发） */
+  function scheduleAutoSave(){
+    if(_draftTimer) clearTimeout(_draftTimer);
+    _draftTimer=setTimeout(()=>{ saveDraft(); },2000);
+  }
+  /* 从谜题库恢复（loadId）：画布、背景、目标 */
+  async function restoreFromDB(){
+    if(!loadId){ syncUI(); return; }
     try{
-      const ret=mt[method](Object.assign({}, params||{}, {
-        success:res=>resolve(res),
-        fail:err=>reject(err)
-      }));
-      if(ret&&typeof ret.then==="function") ret.then(resolve,reject);
-    }catch(e){ reject(e); }
-  });
-}
-async function exportShareImage(els, bg){
-  const W=750, H=1125;
-  const cv=document.createElement("canvas");
-  cv.width=W; cv.height=H;
-  const ctx=cv.getContext("2d");
-  ctx.fillStyle="#FFFFFF"; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle="#222222"; ctx.font="bold 46px sans-serif"; ctx.textAlign="center";
-  ctx.fillText("巧手猜图", W/2, 95);
-  ctx.fillStyle="#777777"; ctx.font="26px sans-serif";
-  ctx.fillText("看这幅抽象画，评论区猜它原本是什么照片", W/2, 138);
-  const tmpSvg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-  renderArtwork(tmpSvg, els, {bg:bg});
-  let svgStr=tmpSvg.outerHTML;
-  if(svgStr.indexOf("xmlns")<0) svgStr=svgStr.replace("<svg ",'<svg xmlns="http://www.w3.org/2000/svg" ');
-  svgStr=svgStr.replace("<svg ",'<svg width="600" height="600" ');
-  const dataUri="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svgStr);
-  await new Promise((resolve,reject)=>{
-    const img=new Image();
-    img.onload=()=>{ ctx.drawImage(img,75,180,600,600); resolve(); };
-    img.onerror=e=>reject(e);
-    img.src=dataUri;
-  });
-  ctx.fillStyle="#999999"; ctx.font="24px sans-serif";
-  ctx.fillText("—— 评论区等你的答案 ——", W/2, 850);
-  return cv.toDataURL("image/png");
-}
-function showOfflineShare(dataUri){
-  const mask=html("div",{class:"mask"});
-  mask.innerHTML=`
-  <div class="modal center" style="max-width:420px">
-    <h2>分享图已生成</h2>
-    <div style="text-align:center;margin:10px 0">
-      <img src="${dataUri}" style="width:240px;border-radius:12px;border:1px solid #eee">
-    </div>
-    <div class="note" style="text-align:center">把这张抽象画发小红书，朋友在评论区猜原图</div>
-    <div class="row" style="justify-content:center;margin-top:14px;flex-direction:column;gap:8px">
-      <button class="primary" id="share-note">发小红书笔记</button>
-      <button class="alt" id="share-album">保存到相册</button>
-      <button class="ghost" id="share-home">回首页</button>
-      <button class="ghost" id="share-close">再改改</button>
-    </div>
-  </div>`;
-  $app.appendChild(mask);
-  mask.querySelector("#share-close").onclick=()=>mask.remove();
-  mask.querySelector("#share-home").onclick=()=>{ mask.remove(); location.hash="#/"; };
-  mask.querySelector("#share-album").onclick=async()=>{
-    try{
-      await xhsCall("saveImageToPhotosAlbum",{filePath:dataUri});
-      toast("已保存到相册");
-    }catch(e){ toast("保存失败："+(e&&e.errMsg||e)); }
-  };
-  mask.querySelector("#share-note").onclick=async()=>{
-    try{
-      let filePath=dataUri;
-      const mt=window.xhs&&window.xhs.miniTool;
-      if(mt&&typeof mt.writeTempFile==="function"){
-        const r=await xhsCall("writeTempFile",{data:dataUri});
-        if(r&&r.filePath) filePath=r.filePath;
+      const list=await puzzleList();
+      const rec=list.find(x=>x.id===loadId);
+      if(!rec){ syncUI(); return; }
+      state.els=rec.canvas||[];
+      state.bg=rec.bg||"#FFFFFF";
+      if(rec.imageId){
+        const g=PACK_DATA.images.find(x=>x.id===rec.imageId);
+        if(g) target={kind:"pack",g};
+      }else if(rec.img){
+        target={kind:"custom",g:rec};
       }
-      await xhsCall("postNote",{
-        title:"看画猜照片，你能猜对吗",
-        content:"我用抽象形状拼了一张画，评论区猜猜它原本是什么照片～\n\n提示：先猜类别，再猜联想词，最后猜准确名字。",
-        pageType:"photo_publish",
-        mediaInfo:{image_resources:[{url:filePath}]}
-      });
-      toast("已打开发布页");
-      mask.remove();
-    }catch(e){ toast("发布失败："+(e&&e.errMsg||e)); }
-  };
-}
-
-async function renderPuzzleGuess(id){
-  $app.innerHTML="";
-  const wrap=html("div",{class:"wrap"});
-  wrap.innerHTML=`
-  <div class="topbar">
-    <button class="ghost" id="back">← 首页</button>
-    <span class="title">猜谜 · ${esc(id)}</span>
-    <span class="spacer"></span>
-  </div>
-  <div class="stage-wrap" style="max-width:560px;margin:0 auto">
-    <svg class="stage" id="stage"></svg>
-    <div class="hint" id="hint">看看这幅画，猜猜作者画的是什么</div>
-  </div>
-  <div class="card" style="max-width:560px;margin:12px auto">
-    <div class="pz-progress" id="pz-progress"></div>
-    <div class="pz-stage" id="pz-stage"></div>
-    <div class="row" id="guess-row">
-      <input id="guess-input" placeholder="输入你的猜测…" autocomplete="off">
-      <button class="primary" id="guess-send">猜</button>
-    </div>
-    <div id="guess-fb" class="guess-fb"></div>
-  </div>`;
-  $app.appendChild(wrap);
-  wrap.querySelector("#back").onclick=()=>location.hash="#/";
-  const fbEl=wrap.querySelector("#guess-fb");
-  const progressEl=wrap.querySelector("#pz-progress"), stageEl=wrap.querySelector("#pz-stage");
-  let data=null;
-  try{
-    const r=await fetch("/api/puzzle/"+encodeURIComponent(id));
-    if(r.status===404){ fbEl.innerHTML=`<div class="fb miss">这个谜题不存在或已过期（谜题 24 小时后自动清理）。</div>`; return; }
-    data=await r.json();
-  }catch(e){ fbEl.innerHTML=`<div class="fb miss">加载失败，请检查网络后刷新。</div>`; return; }
-  const svg=wrap.querySelector("#stage");
-  renderArtwork(svg,data.canvas,{bg:data.bg||"#FFFFFF"});
-  const hint=wrap.querySelector("#hint");
-  hint.textContent=`作者画了 ${data.canvas.length} 个元素 · 三关猜谜：类别 → 联想 → 准确`;
-  const input=wrap.querySelector("#guess-input"), send=wrap.querySelector("#guess-send");
-  const STAGES=["category","keyword","exact"];
-  const STAGE_LABEL={category:"类别",keyword:"联想",exact:"准确"};
-  const STAGE_PLACEHOLDER={category:"先猜它属于哪一类，如：动物",keyword:"很棒！再猜一个联想词，如：草原",exact:"快接近了！猜出准确名字，如：长颈鹿"};
-  let stage=0, done=false;
-  function renderProgress(){
-    progressEl.innerHTML="";
-    STAGES.forEach((st,i)=>{
-      const seg=html("div",{class:"pz-seg"+(i<stage?" done":"")+(i===stage?" cur":"")});
-      seg.textContent=i<stage?"✓ "+STAGE_LABEL[st]:STAGE_LABEL[st];
-      progressEl.appendChild(seg);
-    });
-    stageEl.textContent=done?"🎉 恭喜通关！":`第 ${stage+1} 关 · 猜${STAGE_LABEL[STAGES[stage]]}`;
-    input.placeholder=done?"已通关":STAGE_PLACEHOLDER[STAGES[stage]];
-    input.disabled=done; send.disabled=done;
-    send.textContent=done?"已通关":"猜";
-  }
-  function doGuess(){
-    const text=input.value.trim();
-    if(!text||done) return;
-    send.disabled=true;
-    fetch("/api/puzzle/"+encodeURIComponent(id)+"/guess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,stage:STAGES[stage]})})
-      .then(r=>r.json()).then(j=>{
-        send.disabled=false;
-        if(j.err){ fbEl.innerHTML=`<div class="fb miss">谜题不存在或已过期。</div>`; return; }
-        if(j.done || (j.correct&&j.answer)){
-          done=true;
-          let ansText="";
-          if(j.answer && j.answer.mode==="image") ansText=`谜底是「${j.answer.zh}」（${j.answer.category}）`;
-          else if(j.answer && j.answer.mode==="custom_image") ansText=`谜底是「${j.answer.exact}」（自定义图片）`;
-          else if(j.answer && j.answer.mode==="custom") ansText=`谜底是「${j.answer.words.join(" / ")}」`;
-          else ansText="答对了";
-          let imgHtml="";
-          if(j.answer && j.answer.img) imgHtml=`<img src="${j.answer.img}" alt="谜底照片" style="width:100%;max-width:300px;border-radius:12px;margin-top:10px;display:block">`;
-          fbEl.innerHTML=`<div class="fb hit">🎉 答对了！${ansText}${imgHtml}</div>`;
-          sfx("win");
-          stage=3; renderProgress();
-          return;
-        }
-        if(j.passed){
-          const ni=STAGES.indexOf(j.next);
-          stage=ni>=0?ni:stage+1;
-          fbEl.innerHTML=`<div class="fb hit">🎯 命中${STAGE_LABEL[j.level]||""}「${esc(j.word)}」！进入下一关</div>`;
-          sfx("hit");
-          renderProgress();
-          return;
-        }
-        if(j.hint){
-          fbEl.innerHTML=`<div class="fb miss">${j.hint==="category"?"这只是类别，再具体一点！":"接近了！这属于联想词，想想它的准确名字"}</div>`;
-          sfx("miss");
-          return;
-        }
-        fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
-        sfx("miss");
-      }).catch(()=>{ send.disabled=false; fbEl.innerHTML=`<div class="fb miss">网络错误，请重试。</div>`; });
-  }
-  renderProgress();
-  send.onclick=doGuess;
-  input.addEventListener("keydown",e=>{ if(e.key==="Enter") doGuess(); });
-}
-
-/* ================= 猜图模式（#/guess，离线单人） ================= */
-const GUESS_DECK=[
-  {answerId:"spt-skateboard", bg:"#E8F4FD"},
-  {answerId:"cul-redenvelope",bg:"#FFF3BF"},
-  {answerId:"nat-rainbow",    bg:"#F0F9FF"},
-  {answerId:"job-chef",        bg:"#FCE8D5"},
-  {answerId:"land-pyramid",    bg:"#FFF8E7"},
-  {answerId:"veh-balloon",     bg:"#F0F9FF"},
-  {answerId:"ani-butterfly",   bg:"#F0FDF4"},
-  {answerId:"food-pizza",      bg:"#FFF0F0"}
-];
-/* 每幅画的固定形状数据（模仿用户画法：填充形状+简单组合） */
-const GUESS_ARTWORK=[
-  /* 滑板 */
-  [{kind:"ellipse",x:300,y:260,w:300,h:55,color:"#E03131",opacity:0.85,rot:0},
-   {kind:"circle",x:220,y:340,w:70,h:70,color:"#E03131",opacity:0.85},
-   {kind:"circle",x:380,y:340,w:70,h:70,color:"#E03131",opacity:0.85}],
-  /* 红包 */
-  [{kind:"rect",x:300,y:400,w:240,h:160,color:"#E03131",opacity:0.55},
-   {kind:"triangle",x:300,y:320,w:240,h:110,color:"#E03131",opacity:0.9},
-   {kind:"circle",x:300,y:400,w:50,h:50,color:"#F59E0B",opacity:0.95}],
-  /* 彩虹 */
-  [{kind:"semicircle",x:300,y:420,w:260,h:130,color:"#E03131",opacity:0.85},
-   {kind:"semicircle",x:300,y:420,w:200,h:100,color:"#F59E0B",opacity:0.85},
-   {kind:"semicircle",x:300,y:420,w:140,h:70,color:"#2F9E44",opacity:0.85}],
-  /* 厨师 */
-  [{kind:"rect",x:300,y:170,w:130,h:80,color:"#E03131",opacity:0.85},
-   {kind:"circle",x:300,y:280,w:120,h:120,color:"#E03131",opacity:0.85},
-   {kind:"waterdrop",x:300,y:440,w:110,h:170,color:"#E03131",opacity:0.85},
-   {kind:"ellipse",x:170,y:390,w:110,h:55,color:"#E03131",opacity:0.85},
-   {kind:"bar",x:250,y:395,w:90,h:14,color:"#E03131",opacity:0.85,rot:25}],
-  /* 金字塔 */
-  [{kind:"diamond",x:300,y:380,w:220,h:170,color:"#F59E0B",opacity:0.9},
-   {kind:"bar",x:300,y:380,w:6,h:170,color:"#E03131",opacity:0.8}],
-  /* 热气球 */
-  [{kind:"waterdrop",x:300,y:250,w:190,h:210,color:"#E03131",opacity:0.85},
-   {kind:"rect",x:300,y:460,w:140,h:80,color:"#E03131",opacity:0.85}],
-  /* 蝴蝶 */
-  [{kind:"ellipse",x:200,y:260,w:110,h:85,color:"#E03131",opacity:0.85,rot:-25},
-   {kind:"ellipse",x:400,y:260,w:110,h:85,color:"#E03131",opacity:0.85,rot:25},
-   {kind:"ellipse",x:230,y:390,w:75,h:60,color:"#E03131",opacity:0.85,rot:15},
-   {kind:"ellipse",x:370,y:390,w:75,h:60,color:"#E03131",opacity:0.85,rot:-15}],
-  /* 披萨 */
-  [{kind:"circle",x:300,y:360,w:280,h:280,color:"#E03131",opacity:0.6},
-   {kind:"triangle",x:240,y:300,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:-10},
-   {kind:"triangle",x:360,y:300,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:10},
-   {kind:"triangle",x:360,y:440,w:130,h:110,color:"#F59E0B",opacity:0.9,rot:30}]
-];
-async function renderGuess(){
-  $app.innerHTML="";
-  const pack=await loadPack();
-  const byId={};
-  pack.images.forEach(g=>byId[g.id]=g);
-  const wrap=html("div",{class:"wrap"});
-  wrap.innerHTML=`
-  <div class="topbar">
-    <button class="ghost" id="back">← 首页</button>
-    <span class="title">猜图 · 看画猜照片</span>
-    <span class="spacer"></span>
-    <span class="timer" id="g-timer">60</span>
-  </div>
-  <div id="g-main"></div>`;
-  $app.appendChild(wrap);
-  wrap.querySelector("#back").onclick=()=>location.hash="#/";
-  let idx=0, score=0;
-  function loadRound(){
-    const conf=GUESS_DECK[idx], ans=byId[conf.answerId];
-    const els=GUESS_ARTWORK[idx];
-    const main=wrap.querySelector("#g-main");
-    main.innerHTML=`
-    <div class="pz-progress" id="g-prog" style="max-width:560px;margin:12px auto 0"></div>
-    <div class="stage-wrap" style="max-width:560px;margin:8px auto">
-      <svg class="stage" id="g-stage"></svg>
-      <div class="hint" id="g-hint">第 ${idx+1} / ${GUESS_DECK.length} 张 · 看图猜词</div>
-    </div>
-    <div class="card" style="max-width:560px;margin:12px auto">
-      <div class="pz-stage" id="g-stage2">第 1 关 · 猜类别词</div>
-      <div class="row" id="g-guess-row">
-        <input id="g-input" placeholder="输入你的猜测…" autocomplete="off">
-        <button class="primary" id="g-send">猜</button>
-      </div>
-      <div id="g-fb" class="guess-fb"></div>
-      <div id="g-wall" style="margin-top:12px">
-        <h3>照片墙 · 点图直接选答案</h3>
-        <div class="img-grid" id="g-wall-grid"></div>
-      </div>
-      <div id="g-reveal" style="display:none;margin-top:12px"></div>
-    </div>`;
-    const svg=main.querySelector("#g-stage");
-    renderArtwork(svg,els,{bg:conf.bg});
-    const input=main.querySelector("#g-input"), send=main.querySelector("#g-send");
-    const fb=main.querySelector("#g-fb"), stageEl=main.querySelector("#g-stage2");
-    const STAGES=["category","keyword","exact"];
-    const LABEL={category:"类别",keyword:"联想",exact:"准确"};
-    let stage=0, done=false, wallOpen=false, timerId=null;
-    const wallPicked={};
-    function refreshProg(){
-      const el=main.querySelector("#g-prog");
-      el.innerHTML="";
-      for(let i=0;i<3;i++){
-        const seg=html("div",{class:"pz-seg"+(i<stage?" done":"")+(i===stage?" cur":"")});
-        seg.textContent=i<stage?"✓ "+LABEL[STAGES[i]]:LABEL[STAGES[i]];
-        el.appendChild(seg);
-      }
-      stageEl.textContent=done?"🎉 已猜中！":"第 "+(stage+1)+" 关 · 猜"+LABEL[STAGES[stage]];
-      input.disabled=done; send.disabled=done;
-    }
-    function textHit(t,word){ if(!word) return false; return t.indexOf(word)>=0||word.indexOf(t)>=0; }
-    function hitLevel(t){
-      if(textHit(t,ans.exact)) return 2;
-      const ak=ans.aliases||[];
-      for(let i=0;i<ak.length;i++) if(textHit(t,ak[i])) return 1;
-      const kw=ans.keywords||[];
-      for(let j=0;j<kw.length;j++) if(textHit(t,kw[j])) return 1;
-      if(textHit(t,ans.category_word||ans.category)) return 0;
-      return -1;
-    }
-    function doGuess(){
-      if(done) return;
-      const t=input.value.trim();
-      if(!t) return;
-      input.value="";
-      const lvl=hitLevel(t);
-      if(lvl<0){ fb.innerHTML=`<div class="fb miss">「${esc(t)}」不对，再想想～</div>`; sfx("miss"); return; }
-      if(lvl===stage){
-        stage++;
-        const pts=[1,2,5][lvl]; score+=pts;
-        fb.innerHTML=`<div class="fb hit">🎯 命中${LABEL[STAGES[lvl]]}「${esc(t)}」+${pts} 分</div>`; sfx("hit");
-        if(stage>=3){ finish(); return; }
-        refreshProg();
-      } else if(lvl>stage){
-        const pts2=[1,2,5][lvl]; score+=pts2; stage=lvl+1;
-        fb.innerHTML=`<div class="fb hit">🎯 直接命中${LABEL[STAGES[lvl]]}「${esc(t)}」+${pts2} 分</div>`; sfx("hit");
-        if(stage>=3){ finish(); return; }
-        refreshProg();
-      } else {
-        fb.innerHTML=`<div class="fb miss">这个词已经猜过啦</div>`;
-      }
-    }
-    send.onclick=doGuess;
-    input.addEventListener("keydown",e=>{ if(e.key==="Enter") doGuess(); });
-    refreshProg();
-    const roundStart=Date.now();
-    openWall();
-    function openWall(){
-      if(wallOpen) return; wallOpen=true;
-      const wallBox=main.querySelector("#g-wall");
-      wallBox.style.display="block";
-      const grid=main.querySelector("#g-wall-grid");
-      let pool=pack.images.filter(g=>g.id!==ans.id);
-      for(let i=pool.length-1;i>0;i--){ const r=Math.floor(Math.random()*(i+1)); const tmp=pool[i]; pool[i]=pool[r]; pool[r]=tmp; }
-      const picks=pool.slice(0,15).concat([ans]);
-      for(let i=picks.length-1;i>0;i--){ const r=Math.floor(Math.random()*(i+1)); const tmp=picks[i]; picks[i]=picks[r]; picks[r]=tmp; }
-      picks.forEach(g=>{
-        const cell=html("div",{class:"img-cell"});
-        cell.innerHTML=`<img src="./images-thumb/${esc(g.id)}.jpg" alt=""><span>${esc(g.zh)}</span>`;
-        cell.onclick=()=>pickWall(g,cell);
-        grid.appendChild(cell);
-      });
-    }
-    function pickWall(g,cellEl){
-      if(done||wallPicked[g.id]) return;
-      if(g.id===ans.id){
-        cellEl.classList.add("on"); score+=3; finish();
-      } else {
-        wallPicked[g.id]=true;
-        cellEl.innerHTML=`<img src="./images-thumb/${esc(g.id)}.jpg" style="filter:grayscale(1)" alt=""><span>✗ 不是这张</span>`;
-      }
-    }
-    function finish(){
-      if(done) return;
-      done=true;
-      clearInterval(timerId);
-      input.disabled=true; send.disabled=true;
-      const secs=Math.round((Date.now()-roundStart)/1000);
-      const mm=Math.floor(secs/60), ss=secs%60;
-      const timeStr=mm>0?`${mm}分${ss}秒`:`${ss}秒`;
-      const rv=main.querySelector("#g-reveal");
-      rv.style.display="block";
-      rv.innerHTML=`<div class="fb hit" style="padding:12px">
-        <b>谜底揭晓：${esc(ans.zh)}</b>（${esc(ans.category)}）<br>
-        <img src="./images-thumb/${esc(ans.id)}.jpg" style="width:160px;border-radius:10px;margin-top:8px"><br>
-        <span class="sub">用时 ${timeStr} · 类别词：${esc(ans.category_word)} · 联想词：${esc((ans.keywords||[]).join("、"))} · 当前总分：${score}</span>
-      </div>
-      <div style="text-align:center;margin-top:14px">
-        <button class="primary" id="g-next">${idx+1>=GUESS_DECK.length?"查看总成绩":"下一张 →"}</button>
-      </div>`;
-      rv.querySelector("#g-next").onclick=()=>{ idx++; if(idx>=GUESS_DECK.length) showFinal(); else loadRound(); };
-    }
-    function showFinal(){
-      clearInterval(timerId);
-      main.innerHTML=`
-      <div class="card" style="max-width:560px;margin:30px auto;text-align:center">
-        <h2>🏁 猜图结束</h2>
-        <div style="font-size:40px;font-weight:800;color:var(--brand);margin:10px 0">${score} 分</div>
-        <p class="sub">猜中 8 张抽象画 · 准确词 +5 / 联想词 +2 / 类别词 +1 / 照片墙选对 +3</p>
-        <div style="margin-top:18px">
-          <button class="primary" id="g-again">再来一轮</button>
-          <button class="ghost" id="g-home" style="margin-left:8px">回首页</button>
-        </div>
-      </div>`;
-      main.querySelector("#g-again").onclick=()=>{ idx=0; score=0; loadRound(); };
-      main.querySelector("#g-home").onclick=()=>location.hash="#/";
-    }
-    let elapsed=0;
-    const timerEl=wrap.querySelector("#g-timer");
-    timerEl.textContent="0s";
-    timerId=setInterval(()=>{
-      elapsed++;
-      const m=Math.floor(elapsed/60), s=elapsed%60;
-      timerEl.textContent=m>0?`${m}m${s}s`:`${s}s`;
-    },1000);
-  }
-  loadRound();
-}
-
-/* ---- 单人谜题自检 ---- */
-async function runPuzzleTest(){
-  const rows=[];
-  const log=(ok,msg)=>{ rows.push({ok,msg}); };
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const origFetch=window.fetch;
-  window.fetch=async (url,opts)=>{
-    const u=String(url);
-    if(opts && opts.method==="POST" && u.includes("/guess")){
-      const body=JSON.parse(opts.body||"{}");
-      const t=String(body.text||"");
-      if(t.includes("大象")) return {status:200,ok:true,json:async()=>({ok:true,done:true,correct:true,level:"exact",word:"大象",pts:5,answer:{mode:"image",zh:"大象",category:"动物",img:"./images-thumb/ani-elephant.jpg"}})};
-      if(t.includes("动物")) return {status:200,ok:true,json:async()=>({ok:true,passed:true,next:"keyword",level:"category",word:"动物",pts:1})};
-      if(t.includes("草原")) return {status:200,ok:true,json:async()=>({ok:true,passed:true,next:"exact",level:"keyword",word:"草原",pts:2})};
-      return {status:200,ok:true,json:async()=>({ok:true,correct:false})};
-    }
-    if(opts && opts.method==="POST" && u.includes("/api/puzzle")) return {status:200,ok:true,json:async()=>({ok:true,id:"ABCDEF",url:"/巧手猜图.html#/puzzle/ABCDEF"})};
-    if(u.includes("/api/puzzle/") && u.endsWith("mock1")) return {status:200,ok:true,json:async()=>({ok:true,canvas:[{kind:"circle",x:10,y:10,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],bg:"#C6EFCE",answerMode:"image"})};
-    if(u.endsWith("image-pack-64.json")) return {status:200,ok:true,json:async()=>({images:[{id:"ani-elephant",category:"动物",zh:"大象",exact:"大象",keywords:["森林","鼻子"],aliases:["象"],category_word:"动物"},{id:"ani-giraffe",category:"动物",zh:"长颈鹿",exact:"长颈鹿",keywords:["草原","脖子"],aliases:["鹿"],category_word:"动物"}]})};
-    return {status:200,ok:true,json:async()=>({ok:true})};
-  };
-  sfx._mute=true;   // 自检内静音
-  try{
-    log(typeof cropImageDialog==="function" && typeof clampNum==="function","裁剪器组件可用");
-    location.hash="#/puzzle"; route(); await sleep(60);
-    log(!!document.querySelector("#publish"),"创作页有发布按钮");
-    log(document.querySelectorAll("#tabs button").length===2,"工具 tabs 2 个");
-    log(document.querySelectorAll(".rail-grid button").length===12,"左列形状栏 12 图标");
-    log(!!document.querySelector(".rail-grid button[title=水滴]"),"水滴图标在左列可点");
-    const rtb=document.querySelector(".tool-bar");
-    log(!!rtb && !!rtb.querySelector("#tabs") && !!rtb.querySelector("#swatches") && !!rtb.querySelector("#opacity"),"画布下方功能条（工具/颜色/不透明度）");
-    log(document.querySelector("#hint").nextElementSibling===document.querySelector(".canvas-ops") && document.querySelector(".canvas-ops").nextElementSibling===rtb,"操作组位于画布与颜色区之间");
-    log(document.querySelector("#toolbody").children.length===0,"提示语统一到画布下方（功能条无说明文字）");
-    const hintEl0=document.querySelector("#hint");
-    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="画笔").click(); await sleep(20);
-    log(document.querySelector("#hint")===hintEl0 && document.querySelector("#hint").textContent.includes("画笔"),"画笔提示在画布下方同一位置");
-    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="形状").click(); await sleep(20);
-    const defaultTool=[...document.querySelectorAll("#tabs button")].find(b=>b.className==="on");
-    log(!!defaultTool && defaultTool.textContent==="形状","默认工具=形状");
-    // 浮动放置：click 圆形 → 浮动出现 → 点画布放置
-    const circ=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形");
-    circ.click(); await sleep(30);
-    log(!!document.querySelector("#stage g[data-ghost]"),"点击形状后浮动图形立即出现");
-    const tr=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="三角形");
-    tr.click(); await sleep(20);
-    const rbtns=[...document.querySelectorAll(".rail-grid button")];
-    log(rbtns.find(b=>b.title==="圆形").classList.contains("on")===false && rbtns.find(b=>b.title==="三角形").classList.contains("on")===true,"切换形状后高亮跟随新形状");
-    circ.click(); await sleep(20);
-    // 按下瞬间高亮跟随 + tap 统一浮动跟手
-    const dia=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形");
-    dia.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,pointerId:77}));
-    await sleep(10);
-    log([...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形").classList.contains("on")===true,"按下瞬间高亮跟随新形状");
-    dia.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,pointerId:77}));
-    await sleep(20);
-    log(!!document.querySelector("#stage g[data-ghost]") && [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="菱形").classList.contains("on")===true,"tap 形状开启浮动跟手");
-    // 清空连浮动一起清
-    document.querySelector("#clear").click(); await sleep(15);
-    document.querySelector("#clear").click(); await sleep(30);
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0 && !document.querySelector("#stage g[data-ghost]"),"清空连浮动图形一起清空");
-    circ.click(); await sleep(20);
-    const stage=document.querySelector("#stage");
-    const r1=stage.getBoundingClientRect();
-    stage.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
-    stage.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r1.left+r1.width/2,clientY:r1.top+r1.height/2,pointerId:1}));
-    await sleep(40);
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"点击画布放置 1 个圆形");
-    // ---- v2：画布操作组 / 滑块同步 / 清空 / 月牙 / 悬浮条 ----
-    const opBtns=[...document.querySelectorAll(".canvas-ops button")].map(b=>b.textContent);
-    log(opBtns.length===6,"画布下方操作按钮组 6 个");
-    log(["置顶","置底","删除","撤销","重做","清空"].every(x=>opBtns.join(",").includes(x)),"操作组含全部 6 项");
-    const pzOp=document.querySelector("#opacity");
-    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="画笔").click();
-    pzOp.value=50; pzOp.dispatchEvent(new Event("input",{bubbles:true}));
-    await sleep(20);
-    log((document.querySelector("#opacity-state").textContent||"").includes("下一个放置"),"未选中时滑块提示应用到新形状");
-    [...document.querySelectorAll("#tabs button")].find(b=>b.textContent==="形状").click();
-    const elg=document.querySelector("#stage g[data-kind]:not([data-ghost])");
-    const elr=elg.getBoundingClientRect();
-    elg.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:21}));
-    elg.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:21}));
-    await sleep(30);
-    log(document.querySelector("#opacity").value==="70","选中元素后滑块同步回 70%");
-    pzOp.value=30; pzOp.dispatchEvent(new Event("input",{bubbles:true}));
-    await sleep(20);
-    const inner=document.querySelector("#stage g[data-kind]:not([data-ghost])").querySelector("path,circle,rect,ellipse");
-    log(inner.getAttribute("opacity")==="0.3","选中元素透明度随滑块变为 0.3");
-    log((document.querySelector("#opacity-state").textContent||"").includes("已应用"),"滑块状态提示已应用到选中元素");
-    document.querySelector("#clear").click(); await sleep(20);
-    log((document.querySelector("#clear").textContent||"").includes("确认"),"清空需二次确认（按钮变再点确认）");
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===1,"二次确认前元素保留");
-    document.querySelector("#clear").click(); await sleep(30);
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"二次确认后画布清空");
-    const star=[...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="五角星");
-    star.click(); await sleep(20);
-    const st3=document.querySelector("#stage"); const r3=st3.getBoundingClientRect();
-    st3.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r3.left+r3.width/2,clientY:r3.top+r3.height/2,pointerId:41}));
-    st3.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r3.left+r3.width/2,clientY:r3.top+r3.height/2,pointerId:41}));
-    await sleep(30);
-    const starG=document.querySelector("#stage g[data-kind=star]:not([data-ghost])");
-    log(!!starG && !!starG.querySelector("path") && (starG.querySelector("path").getAttribute("d")||"").includes("Z"),"五角星路径渲染");
-    log(![...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="五角星").classList.contains("sel"),"一次一放后形状栏取消选中");
-    // 真实用户路径：点选画布上的五角星 → 删除
-    const starS=document.querySelector("#stage g[data-kind=star]:not([data-ghost])");
-    const sr=starS.getBoundingClientRect();
-    starS.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:sr.left+sr.width/2,clientY:sr.top+sr.height/2,pointerId:22}));
-    starS.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:sr.left+sr.width/2,clientY:sr.top+sr.height/2,pointerId:22}));
-    await sleep(30);
-    document.querySelector("#del").click(); await sleep(20);
-    log(document.querySelectorAll("#stage g[data-kind]:not([data-ghost])").length===0,"点选后删除按钮清掉五角星");
-    const rail=document.querySelector("#shape-rail");
-    log(!!rail && rail.classList.contains("open") && rail.querySelectorAll(".rail-grid button").length===12,"窄屏画布左侧形状栏展开（12 图标）");
-    log(!rail.querySelector("button b"),"形状栏仅图标无文字");
-    const cssTxt=document.querySelector("style").textContent;
-    log(cssTxt.includes("width:732px") && cssTxt.includes(".shape-rail:not(.open){display:none}") && cssTxt.includes(".tool-bar{display:flex"),"统一布局 CSS 就位（左列+640画布+功能条）");
-    // 发布前补放一个元素（画布已被清空测试清空）
-    circ.click(); await sleep(20);
-    const st4=document.querySelector("#stage"); const r4=st4.getBoundingClientRect();
-    st4.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
-    st4.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:r4.left+r4.width/2,clientY:r4.top+r4.height/2,pointerId:51}));
-    await sleep(30);
-    // 目标照片：先选目标再发布（定目标→看着画→发布）
-    document.querySelector("#tp-pick").click(); await sleep(80);
-    log(!!document.querySelector("#pt-grid") && document.querySelectorAll("#pt-grid .img-cell").length>=1,"目标照片弹窗系统图库出现");
-    log(!!document.querySelector("#pt-mygrid"),"目标照片弹窗有我的图片页");
-    const ptFirst=document.querySelector("#pt-grid .img-cell");
-    if(ptFirst){ ptFirst.click(); await sleep(30); const ptOk=document.querySelector("#pt-ok"); if(ptOk){ ptOk.click(); await sleep(30);} }
-    log(((document.querySelector("#tp-name").textContent)||"").length>0 && !!document.querySelector("#tp-photo img"),"目标照片已选定并显示");
-    document.querySelector("#tp-pick").click(); await sleep(50);
-    const ptCustomTab=document.querySelector('#pt-tabs .pt-tab[data-v="custom"]');
-    if(ptCustomTab){ ptCustomTab.click(); await sleep(40); }
-    log(!!document.querySelector("#pt-file") && !!document.querySelector("#pt-save"),"目标弹窗上传控件存在");
-    if(document.querySelector("#pt-cancel")) document.querySelector("#pt-cancel").click();
-    await sleep(30);
-    // 发布确认弹层
-    document.querySelector("#publish").click(); await sleep(60);
-    log(!!document.querySelector(".mask .modal") && !!document.querySelector("#confirm"),"发布确认弹层打开");
-    log(!!document.querySelector(".mask .tp-photo img"),"发布弹层显示目标照片");
-    if(document.querySelector("#cancel")) document.querySelector("#cancel").click();
-    await sleep(20);
-    // 自定义图 IndexedDB 读写（合法小图）
-    const withTO=(pr,ms)=>Promise.race([pr,new Promise(r=>setTimeout(()=>r("TIMEOUT"),ms||800))]);
-    let idbOk=false;
-    try{
-      const r1=await withTO(customPut({id:"tt1",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",category_word:"动物",keywords:["草原"],aliases:[],exact:"长颈鹿",createdAt:Date.now()}));
-      if(r1!=="TIMEOUT"){
-        const ll=await withTO(customList());
-        if(ll!=="TIMEOUT" && ll.some(x=>x.id==="tt1")){ idbOk=true; await withTO(customDel("tt1")); }
-      }
-    }catch(e){ idbOk=false; }
-    log(idbOk,"自定义图 IndexedDB 保存/读取/删除");
-    // 猜题页（三关引导：类别→联想→准确）
-    location.hash="#/puzzle/mock1"; route(); await sleep(80);
-    log(document.querySelectorAll("#stage g[data-kind]").length===1,"猜题页渲染只读画布 1 元素");
-    const bgR=document.querySelector("#stage rect");
-    log(!!bgR && bgR.getAttribute("fill")==="#C6EFCE","猜题页画布背景同步");
-    log(!!document.querySelector("#guess-input"),"猜题页有输入框");
-    log(document.querySelectorAll("#pz-progress .pz-seg").length===3,"三关进度条 3 段");
-    log((document.querySelector("#pz-stage").textContent||"").includes("类别"),"第 1 关为猜类别");
-    const input=document.querySelector("#guess-input"), send=document.querySelector("#guess-send");
-    input.value="猫"; send.click(); await sleep(60);
-    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("不对"),"未中显示不对");
-    input.value="动物"; send.click(); await sleep(60);
-    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("进入下一关"),"类别命中进下一关");
-    log(document.querySelectorAll("#pz-progress .pz-seg.cur").length===1,"当前关高亮 1 段");
-    input.value="草原"; send.click(); await sleep(60);
-    log((document.querySelector("#pz-stage").textContent||"").includes("准确"),"联想命中跳到准确关");
-    input.value="大象"; send.click(); await sleep(60);
-    log((document.querySelector("#guess-fb")||{textContent:""}).textContent.includes("答对了"),"准确命中通关");
-    log(((document.querySelector("#guess-fb").querySelector("img"))||{}).src.includes("ani-elephant"),"通关显示谜底照片");
-    // 发布成功视图（直接调 showPublished 需要 context，跳过——用 POST stub 走创作页 confirm）
-  }catch(e){ log(false,"异常: "+e.message); }
-  window.fetch=origFetch;
-  const pass=rows.filter(r=>r.ok).length;
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  w.innerHTML=`<div class="card"><h2>单人谜题自检 · ${pass}/${rows.length}</h2><table class="test-tbl"><tbody>${rows.map(r=>`<tr class="${r.ok?"pass":"fail"}"><td>${r.ok?"PASS":"FAIL"}</td><td>${esc(r.msg)}</td></tr>`).join("")}</tbody></table><div class="note">本页是内部自检报告，正式版不含此页。</div></div>`;
-  $app.appendChild(w);
-}
-
-
-/* ================= 创作编辑器（出题人视角） ================= */
-function renderEditor(){
-  const wall=(__PW.wall||[]).slice();
-  const target=__PW.target;
-  const state={
-    wall, target, els:[], selected:null, tool:"shape", pickShape:"circle",
-    color:COLORS[0], opacity:0.7, strokeW:3, history:[], future:[], finished:false, bg:"#FFFFFF"
-  };
-  let timerId=null;
-  $app.innerHTML="";
-  const wrap=html("div",{class:"wrap"});
-  const isNarrow = !!__PW.forceNarrow || window.matchMedia("(max-width:767px)").matches;
-  const feedPanel = `<div class="feed-panel"><h2>作答动态</h2><div class="feed-progress-inline">🎯 准确词命中 <b>0/0</b></div><div class="feed" id="feed"></div></div>`;
-  const narrowFeed = isNarrow ? feedPanel : "";
-  const desktopFeed = isNarrow ? "" : feedPanel;
-  wrap.innerHTML=`
-  <div class="topbar">
-    <button class="ghost" id="back">← 首页</button>
-    <span class="title">联机对局 · 你出题</span>
-    <span class="tag">ruleset ${RULESET_ID}</span>
-    <span class="spacer"></span>
-    <span class="timer" id="timer">--:--</span>
-    <button class="primary" id="submit">等待揭晓…</button>
-  </div>
-  <div class="editor drawer-layout">
-    <div class="panel wall-panel">
-      <h2>🎯 目标照片</h2>
-      <div class="target-card" id="target-card"></div>
-    </div>
-    ${desktopFeed}
-    <div class="stage-wrap">
-      <div class="stage-row">
-        <div class="shape-rail" id="shape-rail"></div>
-        <div class="shape-rail-mini" id="shape-rail-mini" title="展开形状">⤢</div>
-        <svg class="stage" id="stage"></svg>
-      </div>
-      <span class="timer-hint">⏰ 最后 30 秒，加快！</span>
-      <div class="hint" id="hint"></div>
-      <div class="canvas-ops">
-        <button id="up">置顶</button>
-        <button id="down">置底</button>
-        <button id="del">删除</button>
-        <button id="undo">↩ 撤销</button>
-        <button id="redo">↪ 重做</button>
-        <button id="clear">清空</button>
-      </div>
-      ${narrowFeed}
-      <div class="tool-bar panel">
-        <div class="tb-group"><div class="tabs" id="tabs"></div></div>
-        <div class="tb-group"><h3>颜色</h3><div class="swatches" id="swatches"></div></div>
-        <div class="tb-group"><h3>背景</h3><div class="swatches" id="bgswatches"></div></div>
-        <div class="tb-group"><h3>不透明度</h3><div class="row"><input type="range" id="opacity" min="20" max="100" value="70"><span id="opacityv">70%</span><span id="opacity-state" class="op-state"></span></div></div>
-        <div class="tb-group" id="toolbody"></div>
-        <div class="counter">元素 <b id="cnt">0</b> / ${RULES.elementCap}</div>
-      </div>
-    </div>
-  </div>`;
-  $app.appendChild(wrap);
-  wrap.querySelector("#back").onclick=()=>{if(timerId)clearInterval(timerId);location.hash="#/";};
-  const submitEl=wrap.querySelector("#submit"); submitEl.textContent="等待揭晓…"; submitEl.disabled=true;
-
-  const svg=wrap.querySelector("#stage");
-  const railEl=wrap.querySelector("#shape-rail"), railMini=wrap.querySelector("#shape-rail-mini");
-  let railCollapsed=false;
-  function renderRail(){
-    railEl.innerHTML="";
-    const grid=html("div",{class:"rail-grid"});
-    SHAPES.forEach(s0=>grid.appendChild(makeShapeBtn(s0,true)));
-    railEl.appendChild(grid);
-    const col=html("button",{class:"rail-col",title:"收起形状栏"},"◀");
-    col.onclick=()=>{railCollapsed=true;syncUI();};
-    railEl.appendChild(col);
-  }
-  railMini.onclick=()=>{railCollapsed=false;renderRail();syncUI();};
-  renderRail();
-  window.addEventListener("resize",function rs(){ if(!document.body.contains(svg)){window.removeEventListener("resize",rs);return;} const w=svg.getBoundingClientRect().width; svg.style.height=Math.max(300,Math.min(w,window.innerHeight-270))+"px"; draw(); });
-  const tabsEl=wrap.querySelector("#tabs");
-  const swEl=wrap.querySelector("#swatches");
-  const bodyEl=wrap.querySelector("#toolbody");
-  const hintEl=wrap.querySelector("#hint");
-  const cntEl=wrap.querySelector("#cnt");
-  const timerEl=wrap.querySelector("#timer");
-  const targetCard=wrap.querySelector("#target-card");
-  if(onlineTarget()){
-    const t=wall[target];
-    targetCard.innerHTML=`<img src="${t.img}" alt="${t.zh}"><div><b>${t.zh}</b><div class="sub">把这张照片抽象成画，别照着描<br>类别：${t.category}</div></div>`;
-  }
-  if(__PW.deadline){ const l=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000)); timerEl.textContent=`${Math.floor(l/60)}:${String(l%60).padStart(2,"0")}`; }
-
-  /* 工具 tabs */
-  TOOLS.forEach(t=>{
-    const b=html("button",{class:state.tool===t.id?"on":""},t.name);
-    b.onclick=()=>{state.tool=t.id;state.selected=null;state.ghost=null;state.ghostShape=null;document.removeEventListener("pointermove",followGhost);renderGhost();syncUI();};
-    tabsEl.appendChild(b);
-  });
-  /* 颜色 */
-  COLORS.forEach(col=>{
-    const s=html("button",{class:"swatch"+(state.color===col?" on":""),"data-col":col});
-    s.style.background=col;
-    s.onclick=()=>{state.color=col;if(state.selected!=null){commit();const e=state.els[state.selected];e.color=col;}syncUI();};
-    swEl.appendChild(s);
-  });
-  const bgSwEl=wrap.querySelector("#bgswatches");
-  CANVAS_BGS.forEach(col=>{
-    const s=html("button",{class:"swatch"+(state.bg===col?" on":""),"data-bg":col});
-    s.style.background=col;
-    if(col==="#FFFFFF"){ s.style.border="1.5px dashed #ccc"; s.title="白色"; }
-    s.onclick=()=>{state.bg=col;syncUI();};
-    bgSwEl.appendChild(s);
-  });
-  const opEl=wrap.querySelector("#opacity"), opvEl=wrap.querySelector("#opacityv");
-  opEl.addEventListener("input",()=>{
-    state.opacity=+opEl.value/100; opvEl.textContent=opEl.value+"%";
-    const st=wrap.querySelector("#opacity-state");
-    if(state.selected!=null){ const e=state.els[state.selected]; e.opacity=state.opacity; draw(); if(st) st.textContent="已应用到选中元素"; }
-    else { if(st) st.textContent="将应用到下一个放置的形状"; }
-  });
-  opEl.addEventListener("change",()=>{ if(state.selected!=null) commit(); });
-
-  function commit(){ state.history.push(JSON.stringify(state.els)); if(state.history.length>60)state.history.shift(); state.future=[]; }
-  function syncUI(){
-    [...tabsEl.children].forEach((b,i)=>b.className=TOOLS[i].id===state.tool?"on":"");
-    [...swEl.children].forEach(s=>s.className="swatch"+(s.dataset.col===state.color?" on":""));
-    [...(bgSwEl?bgSwEl.children:[])].forEach(s=>s.className="swatch"+(s.dataset.bg===state.bg?" on":""));
-    hintEl.textContent=TOOLS.find(t=>t.id===state.tool).hint;
-    cntEl.textContent=state.els.length;
-    if(state.selected!=null && state.els[state.selected]){
-      const e=state.els[state.selected];
-      state.opacity=e.opacity;
-      opEl.value=Math.round(e.opacity*100); opvEl.textContent=opEl.value+"%";
-    }
-    if(railEl){
-      railEl.classList.toggle("open", !railCollapsed);
-      railMini.classList.toggle("show", railCollapsed);
-    }
-    document.querySelectorAll("[data-shape-btn]").forEach(btn=>{
-      btn.classList.toggle("on", state.pickShape===btn.dataset.kind);
-    });
-    draw();
-  }
-  function addElement(e){
-    if(state.els.length>=RULES.elementCap){toast(`单作品元素上限 ${RULES.elementCap} 个`);return;}
-    commit(); state.els.push(e); state.selected=state.els.length-1; syncUI();
-  }
-  function addShapeAt(x,y){
-    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
-    addElement({kind:s0.kind,x,y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:state.opacity});
-    // 一次一放：放置后清除选中形状与浮动图形，需重新选形状才能再放
-    state.selected=null;
-    state.pickShape=null;
-    state.ghost=null; state.ghostShape=null;
-    document.removeEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function followGhost(e){
-    if(!state.ghost) return;
-    const p=pt(e);
-    state.ghost.x=Math.max(0,Math.min(STAGE,p.x));
-    state.ghost.y=Math.max(0,Math.min(STAGE,p.y));
-    renderGhost();
-  }
-  function enableFloat(kind){
-    state.pickShape=kind; state.ghostShape=kind;
-    state.ghost={x:STAGE/2,y:STAGE/2};
-    document.addEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function cancelFloat(){
-    state.ghost=null; state.ghostShape=null;
-    document.removeEventListener("pointermove",followGhost);
-    renderGhost(); syncUI();
-  }
-  function togglePick(kind){
-    if(state.ghost && state.ghost.x!=null && state.ghostShape===kind){ cancelFloat(); }
-    else { enableFloat(kind); }
-    state.selected=null;
-  }
-  /* 工具内容 */
-  function makeShapeBtn(s0, inFloat){
-    const b=html("button",{class:state.pickShape===s0.kind?"on":"",title:s0.name,"data-shape-btn":"","data-kind":s0.kind});
-    b.innerHTML=inFloat?shapeIcon(s0.kind,state.color):shapeIcon(s0.kind,state.color)+`<b>${s0.name}</b>`;
-    let pointerUsed=false;
-    b.addEventListener("pointerdown",(ev)=>{
-      if(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches){ return; }
-      pointerUsed=true; ev.preventDefault();
-      state.pickShape=s0.kind; syncUI();
-      if(!state.ghost){ state.ghost={x:null,y:null}; }
-      let dragged=false;
-      const mv=(e)=>{
-        const p=pt(e);
-        if(state.ghost){ state.ghost.x=Math.max(0,Math.min(STAGE,p.x)); state.ghost.y=Math.max(0,Math.min(STAGE,p.y)); dragged=true; renderGhost(); }
-      };
-      const up=()=>{
-        document.removeEventListener("pointermove",mv);
-        document.removeEventListener("pointerup",up);
-        if(dragged){
-          if(state.ghost && state.ghost.x!=null && state.ghost.y!=null){ addShapeAt(state.ghost.x,state.ghost.y); }
-          else { cancelFloat(); }
-        } else { togglePick(s0.kind); }
-      };
-      document.addEventListener("pointermove",mv);
-      document.addEventListener("pointerup",up);
-    });
-    b.addEventListener("click",(ev)=>{
-      if(!pointerUsed){ togglePick(s0.kind); }
-      pointerUsed=false;
-    });
-    return b;
-  }
-  function buildToolBody(){
-    bodyEl.innerHTML="";
-  }
-  buildToolBody();
-  const origSync=syncUI;
-  syncUI=function(){origSync();buildToolBody();};
-
-  /* ---------- SVG 绘制与交互 ---------- */
-  const NS="http://www.w3.org/2000/svg";
-  let canvasTimer=null;
-  function scheduleCanvas(){ if(canvasTimer)return; canvasTimer=setTimeout(()=>{canvasTimer=null; __PW.send({t:"canvas",els:state.els,bg:state.bg});},200); }
-  let ghostG=null;
-  function draw(){
-    renderArtwork(svg,state.els,{bg:state.bg});
-    if(state.selected!=null && state.els[state.selected]){
-      const e=state.els[state.selected];
-      const g=h("g",{transform:`translate(${e.x} ${e.y}) rotate(${e.rot||0})`});
-      g.appendChild(h("rect",{x:-e.w/2-6,y:-e.h/2-6,width:e.w+12,height:e.h+12,rx:8,fill:"none",stroke:"#3B5BDB","stroke-width":1.5,"stroke-dasharray":"5 4"}));
-      const handles=[[-1,-1],[1,-1],[1,1],[-1,1],[1,0],[0,1]];
-      handles.forEach(([hx,hy])=>{
-        const hg=h("g",{"data-hx":hx,"data-hy":hy});
-        hg.appendChild(h("rect",{x:hx*e.w/2-20,y:hy*e.h/2-20,width:40,height:40,rx:8,fill:"transparent"}));
-        hg.appendChild(h("rect",{x:hx*e.w/2-7,y:hy*e.h/2-7,width:14,height:14,rx:3,fill:"#fff",stroke:"#3B5BDB","stroke-width":1.5}));
-        g.appendChild(hg);
-      });
-      const rg=h("g",{"data-rot":"1"});
-      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-34,r:24,fill:"transparent"}));
-      rg.appendChild(h("circle",{cx:0,cy:-e.h/2-28,r:9,fill:"#F59F00",stroke:"#fff","stroke-width":2}));
-      g.appendChild(rg);
-      g.appendChild(h("line",{x1:0,y1:-e.h/2-6,x2:0,y2:-e.h/2-19,stroke:"#3B5BDB","stroke-width":1.5}));
-      svg.appendChild(g);
-    }
-    scheduleCanvas();
-    renderGhost();
-  }
-
-  function pt(ev){
-    const m=svg.getScreenCTM();
-    const p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m.inverse());
-    return {x:p.x,y:p.y};
-  }
-  function renderGhost(){
-    if(ghostG){ ghostG.remove(); ghostG=null; }
-    if(state.tool!=="shape" || !state.ghost || state.ghost.x==null) return;
-    const s0=SHAPES.find(s=>s.kind===state.pickShape)||SHAPES[0];
-    ghostG=shapeFor({kind:s0.kind,x:state.ghost.x,y:state.ghost.y,w:s0.w,h:s0.h,rot:0,color:state.color,opacity:0.45});
-    ghostG.setAttribute("pointer-events","none");
-    ghostG.setAttribute("data-ghost","1");
-    svg.appendChild(ghostG);
-  }
-  let drag=null;
-  svg.addEventListener("pointerdown",ev=>{
-    if(state.finished)return;
-    const p=pt(ev); try{svg.setPointerCapture(ev.pointerId);}catch(_){}
-    const rotH=ev.target.closest("[data-rot]");
-    const hand=ev.target.closest("[data-hx]");
-    if(rotH){
-      const e=state.els[state.selected];
-      drag={type:"rot",e,start:performance.now()};commit();
-    } else if(hand){
-      const e=state.els[state.selected];
-      drag={type:"scale",e,hx:+hand.dataset.hx,hy:+hand.dataset.hy,ow:e.w,oh:e.h};commit();
-    } else {
-      const gg=ev.target.closest("g[data-kind]");
-      if(gg){
-        const idx=[...svg.querySelectorAll("g[data-kind]:not([data-ghost])")].indexOf(gg);
-        state.selected=idx;
-        if(state.els[idx] && opEl){ state.opacity=state.els[idx].opacity; opEl.value=Math.round(state.els[idx].opacity*100); opvEl.textContent=opEl.value+"%"; }
-        drag={type:"move",e:state.els[idx],dx:p.x-state.els[idx].x,dy:p.y-state.els[idx].y};
-        commit(); draw();
-      } else if(state.tool==="pen"){
-        commit();
-        drag={type:"draw",pts:[[p.x,p.y]]};
-      } else if(state.tool==="shape" && state.pickShape){
-        addShapeAt(p.x,p.y);
-      } else {
-        state.selected=null; draw();
-      }
-    }
-  });
-  svg.addEventListener("pointermove",ev=>{
-    const p=pt(ev);
-    if(!drag){
-      if(state.tool==="shape" && state.ghost && state.pickShape){ state.ghost.x=p.x; state.ghost.y=p.y; renderGhost(); }
-      return;
-    }
-    if(drag.type==="move"){drag.e.x=p.x-drag.dx;drag.e.y=p.y-drag.dy;clamp(drag.e);draw();}
-    else if(drag.type==="rot"){
-      const e=drag.e;
-      let ang=Math.atan2(p.y-e.y,p.x-e.x)*180/Math.PI+90;
-      e.rot=Math.round(ang); draw();
-    } else if(drag.type==="scale"){
-      const e=drag.e;
-      const rad=-(e.rot||0)*Math.PI/180;
-      const lx=(p.x-e.x)*Math.cos(rad)-(p.y-e.y)*Math.sin(rad);
-      const ly=(p.x-e.x)*Math.sin(rad)+(p.y-e.y)*Math.cos(rad);
-      let nw=Math.max(20,Math.abs(lx)*2), nh=Math.max(20,Math.abs(ly)*2);
-      if(drag.hx!==0 && drag.hy!==0){ const s=Math.max(nw/drag.ow,nh/drag.oh); nw=drag.ow*s; nh=drag.oh*s; }
-      else if(drag.hx!==0){ nw=drag.ow*(nw/drag.ow); nh=drag.oh; }
-      else { nh=drag.oh*(nh/drag.oh); nw=drag.ow; }
-      e.w=nw; e.h=nh; draw();
-    } else if(drag.type==="draw"){
-      const last=drag.pts[drag.pts.length-1];
-      if(Math.hypot(p.x-last[0],p.y-last[1])>4){drag.pts.push([p.x,p.y]);drawTempPath();}
-    }
-  });
-  svg.addEventListener("pointerup",()=>{
-    if(!drag)return;
-    if(drag.type==="draw"){
-      if(drag.pts.length>=2){
-        const xs=drag.pts.map(q=>q[0]),ys=drag.pts.map(q=>q[1]);
-        const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
-        const w=Math.max(12,Math.max(...xs)-Math.min(...xs)), h=Math.max(12,Math.max(...ys)-Math.min(...ys));
-        const d=smoothPath(drag.pts.map(q=>[q[0]-cx,q[1]-cy]));
-        state.els.push({kind:"path",x:cx,y:cy,w,h,rot:0,color:state.color,width:state.strokeW,d});
-        if(state.els.length>RULES.elementCap){state.els.pop();toast(`单作品元素上限 ${RULES.elementCap} 个`);}
-        state.selected=state.els.length-1;
-      } else { state.history.pop(); }
+      drawTarget();
       syncUI();
-    }
-    drag=null;
+    }catch(e){ syncUI(); }
+  }
+  /* beforeunload 在小红书 MiniTool WebView 里不触发，仅作为桌面浏览器预览兜底；
+     真正可靠的保存路径是：点首页 await saveDraft + commit 后 debounce 2 秒自动存 */
+  window.addEventListener("beforeunload",function bu(){
+    if($app.contains(svg)) saveDraft();
   });
-  function clamp(e){ e.x=Math.max(0,Math.min(STAGE,e.x)); e.y=Math.max(0,Math.min(STAGE,e.y)); }
-  function drawTempPath(){
-    draw();
-    const d=smoothPath(drag.pts);
-    svg.appendChild(h("path",{d,fill:"none",stroke:state.color,"stroke-width":state.strokeW,"stroke-linecap":"round","stroke-linejoin":"round",opacity:.8}));
-  }
-  function smoothPath(pts){
-    if(pts.length===2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
-    let d=`M${pts[0][0]},${pts[0][1]}`;
-    for(let i=1;i<pts.length-1;i++){
-      const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
-      d+=` Q${pts[i][0]},${pts[i][1]} ${mx},${my}`;
-    }
-    const last=pts[pts.length-1]; d+=` L${last[0]},${last[1]}`;
-    return d;
-  }
-
-  /* 按钮操作 */
-  wrap.querySelector("#del").onclick=()=>{if(state.selected==null)return;commit();state.els.splice(state.selected,1);state.selected=null;syncUI();};
-  wrap.querySelector("#up").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.push(e);state.selected=state.els.length-1;syncUI();};
-  wrap.querySelector("#down").onclick=()=>{if(state.selected==null)return;commit();const e=state.els.splice(state.selected,1)[0];state.els.unshift(e);state.selected=0;syncUI();};
-  wrap.querySelector("#undo").onclick=()=>{if(!state.history.length)return;state.future.push(JSON.stringify(state.els));state.els=JSON.parse(state.history.pop());state.selected=null;syncUI();};
-  wrap.querySelector("#redo").onclick=()=>{if(!state.future.length)return;state.history.push(JSON.stringify(state.els));state.els=JSON.parse(state.future.pop());state.selected=null;syncUI();};
-  let clearArmed=false, clearTimer=null;
-  wrap.querySelector("#clear").onclick=()=>{
-    const b=wrap.querySelector("#clear");
-    if(!clearArmed){
-      clearArmed=true; b.classList.add("arm"); b.textContent="再点确认清空";
-      clearTimer=setTimeout(()=>{clearArmed=false;b.classList.remove("arm");b.textContent="清空";},3000);
-      return;
-    }
-    clearTimeout(clearTimer); clearArmed=false; b.classList.remove("arm"); b.textContent="清空";
-    commit(); state.els=[]; state.selected=null; state.ghost=null; state.ghostShape=null; document.removeEventListener("pointermove",followGhost); syncUI();
-  };
-  window.addEventListener("keydown",function kd(ev){
-    if(!$app.contains(svg)){window.removeEventListener("keydown",kd);return;}
-    if(ev.key==="Delete"&&state.selected!=null){wrap.querySelector("#del").click();}
-    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="z"){ev.preventDefault();ev.shiftKey?wrap.querySelector("#redo").click():wrap.querySelector("#undo").click();}
-  });
-
-  /* 计时：最后 30 秒画布红框警示 + 最后 10 秒滴答音 */
-  timerId=setInterval(()=>{
-    if(state.finished){clearInterval(timerId);return;}
-    const left=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000));
-    const mm=Math.floor(left/60),ss=left%60;
-    timerEl.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
-    timerEl.classList.toggle("urgent",left<=30);
-    wrap.querySelector(".stage-wrap").classList.toggle("time-warn",left<=30);
-    if(left>0 && left<=10){ if(sfx._lastTick!==left){ sfx._lastTick=left; sfx("tick"); } }
-    else { sfx._lastTick=null; }
-  },1000);
-  /* 作答动态：出题人实时看到每个猜词与选图对错（word_view/guess_view 仅发给出题人） */
-  function renderFeedProgress(){
-    const el=document.querySelector(".feed-progress-inline"); if(!el) return;
-    const total=Math.max(0,(__PW.players||[]).length-1);
-    el.innerHTML=`🎯 准确词命中 <b>${(__PW.exactHits||[]).length}/${total}</b>`;
-  }
-  window.__pwFeedProgress=renderFeedProgress;
-  renderFeedProgress();
-  function addFeed(inner, cls){
-    const feed=document.querySelector("#feed"); if(!feed) return;
-    const it=document.createElement("div");
-    it.className="fitem "+(cls||"");
-    it.innerHTML=inner;
-    feed.appendChild(it);
-    while(feed.children.length>8) feed.removeChild(feed.firstChild);
-    feed.scrollTop=feed.scrollHeight;
-  }
-  window.__pwDrawerWord=(m)=>{
-    if(m.correct){
-      if(m.level==="exact" && !m.repeat && !(__PW.exactHits||[]).includes(m.pid)){
-        __PW.exactHits=(__PW.exactHits||[]).concat(m.pid);
-        renderFeedProgress();
-      }
-      const tag=m.repeat?`已猜中「${esc(m.word)}」`:`「${esc(m.word)}」✓ ${levelLabel(m.level)}`;
-      addFeed(`<b>${esc(m.nickname)}</b><span class="tag">${tag}</span>`,"ok");
-      if(!m.repeat) sfx("hit");
-    }else{
-      addFeed(`<b>${esc(m.nickname)}</b><span class="tag">猜「${esc(m.word)}」✗</span>`,"no");
-      sfx("miss");
-    }
-  };
-  window.__pwDrawerGuess=(m)=>{
-    const cell=coordLabel(m.cell);
-    const g=wall[m.cell]; const gname=g?g.zh:"";
-    if(m.correct){ addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ${gname} ✓${m.first?" 首答":""}</span>`,"ok"); sfx(m.first?"win":"pick"); }
-    else { addFeed(`<b>${esc(m.nickname)}</b><span class="tag">选 ${cell} ${gname} ✗</span>`,"no"); sfx("miss"); }
-  };
-  syncUI();
-  window.__pwEditor={state,svg,wrap,draw};
-  function onlineTarget(){ return Number.isInteger(target) && target>=0 && wall[target]; }
+  restoreFromDB();
 }
 
-/* ================= 联机对战（#/online，规则集 pictures-web-online-v1） ================= */
-const PW_WS_URL = (location.protocol==="file:" ? "ws://localhost:4000/ws" : (location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
-const __PW = window.__pwOnline = {
-  ws:null, roomId:"", pid:"", nickname:"", status:"lobby", role:"",
-  wall:[], target:-1, deadline:0, canvas:[], canvasBg:"#FFFFFF", scores:{},
-  round:0, maxRounds:0, drawer:{pid:"",nickname:""},
-  createSeconds:120, lockSeconds:60, answered:0, total:0,
-  poolMode:"mixed", customImgs:[], exactHits:[],
-  hostPid:"", players:[], reveal:null, over:null, _connFailed:false,
-  send(o){
-    if(this.ws&&this.ws.readyState===1){ this.ws.send(JSON.stringify(o)); return; }
-    const now=Date.now();
-    if(!this._sendWarnAt||now-this._sendWarnAt>3000){ this._sendWarnAt=now; toast("连接未就绪，正在重连…"); }
-  },
-  connect(onOpen){
-    const self=this; this._connFailed=false;
-    try{ this.ws=new WebSocket(PW_WS_URL); }
-    catch(e){ if(!this._connFailed){this._connFailed=true; toast("无法连接服务器："+PW_WS_URL);} return; }
-    this.ws.onopen=()=>{
-      const s=restoreSession();
-      if(s && !self.roomId){ self.roomId=s.roomId; self.pid=s.pid; self.nickname=s.nickname||""; }
-      if(self.roomId && self.pid){ self.send({t:"rejoin",room_id:self.roomId,pid:self.pid}); }
-      else if(onOpen) onOpen();
-    };
-    this.ws.onmessage=(ev)=>{ let m; try{ m=JSON.parse(ev.data); }catch(_){ return; } self.handle(m); };
-    this.ws.onerror=()=>{ if(!self._connFailed){ self._connFailed=true; toast("无法连接服务器："+PW_WS_URL); } };
-    this.ws.onclose=()=>{
-      if(self.roomId && self.status!=="game_over"){
-        toast("连接断开，5 秒后自动重连…");
-        setTimeout(()=>{ if(self.roomId && self.status!=="game_over") self.connect(); },5000);
-      }else if(!self._connFailed){ self._connFailed=true; toast("无法连接服务器，请先启动服务端（node server.js）或部署线上"); }
-    };
-  },
-  handle(m){
-    switch(m.t){
-      case "created":
-        this.roomId=m.room_id; this.pid=m.pid; this.nickname=m.nickname;
-        this.players=m.players; this.wall=m.wall||[]; this.status="lobby";
-        this.hostPid=m.hostPid||m.pid;
-        this.createSeconds=m.rules.createSeconds; this.lockSeconds=m.rules.lockSeconds;
-        this.poolMode=m.poolMode||"mixed"; this.customImgs=m.customImgs||[];
-        this.reconnectAt=Date.now(); this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
-        saveSession();
-        /* 房间图库为空且个人图库有图 → 引导导入（携带已取消，统一房间内导入） */
-        if(!(this.customImgs||[]).length && this.status==="lobby"){
-          customList().then(l=>{ if(l.length) toast(`你的图库有 ${l.length} 张图，点「从我的图库导入」即可带进房间`); });
-        }
-        renderOnlineLobby(); break;
-      case "joined":
-        this.roomId=m.room_id; this.pid=m.pid;
-        this.players=m.players; this.hostPid=m.hostPid||""; this.wall=m.wall||[]; this.canvas=(m.canvas&&m.canvas.els)||[]; this.canvasBg=(m.canvas&&m.canvas.bg)||"#FFFFFF";
-        this.round=m.round; this.maxRounds=m.maxRounds; this.deadline=m.deadline;
-        this.createSeconds=m.createSeconds; this.lockSeconds=m.lockSeconds;
-        this.target=m.target; this.status=m.status; this.reconnectAt=Date.now();
-        this.poolMode=m.poolMode||this.poolMode; this.customImgs=m.customImgs||this.customImgs;
-        this.drawer=(m.drawerIdx>=0&&m.players[m.drawerIdx])?{pid:m.players[m.drawerIdx].pid,nickname:m.players[m.drawerIdx].nickname}:{pid:"",nickname:""};
-        saveSession();
-        if(m.resumed) toast("已恢复身份，回到房间");
-        if(this.status==="lobby") renderOnlineLobby();
-        else if(this.status==="playing"){ preloadThumbs(this.wall); renderOnlineRoom(); }
-        else renderOnlineReveal();
-        break;
-      case "player_joined":
-        this.players=m.players; this.hostPid=m.hostPid||this.hostPid;
-        if(this.status==="lobby") renderOnlineLobby();
-        break;
-      case "round_start":
-        this.round=m.round; this.deadline=m.deadline; this.createSeconds=m.createSeconds;
-        this.lockSeconds=m.lockSeconds; this.drawer=m.drawer; this.status="playing";
-        this.wall=m.wall||[]; this.target=m.target; this.reveal=null; this.over=null; this.answered=0; this.canvas=[]; this.canvasBg="#FFFFFF";
-        this.exactHits=m.exactHits||[];
-        if(window.__pwFeedProgress) window.__pwFeedProgress();
-        preloadThumbs(this.wall);
-        renderOnlineRoom(); break;
-      case "canvas":
-        this.canvas=m.els||[];
-        if(m.bg) this.canvasBg=m.bg;
-        if(window.__pwGuessUpdate) window.__pwGuessUpdate();
-        break;
-      case "guess_status":
-        this.answered=m.answered; this.total=m.total;
-        if(window.__pwDrawerStatus) window.__pwDrawerStatus(m);
-        break;
-      case "guess_ok":
-        if(window.__pwGuessOk) window.__pwGuessOk(m);
-        else if(m.correct) toast(m.first?"🎉 首答正确！+3 分（等待揭晓）":"✅ 猜中！+1 分（等待揭晓）");
-        else if(m.done) toast("没猜中，机会用完，等待揭晓…");
-        else toast(`没猜中，还有 ${m.maxAttempts-m.attempts} 次机会`);
-        break;
-      case "word_res":
-        if(window.__pwWordRes) window.__pwWordRes(m);
-        else if(m.correct) toast(m.repeat?`已文字命中（${levelLabel(m.level)}）`:`🎯 文字命中！${levelLabel(m.level)}`);
-        break;
-      case "word_hit":
-        if(window.__pwWordHit) window.__pwWordHit(m);
-        else if(!window.__pwDrawerWord) toast(`${m.nickname} 猜中了${levelLabel(m.level)}`);
-        break;
-      case "word_view":
-        if(window.__pwDrawerWord) window.__pwDrawerWord(m);
-        break;
-      case "guess_view":
-        if(window.__pwDrawerGuess) window.__pwDrawerGuess(m);
-        break;
-      case "list":
-        if(window.__pwRooms) window.__pwRooms(m);
-        break;
-      case "reveal":
-        this.reveal=m; this.status=m.state;
-        gameCollect(m.wall || this.wall || []);   // 对局收藏：自动保存本局房间自定义图到本地（reveal 消息不带 wall，用本地已存墙）
-        renderOnlineReveal(); break;
-      case "game_over":
-        this.over=m; this.status="game_over"; renderOnlineReveal(); break;
-      case "left":
-        if(m.destroyed) toast(m.msg||"你是最后一位玩家，房间已关闭");
-        pwReset(); location.hash="#/"; break;
-      case "room_closed":
-        toast(m.msg||"房间已关闭");
-        pwReset(); location.hash="#/"; break;
-      case "mode_set":
-        this.poolMode=m.mode;
-        if(this.status==="lobby") renderOnlineLobby(); break;
-      case "pool_preview":
-        if(window.__pwPoolPreview) window.__pwPoolPreview(m);
-        break;
-      case "pool_locked":
-        if(window.__pwPoolClose) window.__pwPoolClose();
-        toast(`图池已锁定（${m.count||16} 张）`);
-        break;
-      case "img_added":
-        this.customImgs=m.list||[];
-        if(this.status==="lobby") renderOnlineLobby();
-        if(window.__pwUpload && window.__pwUpload.pending){
-          window.__pwUpload.pending=false;
-          toast("已上传："+((m.img&&m.img.zh)||"图片"));
-          if(window.__pwUpload.remove) window.__pwUpload.remove();
-        } else if(m.img && m.img.contributor && m.img.contributor!==this.nickname){
-          toast("有新图片加入房间");
-        }
-        break;
-      case "img_removed":
-        this.customImgs=m.list||[];
-        if(this.status==="lobby") renderOnlineLobby(); break;
-      case "kicked":
-        toast(m.msg||"你的账号已在另一处进入该房间");
-        clearSession();
-        Object.assign(this,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
-        if(location.hash.indexOf("onlinetest")<0 && location.hash.indexOf("puzzletest")<0) location.hash="#/online";
-        break;
-      case "room_reset":
-        this.players=m.players; this.hostPid=m.hostPid||""; this.status="lobby"; this.reveal=null; this.over=null; this.canvas=[]; this.canvasBg="#FFFFFF";
-        saveSession();
-        renderOnlineLobby(); break;
-      case "error":
-        if(window.__pwUpload && window.__pwUpload.pending){
-          window.__pwUpload.pending=false;
-          window.__pwUpload.ok.disabled=false; window.__pwUpload.ok.textContent="上传";
-          toast(m.msg||"上传失败");
-          return;
-        }
-        if(m.err==="cooldown" && window.__pwCooldownMsg) window.__pwCooldownMsg(m.remain);
-        else if(m.err==="tried") toast(m.msg||"这张照片试过了");
-        else if(m.err==="not_found"){
-          clearSession();
-          Object.assign(this,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
-          toast(m.msg||"房间已关闭或身份失效，请重新加入");
-          if(location.hash.indexOf("onlinetest")<0 && location.hash.indexOf("puzzletest")<0) location.hash="#/online";
-        }
-        else toast(m.msg||"操作失败"); break;
-    }
-  }
-};
-window.__pwDrawerStatus = (m)=>{ toast(`有人已作答（${m.answered}/${m.total}）`); };
-
-/* 主动退出：确认后发 leave（最后一位玩家离开时房间立即关闭） */
-function pwLeave(){
-  if(!window.confirm("确定离开房间吗？")) return;
-  if(__PW.ws&&__PW.ws.readyState===1){ __PW.send({t:"leave"}); }
-  else{ pwReset(); location.hash="#/"; }
-}
-/* 房主解散房间 */
-function pwDisband(){
-  if(!window.confirm("解散房间？房间将立即关闭，所有玩家会被移出。")) return;
-  if(__PW.ws&&__PW.ws.readyState===1){ __PW.send({t:"disband"}); }
-}
-function saveSession(){
-  try{ localStorage.setItem("pw_session", JSON.stringify({roomId:__PW.roomId,pid:__PW.pid,nickname:__PW.nickname})); }catch(_){}
-}
-function clearSession(){
-  try{ localStorage.removeItem("pw_session"); }catch(_){}
-}
-function restoreSession(){
-  try{ const s=JSON.parse(localStorage.getItem("pw_session")||"null"); if(s&&s.roomId&&s.pid) return s; }catch(_){}
-  return null;
-}
-function pwReset(){
-  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
-  try{ __PW.ws&&__PW.ws.close(); }catch(_){}
-  clearSession();
-  Object.assign(__PW,{roomId:"",pid:"",hostPid:"",status:"lobby",players:[],reveal:null,over:null,canvas:[],reconnectAt:0});
-}
-/* 持久设备身份：同一浏览器/玩家退出后再进，服务端据此复用原席位（昵称变化也不丢身份） */
-function getDeviceId(){
-  let d="";
-  try{ d=localStorage.getItem("pw_device")||""; }catch(_){}
-  if(!d){ d="d-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,10); try{ localStorage.setItem("pw_device",d); }catch(_){} }
-  return d;
-}
-function nickMemo(){ try{ return localStorage.getItem("pw_nick")||""; }catch(_){ return ""; } }
-function saveNickMemo(n){ try{ if(n) localStorage.setItem("pw_nick",n); }catch(_){} }
-
-/* ---- 入口页 ---- */
-function renderOnline(){
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card",style:"max-width:520px;margin:0 auto"});
-  card.innerHTML=`
-    <h1>联机对战</h1>
-    <div class="sub">2–6 人同房：一人看目标照片作画，其他人实时观看。前 60 秒隐藏照片墙，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，点选照片作答不限次数（猜错该格 ✗ + 10s 冷却，首答 +3 / 猜中 +1），轮流出题。</div>
-    <h3>你的昵称</h3>
-    <input id="pw-nick" placeholder="随便填，如：阿明" value="${esc(nickMemo())}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
-    <h3>创建新房间</h3>
-    <button class="primary" id="pw-create" style="width:100%">创建房间</button>
-    <h3>加入已有房间</h3>
-    <div style="display:flex;gap:8px">
-      <input id="pw-code" placeholder="房间码，如 AB12" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;font-family:ui-monospace,monospace;text-transform:uppercase;background:#FCFBF8;color:var(--ink)">
-      <button class="primary" id="pw-join">加入</button>
-    </div>
-    <h3>在线房间 · 点击加入</h3>
-    <div id="pw-rooms"><div class="note">连接后自动加载…</div></div>
-    ${__PW.roomId?`<div style="margin-top:10px"><button class="accent" id="pw-back" style="width:100%">回到当前房间（${__PW.roomId}）</button></div>`:""}
-    <div class="foot-actions"><button class="ghost" id="pw-home-btn">回首页</button></div>`;
-  w.appendChild(card); $app.appendChild(w);
-  const phb=card.querySelector("#pw-home-btn"); if(phb) phb.onclick=()=>location.hash="#/";
-  if(card.querySelector("#pw-back")) card.querySelector("#pw-back").onclick=()=>{ pwConnect(()=>__PW.send({t:"rejoin",room_id:__PW.roomId,pid:__PW.pid})); };
-  const nickInput=card.querySelector("#pw-nick");
-  nickInput.oninput=(e)=>saveNickMemo(e.target.value);
-  const nick=()=>nickInput.value.trim();
-  /* 携带功能已取消：图片统一在房间内「上传图片到房间 / 从我的图库导入」（全员可用） */
-  card.querySelector("#pw-create").onclick=()=>{
-    __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
-    pwConnect(()=>__PW.send({t:"create",nickname:__PW.nickname,device:getDeviceId()}));
-  };
-  card.querySelector("#pw-join").onclick=()=>{
-    const code=card.querySelector("#pw-code").value.trim().toUpperCase();
-    if(!code){ toast("请输入房间码"); return; }
-    __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
-    pwConnect(()=>__PW.send({t:"join",room_id:code,nickname:__PW.nickname,device:getDeviceId()}));
-  };
-  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
-  const loadRooms=()=>{ if(__PW.ws&&__PW.ws.readyState===1) __PW.send({t:"list"}); };
-  window.__pwRooms=(m)=>{
-    const box=card.querySelector("#pw-rooms"); if(!box) return;
-    if(!m.rooms.length){ box.innerHTML='<div class="note">暂无等待中的房间，创建一个吧</div>'; return; }
-    box.innerHTML="";
-    m.rooms.forEach(rm=>{
-      const row=html("div",{class:"review-item"});
-      row.innerHTML=`<div><b>${rm.host||"匿名"}</b><div class="sub">房间码 ${rm.room_id} · ${rm.players}/${rm.max} 人</div></div><button class="primary" id="pw-join-${rm.room_id}">加入</button>`;
-      box.appendChild(row);
-      row.querySelector(`#pw-join-${rm.room_id}`).onclick=()=>{
-        __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100));
-        pwConnect(()=>__PW.send({t:"join",room_id:rm.room_id,nickname:__PW.nickname,device:getDeviceId()}));
-      };
-    });
-  };
-  if(__PW.ws&&__PW.ws.readyState===1){ loadRooms(); }
-  else if(!window.__pwNoAutoConnect){ // 游客自动连接，解锁在线房间列表
-    window.__pwRooms=(m)=>{ const box=document.querySelector("#pw-rooms"); if(box && m.rooms){ if(!m.rooms.length){ box.innerHTML='<div class="note">暂无等待中的房间，创建一个吧</div>'; } else { box.innerHTML=""; m.rooms.forEach(rm=>{ const row=html("div",{class:"review-item"}); row.innerHTML=`<div><b>${rm.host||"匿名"}</b><div class="sub">房间码 ${rm.room_id} · ${rm.players}/${rm.max} 人</div></div><button class="primary" id="pw-join-${rm.room_id}">加入</button>`; box.appendChild(row); row.querySelector(`#pw-join-${rm.room_id}`).onclick=()=>{ __PW.nickname=nick()||("玩家"+Math.floor(Math.random()*900+100)); pwConnect(()=>__PW.send({t:"join",room_id:rm.room_id,nickname:__PW.nickname,device:getDeviceId()})); }; }); } } };
-    pwConnect(()=>{ if(window.__pwRooms) window.__pwRooms({rooms:[]}); loadRooms(); });
-  }
-  window.listTimer=setInterval(loadRooms,3000);
-}
-function pwConnect(action){
-  if(__PW.ws&&__PW.ws.readyState===1){ action(); return; }
-  __PW.connect(action);
-}
-
-/* ---- 大厅 ---- */
-function modeLabel(m){
-  if(m==="default") return "照片墙只从默认 64 图里随机抽 16 张。";
-  if(m==="custom") return "照片墙只从房间自定义图库抽；不足 16 张时自动用默认图补齐。";
-  return "默认 64 图 + 自定义图库混合随机抽 16 张。";
-}
-function renderOnlineLobby(){
-  if(window.listTimer){ clearInterval(window.listTimer); window.listTimer=null; }
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card",style:"max-width:600px;margin:0 auto"});
-  const isHost=!!__PW.hostPid && __PW.hostPid===__PW.pid;
-  const shared=__PW.customImgs||[];
-  card.innerHTML=`
-    <h1>房间 ${__PW.roomId}</h1>
-    <div class="sub">把房间码发给朋友，或复制链接邀请（${__PW.players.length}/6 人，至少 2 人开局）</div>
-    <div style="text-align:center;font-family:ui-monospace,monospace;font-size:40px;font-weight:800;letter-spacing:6px;margin:12px 0">${__PW.roomId}</div>
-    <div class="link-row"><input id="pw-link" readonly><button class="primary" id="pw-copy" style="flex:1">复制链接</button><button class="accent" id="pw-share" style="flex:1">分享房间</button></div>
-    <h3>玩家列表</h3>
-    <div id="pw-players"></div>
-    <h3>照片墙图库 <span class="sub">${isHost?"房主选择":"等待房主选择"} · 开局后锁定</span></h3>
-    <div id="pw-poolmode" style="display:flex;gap:6px">
-      <button class="pm ${__PW.poolMode==="default"?"pm-on":""}" data-mode="default" ${isHost?"":"disabled title='仅房主可设置'"}>默认图库</button>
-      <button class="pm ${__PW.poolMode==="custom"?"pm-on":""}" data-mode="custom" ${isHost?"":"disabled title='仅房主可设置'"}>自定义图库</button>
-      <button class="pm ${__PW.poolMode==="mixed"?"pm-on":""}" data-mode="mixed" ${isHost?"":"disabled title='仅房主可设置'"}>混合图库</button>
-    </div>
-    <div class="sub" id="pw-mode-note" style="margin-top:6px">${modeLabel(__PW.poolMode)}</div>
-    <h3>自定义图库 <span class="sub">${shared.length}/32 张 · 全员可上传 · 房主可移除</span></h3>
-    <div id="pw-shared" class="img-grid"></div>
-    <div class="row" style="margin-top:8px"><button class="primary" id="pw-upload" style="flex:1">上传图片到房间</button><button class="ghost" id="pw-import-custom" style="flex:1">从我的图库导入</button></div>
-    ${isHost?'<div class="row" style="margin-top:10px"><button class="ghost" id="pw-preview-pool" style="flex:1">预览图池</button><button class="accent" id="pw-start" style="flex:1">开始游戏</button></div>':'<div class="note" style="text-align:center;margin-top:14px">等待房主开始…</div>'}
-    <div class="note">规则：每轮一人出题 120 秒，看目标照片抽象作画；前 60 秒照片墙隐藏，凭画布无限次文字竞猜（准确词 +5 / 联想词 +2 / 类别词 +1）；之后照片墙开放，选图不限次数（猜错该格 ✗ + 10s 冷却），首答对 +3、其余 +1；轮流出题，总分最高者胜。</div>
-    <div class="note">房间生命周期：最后一位玩家离开 60 秒后自动关闭（游戏中掉线恢复窗口 3 分钟）；房主可随时解散。</div>
-    <div class="foot-actions">${isHost?'<button class="ghost" id="pw-disband">解散房间</button>':""}<button class="ghost" id="pw-leave">离开房间</button></div>`;
-  w.appendChild(card);$app.appendChild(w);
-  if(card.querySelector("#pw-leave")) card.querySelector("#pw-leave").onclick=()=>pwLeave();
-  if(card.querySelector("#pw-disband")) card.querySelector("#pw-disband").onclick=()=>pwDisband();
-  const pl=card.querySelector("#pw-players");
-  __PW.players.forEach(p=>{
-    const row=html("div",{class:"review-item"});
-    row.innerHTML=`<div><b>${p.nickname}</b>${p.pid===__PW.pid?'<span class="tag" style="margin-left:6px">你</span>':''}${p.pid===__PW.hostPid?'<span class="tag" style="margin-left:6px">房主</span>':''}</div><span class="res sub">${p.connected?"在线":"离线"}</span>`;
-    pl.appendChild(row);
-  });
-  const link=location.origin+location.pathname+"#/online?room="+__PW.roomId;
-  card.querySelector("#pw-link").value=link;
-  card.querySelector("#pw-copy").onclick=async()=>{ try{ await navigator.clipboard.writeText(link); toast("链接已复制"); }catch(e){ card.querySelector("#pw-link").select(); document.execCommand("copy"); toast("链接已复制"); } };
-  /* 房间分享：一键复制 房间码 + 链接 */
-  if(card.querySelector("#pw-share")) card.querySelector("#pw-share").onclick=async()=>{
-    const text=`巧手猜图 · 房间码 ${__PW.roomId} · ${link}`;
-    try{ await navigator.clipboard.writeText(text); toast("已复制房间码+链接，快发给朋友"); }
-    catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("已复制房间码+链接"); }
-  };
-  /* 图池预览（仅房主）：抽 16 张缩略图墙 → 换一批 / 锁定这批 */
-  let poolMk=null;
-  window.__pwPoolClose=()=>{ if(poolMk){ poolMk.remove(); poolMk=null; } };
-  window.__pwPoolPreview=(m)=>{
-    if(!poolMk) return;
-    const box=poolMk.querySelector("#pv-wall");
-    box.innerHTML="";
-    (m.wall||[]).forEach((g,i)=>{
-      const cell=html("div",{class:"cell"});
-      cell.innerHTML=`<span class="coord">${coordLabel(i)}</span><img src="${g.thumb||g.img}" alt="" loading="lazy">`;
-      box.appendChild(cell);
-    });
-  };
-  const openPoolPreview=()=>{
-    poolMk=html("div",{class:"mask"});
-    poolMk.innerHTML=`<div class="pop" style="max-width:560px">
-      <h3>图池预览（仅你可见）</h3>
-      <div class="sub">确认这批照片后点「锁定这批」，开局就用它；可反复「换一批」</div>
-      <div id="pv-wall" class="wall-grid" style="margin-top:8px"></div>
-      <div class="row" style="margin-top:12px"><button class="ghost" id="pv-reroll" style="flex:1">换一批</button><button class="primary" id="pv-lock" style="flex:1">锁定这批</button><button class="ghost" id="pv-close">关闭</button></div>
-    </div>`;
-    document.body.appendChild(poolMk);
-    poolMk.querySelector("#pv-close").onclick=()=>window.__pwPoolClose();
-    poolMk.querySelector("#pv-reroll").onclick=()=>__PW.send({t:"preview_pool"});
-    poolMk.querySelector("#pv-lock").onclick=()=>__PW.send({t:"lock_pool"});
-    __PW.send({t:"preview_pool"});
-  };
-  if(card.querySelector("#pw-preview-pool")) card.querySelector("#pw-preview-pool").onclick=openPoolPreview;
-  /* 图库模式：仅房主可点，点击即广播 set_mode，回包 mode_set 后刷新高亮 */
-  card.querySelectorAll("#pw-poolmode .pm").forEach(btn=>{
-    btn.onclick=()=>{ __PW.send({t:"set_mode",mode:btn.dataset.mode}); };
-  });
-  /* 自定义图库：缩略图 + 贡献者 + 房主移除 */
-  const sh=card.querySelector("#pw-shared");
-  if(!shared.length){
-    sh.innerHTML='<div class="note" style="grid-column:1/-1">还没有图片，点下方「上传图片到房间」或「从我的图库导入」（最多 32 张）</div>';
-  } else {
-    /* 防剧透：大厅不显示图片和名称/类别，只显示 #序号 · 贡献者；照片墙对局时才揭晓 */
-    shared.forEach((g,i)=>{
-      const canDel=isHost || g.contributorPid===__PW.pid;   // 房主可移除任意，贡献者本人可移除自己上传的
-      const cell=html("div",{class:"img-cell"});
-      cell.innerHTML=`<span style="text-align:center;padding:12px 2px"><b style="font-size:16px">#${i+1}</b><br><span class="sub">${esc(g.contributor||"匿名")}</span></span>${canDel?`<button class="mini-del" data-id="${esc(g.id)}">移除</button>`:""}`;
-      sh.appendChild(cell);
-      if(canDel) cell.querySelector(".mini-del").onclick=()=>{ __PW.send({t:"del_img",id:cell.querySelector(".mini-del").dataset.id}); };
-    });
-  }
-  /* 上传图片到自定义图库（全员可用，开局前）：压缩降级重试 + 1.5MB 预检 + 服务端 ack 确认 */
-  const uploadToRoom=()=>{
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:460px">
-      <h3>上传图片到房间自定义图库</h3>
-      <div class="sub">自动压缩后上传，实时同步给全房间，并存入你的个人图库。开局后锁定。</div>
-      <label class="file-drop"><input type="file" id="sh-file" accept="image/*" style="display:none">
-        <div style="font-size:30px;line-height:1">🖼️</div>
-        <div style="margin-top:6px;color:var(--ink)">点击选择图片</div>
-        <div class="sub" style="margin-top:2px">自动压缩到 512px</div>
-      </label>
-      <div id="sh-preview" style="display:none;margin-top:10px;text-align:center">
-        <img id="sh-pvimg" style="max-width:128px;max-height:128px;width:auto;height:auto;object-fit:contain;border-radius:12px;border:2px solid #C7BCA4">
-        <div class="sub" id="sh-fname" style="margin-top:4px"></div>
-      </div>
-      <div style="margin-top:12px">
-        <div class="field-label">图片名称（猜题人可见）</div><input id="sh-zh" class="pw-in" placeholder="可留空，默认用准确词">
-        <div class="field-label">准确词 <b style="color:#C0392B">* 必填</b></div><input id="sh-exact" class="pw-in" placeholder="如：帆船">
-        <div class="field-label">类别词</div><input id="sh-cat" class="pw-in" placeholder="如：交通工具">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div><div class="field-label">联想词 1</div><input id="sh-kw1" class="pw-in" placeholder="如：海"></div>
-          <div><div class="field-label">联想词 2</div><input id="sh-kw2" class="pw-in" placeholder="可选"></div>
-        </div>
-      </div>
-      <div class="row" style="margin-top:14px"><button class="primary" id="sh-ok" style="flex:1">上传</button><button class="ghost" id="sh-cancel">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    const fileEl=mk.querySelector("#sh-file"), preview=mk.querySelector("#sh-preview");
-    fileEl.onchange=async()=>{
-      const f=fileEl.files&&fileEl.files[0];
-      if(!f){ preview.style.display="none"; window.__pwCropResult=null; return; }
-      mk.querySelector("#sh-fname").textContent=f.name;
-      const rawD=await fileToDataURL(f);
-      const cropped=await cropImageDialog(rawD);
-      if(!cropped){ fileEl.value=""; preview.style.display="none"; window.__pwCropResult=null; return; }
-      window.__pwCropResult=cropped;
-      mk.querySelector("#sh-pvimg").src=cropped;
-      mk.querySelector("#sh-pvimg").style.objectFit="contain";
-      mk.querySelector("#sh-pvimg").style.width="auto"; mk.querySelector("#sh-pvimg").style.height="auto";
-      mk.querySelector("#sh-pvimg").style.maxWidth="128px"; mk.querySelector("#sh-pvimg").style.maxHeight="128px";
-      preview.style.display="block";
-    };
-    mk.querySelector("#sh-cancel").onclick=()=>{ window.__pwUpload=null; mk.remove(); };
-    mk.querySelector("#sh-ok").onclick=async()=>{
-      const zh=mk.querySelector("#sh-zh").value.trim(), exact=mk.querySelector("#sh-exact").value.trim();
-      const cat=mk.querySelector("#sh-cat").value.trim(), kw1=mk.querySelector("#sh-kw1").value.trim(), kw2=mk.querySelector("#sh-kw2").value.trim();
-      if(!fileEl.files||!fileEl.files[0]){ toast("请先选择一张图片"); return; }
-      if(!exact){ toast("准确词必填"); return; }
-      let img;
-      try{ img=await compressImage(window.__pwCropResult||await fileToDataURL(fileEl.files[0]),512,0.82); }
-      catch(e){ toast("图片读取失败，请换一张"); return; }
-      if(!img){ toast("图片压缩失败或过大，请换一张试试"); return; }
-      if(img.length>1.5e6){ toast("图片太大（需 ≤1.5MB），请换一张"); return; }
-      const ok=mk.querySelector("#sh-ok");
-      ok.disabled=true; ok.textContent="上传中…";
-      window.__pwUpload={pending:true, ok, remove:()=>{ window.__pwUpload=null; mk.remove(); }, img, zh:zh||exact, exact, keywords:[kw1,kw2].filter(Boolean), aliases:[], category_word:cat};
-      window.__pwCropResult=null;
-      __PW.send({t:"add_img",zh:zh||exact,img,exact,fp:await imgFp(img),keywords:[kw1,kw2].filter(Boolean),aliases:[],category_word:cat});
-      /* 上传到房间的图自动存进个人图库（指纹去重：已有同图则更新词条） */
-      try{
-        const fp=await imgFp(img);
-        const mine=await customList();
-        const dup=mine.find(x=>x.fp===fp);
-        if(dup){
-          await customPut({...dup, name:zh||exact||dup.name, category_word:cat||dup.category_word, keywords:[kw1,kw2].filter(Boolean).length?[kw1,kw2].filter(Boolean):dup.keywords, exact:exact||dup.exact});
-        }else{
-          await customPut({id:"cu-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),img,name:zh||exact,exact,category_word:cat,keywords:[kw1,kw2].filter(Boolean),aliases:[],fp,source:"own",createdAt:Date.now()});
-        }
-      }catch(_){ /* 个人图库保存失败不阻塞房间上传 */ }
-      setTimeout(()=>{
-        const up=window.__pwUpload;
-        if(up && up.pending){ up.pending=false; up.ok.disabled=false; up.ok.textContent="上传"; toast("上传超时，请检查连接后重试"); }
-      },8000);
-    };
-  };
-  card.querySelector("#pw-upload").onclick=()=>uploadToRoom();
-  /* 从我的图库导入：双 tab（我的图库/对局收藏），按指纹标记已上传，可勾选或全部导入 */
-  card.querySelector("#pw-import-custom").onclick=async()=>{
-    const mine=await customList();
-    const games=await gameList();
-    if(!mine.length && !games.length){ toast("图库还没有图片，先上传一张或玩一局自动收藏"); return; }
-    /* 房间图库指纹集（服务端 customMeta 返回 fp，不含图内容） */
-    const roomFps=new Set((__PW.customImgs||[]).map(x=>x.fp||"").filter(Boolean));
-    const fpOf=async(g)=>{ if(g.fp) return g.fp; try{ return await imgFp(g.img); }catch(e){ return ""; } };
-    const mk=html("div",{class:"mask"});
-    mk.innerHTML=`<div class="pop" style="max-width:520px">
-      <h3>导入图片到房间</h3>
-      <div class="sub">已带进房间的图片标记「已上传」，不会重复导入（房间图库上限 32 张）</div>
-      <div class="tabs" id="imp-tabs"><button class="pt-tab on" data-v="mine">我的图库（${mine.length}）</button><button class="pt-tab" data-v="games">对局收藏（${games.length}）</button></div>
-      <div id="imp-grid" class="img-grid" style="max-height:340px;overflow:auto"></div>
-      <div class="row" style="margin-top:12px"><button class="primary" id="imp-ok" style="flex:1">导入所选（0 张）</button><button class="ghost" id="imp-all" style="flex:1">全部导入</button><button class="ghost" id="imp-cancel">取消</button></div>
-    </div>`;
-    document.body.appendChild(mk);
-    const grid=mk.querySelector("#imp-grid"), okBtn=mk.querySelector("#imp-ok");
-    let tab="mine", src=mine, picked=new Set(), upSet=new Set();
-    const draw=()=>{
-      grid.innerHTML="";
-      src.forEach(g=>{
-        const up=upSet.has(g.id);
-        const b=html("div",{class:"img-cell"+(picked.has(g.id)?" on":"")+(up?" is-up":"")});
-        b.innerHTML=`<img src="${esc(g.img)}" alt="${esc(g.name||g.exact||g.zh)}"><span>${esc(g.name||g.exact||g.zh)}</span>${up?`<div class="img-done">已上传</div>`:`<input type="checkbox" style="position:absolute;left:4px;top:4px;pointer-events:none" ${picked.has(g.id)?"checked":""}>`}`;
-        const im=b.querySelector("img");
-        if(im) im.onerror=()=>{ if(!b.querySelector(".img-broken")) b.appendChild(html("div",{class:"img-broken"},"加载失败")); };
-        if(!up) b.onclick=()=>{
-          if(picked.has(g.id)) picked.delete(g.id); else picked.add(g.id);
-          draw(); okBtn.textContent=`导入所选（${picked.size} 张）`;
-        };
-        grid.appendChild(b);
-      });
-    };
-    /* 计算当前 tab 的已上传集合（按指纹，兼容旧记录现场算） */
-    const refreshUp=async()=>{
-      const fps=new Set();
-      for(const g of src){ const fp=await fpOf(g); if(fp && roomFps.has(fp)) fps.add(g.id); }
-      upSet=fps; picked=new Set([...picked].filter(id=>!upSet.has(id))); draw(); okBtn.textContent=`导入所选（${picked.size} 张）`;
-    };
-    mk.querySelectorAll("#imp-tabs .pt-tab").forEach(t=>{
-      t.onclick=()=>{
-        mk.querySelectorAll("#imp-tabs .pt-tab").forEach(x=>x.classList.remove("on"));
-        t.classList.add("on");
-        tab=t.dataset.v; src=tab==="mine"?mine:games; picked=new Set(); refreshUp();
-      };
-    });
-    const doImport=async(ids)=>{
-      if(__PW.status!=="lobby"){ toast("游戏已开始，不能再导入"); mk.remove(); return; }
-      let ok=0, fail=0, skip=0, dup=0;
-      for(const g of src){
-        if(!ids.includes(g.id)) continue;
-        const fp=await fpOf(g);
-        if(fp && roomFps.has(fp)){ dup++; continue; }
-        let img;
-        try{ img=await compressImage(g.img,512,0.82); }catch(e){ img=null; }
-        if(!img || img.length>1.5e6){ fail++; continue; }
-        if(!g.exact){ skip++; continue; }
-        __PW.send({t:"add_img",zh:g.name||g.exact||g.zh,img,exact:g.exact,fp:await imgFp(img),keywords:g.keywords||[],aliases:g.aliases||[],category_word:g.category_word||""});
-        ok++;
-      }
-      toast(`已提交导入 ${ok} 张`+(dup?`（${dup} 张已在房间跳过）`:"")+(fail?`（${fail} 张图片过大已跳过）`:"")+(skip?`（${skip} 张缺准确词已跳过）`:""));
-      mk.remove();
-    };
-    refreshUp();
-    mk.querySelector("#imp-cancel").onclick=()=>mk.remove();
-    okBtn.onclick=()=>doImport([...picked]);
-    mk.querySelector("#imp-all").onclick=()=>doImport(src.filter(g=>!upSet.has(g.id)).map(g=>g.id));
-  };
-  const st=card.querySelector("#pw-start");
-  if(st) st.onclick=()=>{ if(__PW.players.length<2){ toast("至少 2 人才能开始"); return; } __PW.send({t:"start"}); };
-}
-
-/* ---- 对局路由（按角色） ---- */
-function renderOnlineRoom(){
-  if(__PW.drawer.pid===__PW.pid) renderEditor();
-  else renderOnlineGuess();
-}
-
-/* ---- 猜题人视图 ---- */
-function renderOnlineGuess(){
-  window.__pwDrawerWord=null; window.__pwDrawerGuess=null;
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card"});
-  card.innerHTML=`
-    <h1>${__PW.drawer.nickname||"对方"} 正在拼图…</h1>
-    <div class="qbar">第 ${__PW.round} 轮 · 出题人：${__PW.drawer.nickname||"？"} · <span id="pw-gtimer">--:--</span></div>
-    <div class="guess-stage"><svg class="stage" id="pw-gstage"></svg></div>
-    <div class="word-row" id="pw-wordrow" style="display:flex;gap:8px;margin-top:10px">
-      <input id="pw-word" placeholder="猜它是什么，如：大象" maxlength="30" autocomplete="off" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;background:#FCFBF8;color:var(--ink)">
-      <button class="primary" id="pw-wordsend">猜！</button>
-    </div>
-    <div id="pw-hits" class="hit-badges"></div>
-    <div id="pw-records" style="margin-top:8px"></div>
-    <div class="confirm-bar" id="pw-gbar"><span class="sub">文字竞猜中…猜中准确词 +5 / 联想词 +2 / 类别词 +1，照片墙 60 秒后开放</span></div>
-    <div id="pw-photo-holder"></div>`;
-  w.appendChild(card);$app.appendChild(w);
-  const svg=card.querySelector("#pw-gstage"), wallHolder=card.querySelector("#pw-photo-holder"),
-    bar=card.querySelector("#pw-gbar"), recEl=card.querySelector("#pw-records");
-  const wordEl=card.querySelector("#pw-word"), sendBtn=card.querySelector("#pw-wordsend");
-  renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"});
-  window.__myHits={category:"",keyword:"",exact:""};
-  function renderHits(){
-    const el=document.querySelector("#pw-hits"); if(!el) return;
-    const H=window.__myHits||{};
-    const L=[["category","类别"],["keyword","联想"],["exact","准确"]];
-    el.innerHTML=L.map(([k,label])=>{
-      const w=H[k];
-      return `<span class="hit-badge${w?" on":""}">${label}${w?` <b>✓ ${esc(w)}</b>`:" 未中"}</span>`;
-    }).join("");
-  }
-  renderHits();
-  let lastGuess=-1, locked=true, done=false, cooldownUntil=0, wallEl=null, pendingWord="", missStreak=0;
-  const triedSet=new Set(__PW.myTried||[]);
-  window.__pwCooldownMs = window.__pwCooldownMs || 10000;
-  window.__pwGuessUpdate=()=>{ if($app.contains(svg)) renderArtwork(svg,__PW.canvas,{bg:__PW.canvasBg||"#FFFFFF"}); };
-
-  function addRecord(text, mode){
-    const row=html("div",{class:"guess-record "+mode});
-    const sp=html("span"); sp.textContent=text;
-    const b=html("b");
-    if(mode==="hit") b.textContent="✓ +2";
-    else if(mode==="miss") b.textContent="✗";
-    else { b.textContent="…"; b.style.color="#B45309"; }
-    row.appendChild(sp); row.appendChild(b);
-    recEl.insertBefore(row, recEl.firstChild);
-    while(recEl.children.length>5) recEl.lastChild.remove();
-    return row;
-  }
-  function pendingRow(){
-    let r=recEl.querySelector(".guess-record.pending");
-    if(!r){ r=addRecord(pendingWord||"…","pending"); }
-    return r;
-  }
-  window.__pwWordRes=(m)=>{
-    const r=pendingRow();
-    if(m.correct){
-      r.classList.remove("pending");
-      missStreak=0;
-      if(m.repeat){
-        r.classList.add("repeat"); r.querySelector("b").textContent="🔁 已猜过："+levelLabel(m.level);
-        const msg=m.msg==="本轮文字分已满"?"本轮文字分已满（8/8）":"「"+m.word+"」已猜过，换个词试试";
-        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${msg}</span>`;
-      }else{
-        r.classList.add("hit");
-        const label=levelLabel(m.level);
-        r.querySelector("b").textContent="✓ "+label;
-        const guide=m.level==="category"?" · 已经到类别了，再具体点！":(m.level==="keyword"?" · 超级接近！想想它的名字":"！");
-        const head=m.level==="exact"?"🎉 完美命中！":"🎯 命中";
-        bar.innerHTML=`<span class="sub" style="color:var(--ok);font-weight:600">${head}「${esc(m.word)}」✓ ${label}${guide}（本轮 ${m.total||0}/8）</span>`;
-        if(!window.__myHits[m.level]){ window.__myHits[m.level]=m.word; }
-        renderHits();
-        sfx(m.level==="exact"?"win":"hit");
-      }
-    }else{
-      r.classList.remove("pending"); r.classList.add("miss"); r.querySelector("b").textContent="✗";
-      missStreak++; sfx("miss");
-      const pool=[
-        "不对哦，再想想～答案是一个词",
-        "加油！试试图中主体的名字或身份",
-        "很接近了，换个角度描述试试"
-      ];
-      const msg=missStreak>=3?`已经想了 ${missStreak} 次啦，想想它属于哪一类？`:(pool[(missStreak-1)%pool.length]);
-      bar.innerHTML=`<span class="sub">${esc(msg)}</span>`;
-    }
-  };
-  window.__pwWordHit=(m)=>{ toast(`${m.nickname} 猜中了${levelLabel(m.level)}`); };
-  function lockWall(lock){
-    if(!wallEl) return;
-    [...wallEl.children].forEach((x,i)=>{ if(triedSet.has(i)) return; x.disabled=lock; });
-  }
-  function startCooldown(ms){
-    cooldownUntil=Date.now()+ms;
-    bar.innerHTML=`<span class="sub" style="color:var(--bad)">没猜中！该照片已标记 ✗ · 冷却中 <b id="pw-cd">${Math.ceil(ms/1000)}</b> 秒（可继续文字竞猜）</span>`;
-    lockWall(true);
-    const iv=setInterval(()=>{
-      const left=Math.ceil((cooldownUntil-Date.now())/1000);
-      const el=document.querySelector("#pw-cd");
-      if(el) el.textContent=Math.max(0,left);
-      if(cooldownUntil<=Date.now()){
-        clearInterval(iv);
-        lockWall(false);
-        if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">冷却结束，再选一张照片（猜对即锁定）</span>';
-      }
-    },100);
-  }
-  window.__pwCooldownMsg=(remain)=>{
-    if(remain>0) startCooldown(remain);
-    else toast("选图冷却中，稍后再试");
-  };
-  window.__pwGuessOk=(m)=>{
-    if(m.correct){
-      toast(m.first?"🎉 首答正确！+3（等揭晓）":"✅ 猜中！+1（等揭晓）");
-      sfx(m.first?"win":"pick");
-      lastGuess=-1; done=true; lockWall(true); bar.innerHTML='<span class="sub">已锁定答案，等待揭晓…</span>';
-    }else{
-      sfx("miss");
-      triedSet.add(lastGuess); __PW.myTried=(__PW.myTried||[]).concat(lastGuess);
-      const ch=wallEl&&wallEl.children[lastGuess];
-      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(lastGuess)}</span><span class="cross">✗</span>`; }
-      lastGuess=-1;
-      startCooldown(window.__pwCooldownMs);
-    }
-  };
-  function sendWord(){
-    const val=wordEl.value.trim(); if(!val) return;
-    pendingWord=val;
-    addRecord(val,"pending");
-    __PW.send({t:"word",text:val});
-    wordEl.value="";
-  }
-  sendBtn.onclick=sendWord;
-  wordEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); sendWord(); } });
-  function buildWall(){
-    wallEl=html("div",{class:"wall-grid"});
-    __PW.wall.forEach((g,i)=>{
-      const c=html("button",{class:"cell"},`<span class="coord">${coordLabel(i)}</span><img src="${g.thumb||g.img}" alt="${g.zh}" loading="lazy" decoding="async">`);
-      c.onclick=()=>{
-        if(locked||done||cooldownUntil>Date.now()) return;
-        /* 照片墙放大预览（不显示名称防剧透）：点小图先看大图，确认后才选中 */
-        const mk=html("div",{class:"mask"});
-        mk.innerHTML=`<div class="pop" style="max-width:440px;text-align:center">
-          <h3>${coordLabel(i)} 号照片</h3>
-          <img src="${g.img}" alt="照片" style="max-width:100%;max-height:52vh;border-radius:12px;object-fit:contain">
-          <div class="row" style="margin-top:12px"><button class="primary" id="pv-ok" style="flex:1">就选这张</button><button class="ghost" id="pv-cancel" style="flex:1">返回</button></div>
-        </div>`;
-        document.body.appendChild(mk);
-        mk.querySelector("#pv-cancel").onclick=()=>mk.remove();
-        mk.querySelector("#pv-ok").onclick=()=>{
-          mk.remove();
-          if(done||cooldownUntil>Date.now()) return;
-          lastGuess=i;
-          lockWall(true);
-          bar.innerHTML='<span class="sub">已提交，等待判定…</span>';
-          __PW.send({t:"guess",cell:i});
-        };
-      };
-      wallEl.appendChild(c);
-    });
-    triedSet.forEach(i=>{
-      const ch=wallEl.children[i];
-      if(ch){ ch.disabled=true; ch.classList.add("tried"); ch.innerHTML=`<span class="coord">${coordLabel(i)}</span><span class="cross">✗</span>`; }
-    });
-    wallHolder.appendChild(wallEl);
-  }
-  const unlockAt=()=>__PW.deadline-(__PW.createSeconds-__PW.lockSeconds)*1000;
-  function tick(){
-    const left=Math.max(0,Math.ceil((__PW.deadline-Date.now())/1000));
-    const mm=Math.floor(left/60),ss=left%60;
-    const el=card.querySelector("#pw-gtimer");
-    if(el) el.textContent=`${mm}:${String(ss).padStart(2,"0")}`;
-    if(locked && Date.now()>=unlockAt()){
-      locked=false;
-      wallHolder.innerHTML='<h3 style="margin:10px 0 6px">照片墙 · 点击选图</h3>';
-      buildWall();
-      if(!done) bar.innerHTML='<span class="sub" style="color:var(--ok);font-weight:600">照片墙开放！点选一张照片作答（猜错该格 ✗ + 10s 冷却）</span>';
-    }
-    if(left<=0) clearInterval(pwGtick);
-  }
-  const pwGtick=setInterval(tick,500); tick();
-}
-/* ---- 揭晓 / 终局 ---- */
-function renderOnlineReveal(){
-  sfx("reveal");
-  window.__pwDrawerWord=null; window.__pwDrawerGuess=null;
-  const rev=__PW.reveal, over=__PW.over;
-  const data=over||rev;
-  if(!data){ if(__PW.roomId) renderOnlineLobby(); else renderOnline(); return; }
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card",style:"max-width:620px;margin:0 auto"});
-  let inner=`<h1>${over?"🏆 对局结束":`第 ${rev.round} 轮揭晓`}</h1>`;
-  if(!over) inner+=`<div class="sub" style="text-align:center;color:var(--muted)">本轮 ${rev.round} / ${rev.maxRounds||"?"}</div>`;
-  if(over){
-    inner+=`<div class="score-big">${over.winner.nickname} 获胜 · ${over.winner.score} 分</div>`;
-    const mvp=over.mvp||{};
-    const nameOf=(pid)=>{ const p=__PW.players.find(x=>x.pid===pid); return p?p.nickname:""; };
-    const badges=[];
-    if(mvp.score) badges.push(`🏆 得分王 ${nameOf(mvp.score)}`);
-    if(mvp.firstExact) badges.push(`⚡ 最快猜中 ${nameOf(mvp.firstExact)}`);
-    if(mvp.drawer) badges.push(`🎨 最佳出题 ${nameOf(mvp.drawer)}`);
-    if(badges.length) inner+=`<div class="mvp-row">${badges.map(b=>`<span class="mvp-badge">${b}</span>`).join("")}</div>`;
-  }else{
-    inner+=`<div class="sub" style="text-align:center">答案：<b>${rev.answerLabel}</b>（出题人 ${rev.drawer.nickname}）</div>`;
-    if(rev.answerImg) inner+=`<div class="answer-img"><img src="${rev.answerImg}" alt="答案照片"></div>`;
-  }
-  inner+=`<h3>本轮结算</h3><div id="pw-results"></div><h3>总分榜</h3><div id="pw-scores"></div>`;
-  const isHost=!!__PW.hostPid && __PW.hostPid===__PW.pid;
-  if(!over){
-    const lastRound=!!rev.isLast;
-    inner+=`<div class="sub auto-next-tip" id="pw-next-tip" style="text-align:center;margin-top:12px;color:var(--muted)">${lastRound?"10 秒后自动进入结算":"6 秒后自动开始下一轮"}</div>`;
-    inner+=`<div class="foot-actions"><button class="accent" id="pw-next">${lastRound?"查看结算":"开始下一轮"}</button></div>`;
-  }
-  else if(isHost) inner+=`<div class="foot-actions"><button class="primary" id="pw-again">再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
-  else inner+=`<div class="foot-actions"><button class="primary" id="pw-again" disabled>等待房主再来一局</button><button class="ghost" id="pw-home">回首页</button></div>`;
-  card.innerHTML=inner;
-  w.appendChild(card);$app.appendChild(w);
-  const resEl=card.querySelector("#pw-results");
-  (data.results||[]).forEach(r=>{
-    const row=html("div",{class:"review-item"});
-    const wTag=r.wordHit?`文字命中 +${r.wordPts||0} · `:'';
-    const label=r.role==="drawer"?`出题人 · 被猜中 ${r.hitCount||0} 次`:(r.guessed==null?`${wTag}未作答`:r.correct?`${wTag}猜 ${coordLabel(r.guessed)} ✓${r.first?" · 首答":""}${r.attempts>1?" · 第"+r.attempts+"次":""}`:`${wTag}猜 ${coordLabel(r.guessed)} ✗${r.attempts>1?" · 第"+r.attempts+"次":""}`);
-    row.innerHTML=`<div><b>${r.nickname}</b><div class="sub">${label}</div></div><span class="res" style="${r.points>0?"color:var(--ok)":"color:var(--bad)"};font-weight:700">${r.points>0?"+"+r.points:r.points} 分</span>`;
-    resEl.appendChild(row);
-  });
-  const scEl=card.querySelector("#pw-scores");
-  Object.entries(data.scores||{}).sort((a,b)=>b[1]-a[1]).forEach(([pid,sc])=>{
-    const p=__PW.players.find(x=>x.pid===pid);
-    const row=html("div",{class:"review-item"});
-    row.innerHTML=`<div><b>${p?p.nickname:pid}</b>${pid===__PW.pid?'<span class="tag" style="margin-left:6px">你</span>':''}</div><span class="res" style="font-weight:700">${sc} 分</span>`;
-    scEl.appendChild(row);
-  });
-  const nt=card.querySelector("#pw-next");
-  let nextTimer=null;
-  if(nt){
-    const lastRound=!!rev.isLast;
-    let left=lastRound?10:6;
-    const tip=card.querySelector("#pw-next-tip");
-    const tickT=()=>{ if(tip) tip.textContent=`${left} 秒后自动${lastRound?"进入结算":"开始下一轮"}`; };
-    tickT();
-    nextTimer=setInterval(()=>{ left--; if(left<=0){ clearInterval(nextTimer); __PW.send({t:"next"}); } else tickT(); },1000);
-    nt.onclick=()=>{ if(nextTimer) clearInterval(nextTimer); __PW.send({t:"next"}); };
-  }
-  const ag=card.querySelector("#pw-again");
-  if(ag && !ag.disabled) ag.onclick=()=>{ __PW.send({t:"again"}); toast("已发起再来一局，等大家回房间…"); };
-  const hm=card.querySelector("#pw-home");
-  if(hm) hm.onclick=()=>{ pwReset(); location.hash="#/"; };
-}
-
-
-/* ================= 联机 UI 自检（#/onlinetest，模拟 WS 消息走真实渲染） ================= */
-async function runOnlineTest(){
-  const results=[];
-  const rec=(name,ok,detail)=>{results.push({name,ok,detail});};
-  const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
-  const WALL16=[
-    {id:"ani-elephant",category:"动物",category_word:"动物",zh:"大象",keywords:["非洲","长鼻"],exact:"大象",img:"./images-thumb/ani-elephant.jpg"},
-    {id:"ani-giraffe",category:"动物",category_word:"动物",zh:"长颈鹿",keywords:["草原","长脖子"],exact:"长颈鹿",img:"./images-thumb/ani-giraffe.jpg"},
-    {id:"ani-penguin",category:"动物",category_word:"动物",zh:"企鹅",keywords:["南极","黑白"],exact:"企鹅",img:"./images-thumb/ani-penguin.jpg"},
-    {id:"ani-shark",category:"动物",category_word:"动物",zh:"鲨鱼",keywords:["海洋","尖牙"],exact:"鲨鱼",img:"./images-thumb/ani-shark.jpg"},
-    {id:"ani-butterfly",category:"动物",category_word:"动物",zh:"蝴蝶",keywords:["翅膀","花朵"],exact:"蝴蝶",img:"./images-thumb/ani-butterfly.jpg"},
-    {id:"ani-owl",category:"动物",category_word:"动物",zh:"猫头鹰",keywords:["夜晚","圆眼"],exact:"猫头鹰",img:"./images-thumb/ani-owl.jpg"},
-    {id:"ani-turtle",category:"动物",category_word:"动物",zh:"乌龟",keywords:["慢","壳"],exact:"乌龟",img:"./images-thumb/ani-turtle.jpg"},
-    {id:"ani-bee",category:"动物",category_word:"动物",zh:"蜜蜂",keywords:["采蜜","翅膀"],exact:"蜜蜂",img:"./images-thumb/ani-bee.jpg"},
-    {id:"food-pizza",category:"食物",category_word:"食物",zh:"披萨",keywords:["芝士","饼底"],exact:"披萨",img:"./images-thumb/food-pizza.jpg"},
-    {id:"food-burger",category:"食物",category_word:"食物",zh:"汉堡",keywords:["面包","肉饼"],exact:"汉堡",img:"./images-thumb/food-burger.jpg"},
-    {id:"food-sushi",category:"食物",category_word:"食物",zh:"寿司",keywords:["米饭","生鱼"],exact:"寿司",img:"./images-thumb/food-sushi.jpg"},
-    {id:"food-icecream",category:"食物",category_word:"食物",zh:"冰淇淋",keywords:["甜筒","奶油"],exact:"冰淇淋",img:"./images-thumb/food-icecream.jpg"},
-    {id:"food-coffee",category:"食物",category_word:"食物",zh:"咖啡",keywords:["提神","杯子"],exact:"咖啡",img:"./images-thumb/food-coffee.jpg"},
-    {id:"food-hotpot",category:"食物",category_word:"食物",zh:"火锅",keywords:["麻辣","涮菜"],exact:"火锅",img:"./images-thumb/food-hotpot.jpg"},
-    {id:"food-mooncake",category:"食物",category_word:"食物",zh:"月饼",keywords:["中秋","馅料"],exact:"月饼",img:"./images-thumb/food-mooncake.jpg"},
-    {id:"food-banana",category:"食物",category_word:"食物",zh:"香蕉",keywords:["水果","黄色"],exact:"香蕉",img:"./images-thumb/food-banana.jpg"}
-  ];
-  WALL16.forEach(g=>{ g.thumb=g.img.replace("/images/","/images-thumb/").replace(".png",".jpg"); });
-  window.__pwNoAutoConnect=true;      // 自检内不触发游客真实 WS 连接
-  window.__pwCooldownMs=60;           // 自检内冷却缩短
-  __PW.forceNarrow=true;              // 自检内强制手机端出题人布局（进度条+feed 移位）
-  sfx._mute=true;                     // 自检内静音（不产生音频）
-  try{
-    /* 0. 入口页：携带功能已取消（统一房间内上传/导入）；首页新增我的图库入口 */
-    renderOnline(); await sleep(60);
-    rec("入口页无携带按钮", !document.querySelector("#pw-pick-custom"),"");
-    renderHome(); await sleep(40);
-    rec("首页我的图库入口", !!document.querySelector("#go-mylib"),"");
-    rec("首页我的图库按钮主样式", document.querySelector("#go-mylib").classList.contains("primary"),"");
-    rec("tab 选中态 CSS 规则存在", (()=>{try{return [...document.styleSheets].some(s=>{try{return [...s.cssRules].some(r=>r.selectorText&&r.selectorText.indexOf("button.ghost.primary")>=0)}catch(_){return false}})}catch(_){return false}})(), "");
-    rec("上传弹层函数可用", typeof uploadForm==="function","");
-    rec("裁剪器组件可用", typeof cropImageDialog==="function","");
-    rec("音效系统可用", typeof sfx==="function","");
-    renderOnline(); await sleep(40);
-    /* 1. 创建房间 → 大厅 */
-    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",
-      players:[{pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]}],
-      wall:WALL16, rules:{createSeconds:120,lockSeconds:60}});
-    rec("创建→大厅渲染", !!document.querySelector("#pw-players")&&document.querySelector("#pw-players").children.length===1,"lobby");
-    rec("房主可开始", !!document.querySelector("#pw-start"),"start 按钮");
-    rec("房间码展示", (document.querySelector("h1").textContent||"").includes("AB12"),"");
-    rec("分享房间按钮存在", !!document.querySelector("#pw-share"),"");
-    rec("房主图池预览按钮", !!document.querySelector("#pw-preview-pool"),"");
-
-    /* 2. 玩家加入 */
-    __PW.handle({t:"player_joined",hostPid:"pA",players:[
-      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
-      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
-    rec("加入后列表 2 人", document.querySelector("#pw-players").children.length===2,"");
-
-    /* 3. 开局 → 出题人视角（看目标照片） */
-    __PW.pid="pA";
-    __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()+120000,lockSeconds:60,createSeconds:120,target:3,wall:WALL16});
-    await sleep(80);
-    const ed=window.__pwEditor;
-    rec("出题人编辑器挂载", !!(ed&&ed.svg),"renderEditor online");
-    rec("出题人计时显示", (document.querySelector("#timer").textContent||"").includes("2:"),"");
-    rec("画布最后30秒警示浮标", !!document.querySelector(".timer-hint"),"");
-    rec("目标照片卡显示", !!document.querySelector("#target-card img")&&(document.querySelector("#target-card").textContent||"").includes("鲨鱼"),"出题人看目标照片");
-    rec("出题人无照片墙", !document.querySelector("#wall")&&!document.querySelector("#target-card .mark"),"只看一张目标大图");
-    rec("手机端出题人进度条", !!document.querySelector(".feed-progress-inline")&&/\d+\/\d+/.test(document.querySelector(".feed-progress-inline").textContent||""),"");
-    rec("出题人编辑器桌面两列类", document.querySelector(".editor").className.includes("drawer-layout"),"");
-    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
-    [...document.querySelectorAll(".rail-grid button")].find(b=>b.title==="圆形").click();
-    const srect=ed.svg.getBoundingClientRect();
-    ed.svg.dispatchEvent(new PointerEvent("pointerdown",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
-    ed.svg.dispatchEvent(new PointerEvent("pointerup",{clientX:srect.left+srect.width/2,clientY:srect.top+srect.height/2,bubbles:true,pointerId:11}));
-    await sleep(50);
-    rec("出题人添加元素", ed.state.els.length===1,"");
-    rec("放置圆形半透明", ed.state.els[0].kind==="circle"&&ed.state.els[0].opacity===0.7,"");
-    rec("不透明度滑块存在", !!document.querySelector("#opacity"),"");
-    rec("出题人按钮为等待揭晓", (document.querySelector("#submit").textContent||"").includes("等待揭晓"),"");
-    /* v2：出题人编辑器操作组 + 滑块同步 + 清空 */
-    const opBtns=[...document.querySelectorAll(".canvas-ops button")].map(b=>b.textContent);
-    rec("画布操作组 6 按钮", opBtns.length===6,"");
-    rec("操作组含清空", opBtns.includes("清空"),"");
-    const opI=document.querySelector("#opacity");
-    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="画笔").click();
-    opI.value=50; opI.dispatchEvent(new Event("input",{bubbles:true}));
-    await sleep(20);
-    rec("未选中滑块提示新形状", (document.querySelector("#opacity-state").textContent||"").includes("下一个放置"),"");
-    [...document.querySelectorAll(".tabs button")].find(b=>b.textContent==="形状").click();
-    const elg=ed.svg.querySelector("g[data-kind]:not([data-ghost])");
-    const elr=elg.getBoundingClientRect();
-    elg.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:12}));
-    elg.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,clientX:elr.left+elr.width/2,clientY:elr.top+elr.height/2,pointerId:12}));
-    await sleep(30);
-    rec("选中后滑块同步 70", document.querySelector("#opacity").value==="70","");
-    opI.value=30; opI.dispatchEvent(new Event("input",{bubbles:true}));
-    await sleep(20);
-    rec("选中元素透明度随滑块变", ed.state.els[0].opacity===0.3,"");
-    document.querySelector("#clear").click(); await sleep(20);
-    rec("清空需二次确认", (document.querySelector("#clear").textContent||"").includes("确认"),"");
-    rec("二次确认前元素保留", ed.state.els.length===1,"");
-    document.querySelector("#clear").click(); await sleep(30);
-    rec("二次确认后清空", ed.state.els.length===0,"");
-    /* 作答动态：出题人实时看到猜词与选图对错 */
-    __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"汽车",correct:false});
-    await sleep(30);
-    rec("出题人见未命中词", (document.querySelector("#feed").textContent||"").includes("汽车")&&(document.querySelector("#feed").textContent||"").includes("✗"),"");
-    __PW.handle({t:"word_view",pid:"pB",nickname:"小红",word:"大象",correct:true,level:"exact",pts:5});
-    await sleep(30);
-    rec("出题人见命中词+层级", (document.querySelector("#feed").textContent||"").includes("准确词")&&(document.querySelector("#feed").textContent||"").includes("+5"),"");
-    rec("出题人feed无重复分数", (document.querySelector("#feed").textContent||"").includes("准确词 +5") && !(document.querySelector("#feed").textContent||"").includes("+5 +5"),"");
-    rec("进度条随准确命中+1", (document.querySelector(".feed-progress-inline").textContent||"").includes("1/1"),"");
-    __PW.handle({t:"guess_view",pid:"pB",nickname:"小红",cell:3,correct:true,first:true});
-    await sleep(30);
-    rec("出题人见选图命中", (document.querySelector("#feed").textContent||"").includes("A4")&&(document.querySelector("#feed").textContent||"").includes("鲨鱼")&&(document.querySelector("#feed").textContent||"").includes("✓"),"");
-    __PW.handle({t:"guess_view",pid:"pC",nickname:"小刚",cell:0,correct:false,first:false});
-    await sleep(30);
-    rec("出题人见选图未中", (document.querySelector("#feed").textContent||"").includes("A1")&&(document.querySelector("#feed").textContent||"").includes("✗"),"");
-
-    /* 4. 猜题人视角：锁定阶段无照片墙 */
-    __PW.pid="pB";
-    __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()+120000,lockSeconds:60,createSeconds:120,target:undefined,wall:WALL16});
-    await sleep(80);
-    rec("猜题人文字竞猜框", !!document.querySelector("#pw-word"),"");
-    rec("锁定期无照片墙", !document.querySelector("#pw-photo-holder .wall-grid"),"");
-    rec("锁定期提示", (document.querySelector("#pw-gbar").textContent||"").includes("文字竞猜中"),"");
-
-    /* 5. 文字竞猜 + 三级命中记录 */
-    const winput=document.querySelector("#pw-word");
-    winput.value="大象";
-    document.querySelector("#pw-wordsend").click();
-    await sleep(40);
-    rec("猜测记录待定行", !!document.querySelector("#pw-records .guess-record.pending"),"");
-    __PW.handle({t:"word_res",correct:true,level:"exact",pts:5,word:"大象",total:5});
-    await sleep(40);
-    rec("猜测记录命中行", !!document.querySelector("#pw-records .guess-record.hit"),"");
-    rec("记录显示+5", (document.querySelector("#pw-records").textContent||"").includes("+5"),"");
-    rec("文字命中提示层级", (document.querySelector("#pw-gbar").textContent||"").includes("准确词 +5"),"");
-    rec("命中显示词条+本轮分", (document.querySelector("#pw-gbar").textContent||"").includes("大象")&&(document.querySelector("#pw-gbar").textContent||"").includes("5/8"),"");
-    rec("命中徽章点亮(准确)", !!document.querySelector("#pw-hits .hit-badge.on") && (document.querySelector("#pw-hits").textContent||"").includes("准确") && (document.querySelector("#pw-hits").textContent||"").includes("大象"),"");
-    /* 词条级去重：重复命中 → 提示已猜过 */
-    __PW.handle({t:"word_res",correct:true,repeat:true,level:"category",word:"动物",msg:"该词已猜过"});
-    await sleep(40);
-    rec("重复命中提示已猜过", (document.querySelector("#pw-gbar").textContent||"").includes("已猜过"),"");
-    rec("重复命中记录标记", !!document.querySelector("#pw-records .guess-record.repeat"),"");
-    // 未命中记录
-    winput.value="汽车";
-    document.querySelector("#pw-wordsend").click();
-    await sleep(40);
-    __PW.handle({t:"word_res",correct:false});
-    await sleep(40);
-    rec("未命中记录✗", !!document.querySelector("#pw-records .guess-record.miss"),"");
-    /* v2：反馈去重 + 引导语 + 鼓励池 + 连续未中引导 */
-    __PW.handle({t:"word_res",correct:true,level:"exact",pts:5,word:"大象",total:5});
-    await sleep(40);
-    const hitB=document.querySelector("#pw-records .guess-record.hit b");
-    rec("记录行无重复分数", !!hitB && (hitB.textContent||"").includes("准确词 +5") && !(hitB.textContent||"").includes("+5 +5"),"");
-    rec("准确命中引导语", (document.querySelector("#pw-gbar").textContent||"").includes("完美命中"),"");
-    __PW.handle({t:"word_res",correct:false});
-    await sleep(30);
-    rec("未命中鼓励语", /不对哦|加油|很接近了/.test(document.querySelector("#pw-gbar").textContent||""),"");
-    __PW.handle({t:"word_res",correct:false});
-    await sleep(30);
-    __PW.handle({t:"word_res",correct:false});
-    await sleep(30);
-    rec("连续3次未中引导", (document.querySelector("#pw-gbar").textContent||"").includes("已经想了 3 次"),"");
-
-    /* 6. 画布实时同步 */
-    __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7},{kind:"crescent",x:30,y:40,w:90,h:90,rot:45,color:"#2980B9",opacity:0.5},{kind:"arrow",x:50,y:60,w:100,h:90,rot:0,color:"#2F9E44",opacity:1}]});
-    await sleep(60);
-    rec("猜题人画布同步(12形状)", document.querySelector("#pw-gstage").querySelectorAll("g[data-kind]").length>=2,"");
-    __PW.handle({t:"canvas",els:[{kind:"circle",x:10,y:20,w:90,h:90,rot:0,color:"#E03131",opacity:0.7}],bg:"#BFE3F7"});
-    await sleep(60);
-    const bgRect=document.querySelector("#pw-gstage rect");
-    rec("猜题人画布背景同步", !!bgRect && bgRect.getAttribute("fill")==="#BFE3F7","");
-
-    /* 7. 解锁：照片墙出现在文字框下方 */
-    __PW.deadline=Date.now()+500;
-    await sleep(900);
-    rec("解锁后照片墙出现", !!document.querySelector("#pw-photo-holder .wall-grid")&&document.querySelector("#pw-photo-holder .wall-grid").children.length===16,"");
-    rec("照片墙为真实图片", document.querySelectorAll("#pw-photo-holder .wall-grid .cell img").length===16,"");
-    rec("照片墙使用缩略图", document.querySelectorAll('#pw-photo-holder .wall-grid .cell img[src*="/images-thumb/"]').length===16,"");
-    rec("解锁提示", (document.querySelector("#pw-gbar").textContent||"").includes("照片墙开放"),"");
-    rec("文字框仍可用", !!document.querySelector("#pw-word"),"");
-
-    /* 8. 无限次选图 + 冷却（大图预览「就选这张」= 直接提交） */
-    document.querySelector("#pw-photo-holder .wall-grid").children[3].click();
-    await sleep(50);
-    rec("选图弹大图预览", !!document.querySelector(".pop #pv-ok")&&!!document.querySelector(".pop img"),"");
-    const pvOk=document.querySelector("#pv-ok"); if(pvOk) pvOk.click();
-    await sleep(40);
-    rec("提交后等待判定提示", (document.querySelector("#pw-gbar").textContent||"").includes("已提交，等待判定"),"");
-    rec("不再出现确认按钮", !document.querySelector("#pw-gok"),"");
-    __PW.handle({t:"guess_ok",correct:false,done:false,tried:[3]});
-    await sleep(40);
-    rec("猜错该格标记✗", !!document.querySelector("#pw-photo-holder .wall-grid .cell.tried"),"");
-    rec("冷却倒计时显示", !!document.querySelector("#pw-cd"),"");
-    const nonTried=()=>document.querySelector("#pw-photo-holder .wall-grid .cell:not(.tried)");
-    rec("冷却中墙锁定", !!nonTried()&&nonTried().disabled,"");
-    await sleep(450);
-    rec("冷却结束墙解锁", !!nonTried()&&!nonTried().disabled,"");
-    rec("已试格仍禁用", document.querySelector("#pw-photo-holder .wall-grid .cell.tried").disabled,"");
-    // 第 2 次选对 → 锁定
-    nonTried().click();
-    await sleep(40);
-    const pvOk2=document.querySelector("#pv-ok"); if(pvOk2) pvOk2.click();
-    __PW.handle({t:"guess_ok",correct:true,first:true,done:true,tried:[3]});
-    await sleep(60);
-    rec("猜对后锁定等待", (document.querySelector("#pw-gbar").textContent||"").includes("等待揭晓"),"");
-
-    /* 9. 揭晓（含答案照片与层级分） */
-    __PW.handle({t:"reveal",state:"round_end",round:1,answer:3,answerLabel:"B1 鲨鱼",answerImg:"/images/ani-elephant.png",
-      drawer:{pid:"pA",nickname:"阿明"},
-      results:[
-        {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1},
-        {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,attempts:2,wordHit:true,wordPts:5,points:8}],
-      scores:{pA:1,pB:8},isLast:false,maxRounds:2});
-    rec("揭晓结果行 2 条", !!document.querySelector("#pw-results")&&document.querySelector("#pw-results").children.length===2,"");
-    rec("揭晓答案显示", (document.querySelector("h1").textContent||"").includes("第 1 轮揭晓"),"");
-    rec("揭晓答案照片", !!document.querySelector(".answer-img img"),"");
-    rec("揭晓含文字命中层级", (document.querySelector("#pw-results").textContent||"").includes("文字命中 +5"),"");
-    rec("揭晓含下一轮按钮", !!document.querySelector("#pw-next"),"");
-    rec("本轮X/N显示", (document.querySelector("#app").textContent||"").includes("本轮 1 / 2"),"");
-    rec("非最后轮按钮文案", (document.querySelector("#pw-next").textContent||"").includes("开始下一轮"),"");
-    rec("自动倒计时提示", !!document.querySelector("#pw-next-tip")&&(document.querySelector("#pw-next-tip").textContent||"").includes("6 秒"),"");
-    /* 最后轮揭晓：按钮变查看结算 + 10 秒自动跳转 */
-    __PW.handle({t:"reveal",state:"round_end",round:2,answer:3,answerLabel:"B1 鲨鱼",answerImg:"/images/ani-elephant.png",maxRounds:2,isLast:true,
-      drawer:{pid:"pA",nickname:"阿明"},
-      results:[
-        {pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1},
-        {pid:"pB",nickname:"小红",role:"guesser",guessed:3,correct:true,first:true,attempts:2,wordHit:true,wordPts:5,points:8}],
-      scores:{pA:1,pB:8}});
-    await sleep(40);
-    rec("最后轮按钮为查看结算", (document.querySelector("#pw-next").textContent||"").includes("查看结算"),"");
-    rec("最后轮10秒自动提示", (document.querySelector("#pw-next-tip").textContent||"").includes("10 秒"),"");
-
-    /* 10. 终局 + 再来一局（房主/非房主）+ 回大厅 */
-    __PW.handle({t:"game_over",scores:{pA:1,pB:8},winner:{pid:"pB",nickname:"小红",score:8},mvp:{score:"pB",firstExact:"pB",drawer:"pA"}});
-    rec("终局标题", (document.querySelector("h1").textContent||"").includes("对局结束"),"");
-    rec("赢家显示", (document.querySelector(".score-big").textContent||"").includes("小红"),"");
-    rec("终局MVP徽章", document.querySelectorAll(".mvp-badge").length===3&&(document.querySelector(".mvp-row").textContent||"").includes("得分王")&&(document.querySelector(".mvp-row").textContent||"").includes("最快猜中")&&(document.querySelector(".mvp-row").textContent||"").includes("最佳出题"),"");
-    __PW.pid="pB";
-    renderOnlineReveal(); await sleep(40);
-    const agNon=document.querySelector("#pw-again");
-    rec("非房主再来一局为等待态", !!agNon && agNon.disabled && (agNon.textContent||"").includes("等待房主"),"");
-    __PW.pid="pA";
-    renderOnlineReveal(); await sleep(40);
-    const agHost=document.querySelector("#pw-again");
-    rec("房主再来一局可点", !!agHost && !agHost.disabled && (agHost.textContent||"").includes("再来一局"),"");
-    __PW.handle({t:"room_reset",room_id:"AB12",hostPid:"pA",players:[
-      {pid:"pA",nickname:"阿明",score:0,connected:true,guessed:null,wordHit:false,tried:[]},
-      {pid:"pB",nickname:"小红",score:0,connected:true,guessed:null,wordHit:false,tried:[]}]});
-    await sleep(40);
-    rec("再来一局回大厅", !!document.querySelector("#pw-start") && (document.querySelector("h1").textContent||"").includes("AB12"),"");
-    rec("回大厅人数保留", document.querySelector("#pw-players").children.length===2,"");
-
-    /* 11. 在线房间列表（自检内不真实连接，模拟 list 消息） */
-    renderOnline();
-    await sleep(60);
-    __PW.handle({t:"list",rooms:[{room_id:"AB12",host:"阿明",players:1,max:6},{room_id:"CD34",host:"小红",players:3,max:6}]});
-    await sleep(60);
-    rec("在线房间列表渲染", !!document.querySelector("#pw-rooms")&&document.querySelector("#pw-rooms").children.length===2,"");
-    rec("房间可点击加入", !!document.querySelector("#pw-join-AB12"),"");
-    __PW.handle({t:"list",rooms:[]});
-    await sleep(60);
-    rec("空列表提示", (document.querySelector("#pw-rooms").textContent||"").includes("暂无"),"");
-
-    /* 13. 设备身份 + 大厅图库模式 + 房间自定义图库 */
-    const dev1=getDeviceId(), dev2=getDeviceId();
-    rec("设备ID持久且唯一", dev1===dev2 && !!localStorage.getItem("pw_device") && dev1.length>=10,"");
-    saveNickMemo("测试昵称");
-    renderOnline(); await sleep(50);
-    rec("昵称记忆预填", (document.querySelector("#pw-nick").value||"").trim()==="测试昵称","");
-    await customPut({id:"cw-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"测试图",exact:"测试图",keywords:[],aliases:[],category_word:"测试",fp:"testfp001",createdAt:Date.now()});
-    await gamePut({id:"gp-test",img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",name:"收藏图",exact:"收藏图",keywords:[],aliases:[],category_word:"收藏",fp:"testfp002",createdAt:Date.now()});
-    /* 房间创建后：贡献者/房主移除权限 + 导入弹窗双 tab */
-    __PW.handle({t:"created",room_id:"EF56",pid:"pA",nickname:"测试昵称",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60},poolMode:"mixed",customImgs:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"}]});
-    await sleep(50);
-    rec("大厅图库三模式按钮", document.querySelectorAll("#pw-poolmode .pm").length===3,"");
-    rec("混合模式默认高亮", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
-    rec("自定义图库防剧透（只显示序号+贡献者）", !((document.querySelector("#pw-shared").textContent||"").includes("恐龙")) && (document.querySelector("#pw-shared").textContent||"").includes("甲") && (document.querySelector("#pw-shared").textContent||"").includes("#1"),"");
-    rec("房主可移除自定义图", !!document.querySelector("#pw-shared .mini-del"),"");
-    rec("自定义上传入口存在", !!document.querySelector("#pw-upload"),"");
-    rec("从我的图库导入按钮存在", !!document.querySelector("#pw-import-custom"),"");
-    rec("大厅显示分层关闭提示", (document.querySelector("#pw-players").parentElement.textContent||"").includes("60 秒"),"");
-    rec("房主有解散房间按钮", !!document.querySelector("#pw-disband"),"");
-    rec("房主有离开房间按钮", !!document.querySelector("#pw-leave"),"");
-    document.querySelector("#pw-import-custom").click();
-    await sleep(50);
-    rec("导入弹窗打开且渲染个人图", !!document.querySelector("#imp-grid") && document.querySelectorAll("#imp-grid .img-cell").length>=1,"");
-    rec("导入弹窗双 tab", document.querySelectorAll("#imp-tabs .pt-tab").length===2,"");
-    const impGamesTab=document.querySelector('#imp-tabs .pt-tab[data-v="games"]');
-    if(impGamesTab) impGamesTab.click();
-    await sleep(60);
-    rec("对局收藏 tab 渲染收藏图", !!document.querySelector("#imp-grid .img-cell") && (document.querySelector("#imp-grid").textContent||"").includes("收藏图"),"");
-    if(document.querySelector("#imp-cancel")) document.querySelector("#imp-cancel").click();
-    await sleep(20);
-    await customDel("cw-test");
-    document.querySelector("#pw-upload").click();
-    await sleep(40);
-    rec("上传弹窗重排（虚线框+字段标签+预览区）", !!document.querySelector("#sh-ok") && !!document.querySelector(".file-drop") && !!document.querySelector(".field-label") && !!document.querySelector("#sh-preview"),"");
-    if(document.querySelector("#sh-cancel")) document.querySelector("#sh-cancel").click();
-    await sleep(30);
-    rec("上传弹窗可关闭", !document.querySelector("#sh-ok"),"");
-    /* 房间生命周期：left / room_closed 前端清理 */
-    __PW.handle({t:"room_closed",msg:"房主解散了房间"});
-    await sleep(40);
-    rec("room_closed 清理回首页", location.hash==="#/" || !document.querySelector("#pw-players"),"");
-    __PW.handle({t:"mode_set",mode:"custom"});
-    await sleep(50);
-    rec("set_mode 广播后高亮切换", (document.querySelector('#pw-poolmode [data-mode="custom"]').className||"").includes("pm-on"),"");
-    rec("图库模式说明切换", (document.querySelector("#pw-mode-note").textContent||"").includes("自定义图库"),"");
-    __PW.pid="pB";
-    __PW.handle({t:"player_joined",pid:"pB",hostPid:"pA",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:true},{pid:"pB",nickname:"小红",score:0,connected:true}]});
-    await sleep(50);
-    rec("非房主图库按钮禁用", !!document.querySelector('#pw-poolmode .pm[disabled]'),"");
-    rec("非房主无移除按钮", !document.querySelector("#pw-shared .mini-del"),"");
-    __PW.handle({t:"img_added",img:{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"},list:[{id:"cu-1",zh:"恐龙",category:"动物",contributor:"甲",imgUrl:"/room-img/EF56/cu-1"},{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"}]});
-    await sleep(50);
-    rec("img_added 广播更新自定义图库", document.querySelector("#pw-shared").children.length===2,"");
-    __PW.handle({t:"img_removed",list:[{id:"cu-2",zh:"帆船",category:"自定义",contributor:"小红",imgUrl:"/room-img/EF56/cu-2"}]});
-    await sleep(50);
-    rec("img_removed 广播同步", document.querySelector("#pw-shared").children.length===1,"");
-    /* 房主离线让位：A 离线 → hostPid 转移到 B，B 可开始、房主标签跟随 */
-    __PW.handle({t:"player_joined",pid:"pA",hostPid:"pB",players:[{pid:"pA",nickname:"测试昵称",score:0,connected:false},{pid:"pB",nickname:"小红",score:0,connected:true}]});
-    await sleep(50);
-    rec("房主让位：B 变为房主可点开始", !!document.querySelector("#pw-start"),"");
-    rec("房主标签跟随 B", (document.querySelector("#pw-players").children[1].textContent||"").includes("房主"),"");
-    __PW.handle({t:"kicked",msg:"你的账号已在另一处进入该房间"});
-    await sleep(50);
-    rec("被踢后清身份", __PW.roomId==="" && !localStorage.getItem("pw_session"),"");
-    rec("被踢后设备ID保留", !!localStorage.getItem("pw_device"),"");
-    __PW.handle({t:"created",room_id:"AB12",pid:"pA",nickname:"阿明",hostPid:"pA",players:[{pid:"pA",nickname:"阿明",score:0,connected:true}],wall:[],rules:{createSeconds:120,lockSeconds:60}});
-    await sleep(50);
-    rec("默认图库模式回退", (document.querySelector('#pw-poolmode [data-mode="mixed"]').className||"").includes("pm-on"),"");
-
-    /* 12. 自定义图入照片墙（dataURL 渲染） */
-    __PW.pid="pB";
-    const WALLMIX=WALL16.map(g=>({...g}));
-    WALLMIX[0]={id:"cu-1",zh:"自定义图",category:"自定义",category_word:"自定义",exact:"自定义图",keywords:[],aliases:[],img:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",thumb:""};
-    __PW.handle({t:"round_start",round:1,drawer:{pid:"pA",nickname:"阿明"},
-      deadline:Date.now()-500,lockSeconds:60,createSeconds:120,target:undefined,wall:WALLMIX});
-    await sleep(600);
-    rec("照片墙渲染自定义图", !!document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]'),"");
-    rec("自定义图 alt 名称", (document.querySelector('#pw-photo-holder .wall-grid .cell img[src^="data:"]').getAttribute("alt")||"")==="自定义图","");
-    /* 12b. 对局结束自动收藏：reveal 消息不带 wall，前端用本地 this.wall 收藏房间自定义图 */
-    __PW.handle({t:"reveal",state:"round_end",round:1,answer:0,answerLabel:"A1 自定义图",answerImg:"",maxRounds:2,isLast:true,
-      drawer:{pid:"pA",nickname:"阿明"},
-      results:[{pid:"pA",nickname:"阿明",role:"drawer",guessed:null,correct:null,wordHit:false,points:1,hitCount:1}],
-      scores:{pA:1}});
-    await sleep(150);
-    const gAfter=await gameList();
-    const testG=gAfter.find(x=>(x.zh||x.name)==="自定义图");
-    rec("对局结束自动收藏房间自定义图", !!testG,"");
-    if(testG) await gameDel(testG.id);   // 清理测试收藏，不留脏数据
-  }catch(err){
-    rec("联机自检异常", false, (err&&err.message)||String(err));
-  }
-  /* 清理残留弹层（照片墙大图预览等 append 到 body 的遮罩） */
-  document.querySelectorAll(".mask").forEach(x=>x.remove());
-  /* 清理自检测试收藏数据（gp-test），不污染用户对局收藏 */
-  try{ await gameDel("gp-test"); }catch(_){}
-  window.__pwNoAutoConnect=false;
-  window.__pwCooldownMs=10000;
-  /* 报告 */
-  const passed=results.filter(r=>r.ok).length;
-  pwReset();
-  $app.innerHTML="";
-  const w=html("div",{class:"wrap"});
-  const card=html("div",{class:"card"});
-  card.innerHTML=`<h1>联机 UI 自检报告</h1>
-    <div class="sub">规则集 pictures-web-online-v1 · 模拟 WS 消息走真实渲染路径 · ${passed}/${results.length} 通过</div>
-    <table><thead><tr><th>检查项</th><th>结果</th><th>详情</th></tr></thead><tbody>
-    ${results.map(r=>`<tr><td>${r.name}</td><td style="color:${r.ok?"var(--ok)":"var(--bad)"};font-weight:700">${r.ok?"PASS":"FAIL"}</td><td>${r.detail||""}</td></tr>`).join("")}
-    </tbody></table>
-    <div class="foot-actions"><button class="ghost" id="back-home-btn">回首页</button></div>`;
-  w.appendChild(card);$app.appendChild(w);
-  const bh=document.querySelector("#back-home-btn"); if(bh) bh.onclick=()=>location.hash="#/";
-}
+/* =====================================================================
+ * 联网 / 联机 / 自检功能：小红书离线版已移除（路由已重定向，永不进入）
+ * 保留空桩仅为兼容潜在引用，避免 ReferenceError
+ * ===================================================================== */
+async function renderPuzzleGuess(){ location.hash="#/"; }
+async function runPuzzleTest(){ location.hash="#/"; }
+function renderEditor(){ }
+function pwLeave(){ }
+function pwDisband(){ }
+function saveSession(){ }
+function clearSession(){ }
+function restoreSession(){ }
+function pwReset(){ }
+function getDeviceId(){ return ""; }
+function renderOnline(){ location.hash="#/"; }
+function pwConnect(){ }
+function modeLabel(m){ return m||""; }
+function renderOnlineLobby(){ location.hash="#/"; }
+function renderOnlineRoom(){ location.hash="#/"; }
+function renderOnlineGuess(){ location.hash="#/"; }
+function renderOnlineReveal(){ location.hash="#/"; }
+async function runOnlineTest(){ location.hash="#/"; }
 function runRoute(){
   try{ route(); }
   catch(e){
@@ -4473,3 +1493,346 @@ function runRoute(){
 }
 window.addEventListener("hashchange",runRoute);
 runRoute();
+
+/* ================= 我来猜（离线单人：8 幅画，文字 + 照片墙同时，向上计时） ================= */
+function renderGuess(){
+  $app.innerHTML="";
+  const wrap=html("div",{class:"wrap"});
+  wrap.innerHTML=`
+  <div class="topbar">
+    <button class="ghost" id="back">← 首页</button>
+    <span class="title">我来猜 · 看画猜词</span>
+    <span class="spacer"></span>
+  </div>
+  <div class="stage-wrap" style="max-width:560px;margin:0 auto">
+    <svg class="stage" id="g-stage"></svg>
+    <div class="hint" id="g-hint">看这幅画，猜猜画的是什么；可以打字，也可以从下方照片墙里选</div>
+  </div>
+  <div class="card" style="max-width:560px;margin:12px auto">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="sub" id="g-progress"></span>
+      <span class="sub" id="g-timer" style="font-variant-numeric:tabular-nums;font-weight:700;color:var(--brand)"></span>
+    </div>
+    <div class="row" id="g-row">
+      <input id="g-input" placeholder="输入你的猜测…" autocomplete="off">
+      <button class="primary" id="g-send">猜</button>
+    </div>
+    <div id="g-fb" class="guess-fb"></div>
+    <div class="sub" style="margin-top:12px">照片墙（点开看大图，确认后提交）：</div>
+    <div class="img-grid" id="g-wall" style="margin-top:6px"></div>
+    <div class="row" id="g-next-row" style="justify-content:center;margin-top:12px;display:none">
+      <button class="primary" id="g-next">下一题 →</button>
+    </div>
+  </div>`;
+  $app.appendChild(wrap);
+  wrap.querySelector("#back").onclick=()=>location.hash="#/";
+
+  const stage=wrap.querySelector("#g-stage");
+  const fbEl=wrap.querySelector("#g-fb");
+  const progressEl=wrap.querySelector("#g-progress");
+  const timerEl=wrap.querySelector("#g-timer");
+  const input=wrap.querySelector("#g-input");
+  const send=wrap.querySelector("#g-send");
+  const wallEl=wrap.querySelector("#g-wall");
+  const nextRow=wrap.querySelector("#g-next-row");
+  const nextBtn=wrap.querySelector("#g-next");
+
+  let idx=0, solved=false, roundStart=0, timerId=null, results=[];
+  let wall=[];   // 16 张候选
+  const wrongIds={};   // 已选错的图片 id
+
+  function tick(){
+    const sec=Math.floor((Date.now()-roundStart)/1000);
+    timerEl.textContent="⏱ "+sec+" 秒";
+  }
+
+  /* 依据目标词检查文字猜测：返回 {level:"exact"/"category"/"keyword"/null} */
+  function checkText(text,g){
+    const t=String(text||"").trim();
+    if(!t) return null;
+    if(t===g.exact) return {level:"exact",word:g.exact};
+    if((g.aliases||[]).some(a=>a===t)) return {level:"exact",word:t};
+    if(g.category_word && t===g.category_word) return {level:"category",word:g.category_word};
+    if((g.keywords||[]).some(k=>k===t)) return {level:"keyword",word:t};
+    return null;
+  }
+
+  function loadRound(){
+    const art=GUESS_ARTWORK[idx];
+    const gid=GUESS_DECK[idx];
+    const g=PACK_DATA.images.find(x=>x.id===gid);
+    solved=false; Object.keys(wrongIds).forEach(k=>{ delete wrongIds[k]; });
+    /* 构造 16 张照片墙：目标 + 随机 15 张（不重复） */
+    const others=PACK_DATA.images.filter(x=>x.id!==gid);
+    wall=[g].concat(shuffle(others).slice(0,15));
+    wall=shuffle(wall);
+    /* 渲染画 */
+    renderArtwork(stage, art.els, {bg:art.bg});
+    /* 进度 + 计时 */
+    progressEl.textContent=`第 ${idx+1} / ${GUESS_DECK.length} 题`;
+    roundStart=Date.now(); tick();
+    if(timerId) clearInterval(timerId);
+    timerId=setInterval(tick,500);
+    /* 重置输入/反馈 */
+    input.value=""; input.disabled=false; send.disabled=false;
+    fbEl.innerHTML="";
+    nextRow.style.display="none";
+    drawWall();
+  }
+
+  /* 照片墙：隐藏名称，只显示图片 + 编号；选错标 ✗ */
+  function drawWall(){
+    wallEl.innerHTML="";
+    wall.forEach((g,i)=>{
+      const label=coordLabel(i);
+      const cell=html("button",{class:"img-cell"+(wrongIds[g.id]?" is-wrong":"")});
+      cell.innerHTML=`<img src="images-thumb/${g.id}.jpg" alt="${label}"><span>${label}</span>`;
+      if(wrongIds[g.id]){
+        cell.disabled=true; cell.style.opacity="0.45";
+        const mark=html("div",{},"✕"); mark.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;color:#C92A2A;font-weight:800";
+        cell.appendChild(mark);
+      }
+      cell.onclick=()=>openPreview(g);
+      wallEl.appendChild(cell);
+    });
+  }
+
+  /* 大图预览：不显示名称；「选它」提交，否则取消 */
+  function openPreview(g){
+    if(solved||wrongIds[g.id]) return;
+    const i=wall.indexOf(g);
+    const label=coordLabel(i);
+    const mk=html("div",{class:"mask"});
+    mk.innerHTML=`<div class="modal" style="max-width:380px;text-align:center">
+      <h2>${label}</h2>
+      <img src="images-thumb/${g.id}.jpg" alt="" style="width:100%;max-width:300px;border-radius:12px;border:2px solid var(--line)">
+      <div class="sub" style="margin:8px 0">确定选这张吗？</div>
+      <div class="row" style="justify-content:center">
+        <button class="ghost" id="pv-cancel">取消</button>
+        <button class="primary" id="pv-pick">选它</button>
+      </div>
+    </div>`;
+    document.body.appendChild(mk);
+    mk.querySelector("#pv-cancel").onclick=()=>mk.remove();
+    mk.querySelector("#pv-pick").onclick=()=>{ mk.remove(); pickImage(g); };
+  }
+
+  /* 照片墙提交判定 */
+  function pickImage(g){
+    const gid=GUESS_DECK[idx];
+    if(g.id===gid){ winRound(g, "图片"); }
+    else{
+      wrongIds[g.id]=true;
+      sfx("miss");
+      fbEl.innerHTML=`<div class="fb miss">不是这张，再看看～</div>`;
+      drawWall();
+    }
+  }
+
+  /* 文字提交 */
+  function doText(){
+    const gid=GUESS_DECK[idx];
+    const g=PACK_DATA.images.find(x=>x.id===gid);
+    const r=checkText(input.value,g);
+    if(!r){
+      sfx("miss");
+      fbEl.innerHTML=`<div class="fb miss">不对哦，再想想～</div>`;
+      return;
+    }
+    if(r.level==="exact"){ winRound(g,"文字"); }
+    else if(r.level==="category"){
+      sfx("hit");
+      fbEl.innerHTML=`<div class="fb hit">对，它属于「${esc(r.word)}」！再猜猜具体是什么？</div>`;
+    }else{
+      sfx("hit");
+      fbEl.innerHTML=`<div class="fb hit">「${esc(r.word)}」很接近了！它的准确名字是？</div>`;
+    }
+  }
+
+  /* 猜中当前题：禁用输入、展示谜底与用时、给出下一题按钮 */
+  function winRound(g, via){
+    if(solved) return;
+    solved=true;
+    const used=Math.floor((Date.now()-roundStart)/1000);
+    if(timerId){ clearInterval(timerId); timerId=null; }
+    sfx("win");
+    input.disabled=true; send.disabled=true;
+    results.push({id:g.id,zh:g.zh,used,via});
+    fbEl.innerHTML=`<div class="fb hit">🎉 猜中了！谜底是「${esc(g.zh)}」（${esc(g.category)}）· 用时 ${used} 秒 · ${via}作答</div>`;
+    if(idx>=GUESS_DECK.length-1){
+      nextBtn.textContent="看总结 🏆";
+    }else{
+      nextBtn.textContent="下一题 →";
+    }
+    nextRow.style.display="flex";
+    window.scrollTo(0,document.body.scrollHeight);
+  }
+
+  nextBtn.onclick=()=>{
+    if(idx>=GUESS_DECK.length-1){ showSummary(); }
+    else{ idx++; loadRound(); window.scrollTo(0,0); }
+  };
+  send.onclick=doText;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") doText(); });
+
+  /* 全部完成：总结各题用时 + 总用时 */
+  function showSummary(){
+    if(timerId){ clearInterval(timerId); timerId=null; }
+    const total=results.reduce((s,r)=>s+r.used,0);
+    $app.innerHTML="";
+    const w=html("div",{class:"wrap"});
+    w.innerHTML=`
+    <div class="card" style="max-width:560px;margin:14px auto">
+      <h1 style="text-align:center">🏆 全部猜完！</h1>
+      <div class="sub" style="text-align:center;margin:6px 0">总用时 <b style="color:var(--brand)">${total} 秒</b> · 平均 ${(total/results.length).toFixed(1)} 秒/题</div>
+      <table style="width:100%;margin-top:10px;font-size:14px">
+        <thead><tr><th style="text-align:left">题目</th><th>用时</th><th>方式</th></tr></thead>
+        <tbody>
+          ${results.map((r,i)=>`<tr><td style="text-align:left">${i+1}. ${esc(r.zh)}</td><td style="text-align:center">${r.used}s</td><td style="text-align:center">${r.via}</td></tr>`).join("")}
+        </tbody>
+      </table>
+      <div class="row" style="justify-content:center;margin-top:14px">
+        <button class="primary" id="again">再玩一次</button>
+        <button class="ghost" id="home">回首页</button>
+      </div>
+    </div>`;
+    $app.appendChild(w);
+    w.querySelector("#again").onclick=()=>{ idx=0; results=[]; renderGuess(); };
+    w.querySelector("#home").onclick=()=>location.hash="#/";
+  }
+
+  loadRound();
+}
+
+
+/* ================= Canvas 2D 形状绘制（复刻 shapeFor，用于导出分享图） ================= */
+function roundRectPath(ctx,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function drawShape2D(ctx,e){
+  ctx.save();
+  ctx.translate(e.x,e.y);
+  ctx.rotate((e.rot||0)*Math.PI/180);
+  ctx.globalAlpha=typeof e.opacity==="number"?e.opacity:1;
+  ctx.fillStyle=e.color||"#E03131";
+  const w=e.w||80, hh=e.h||80;
+  ctx.beginPath();
+  if(e.kind==="rect"||e.kind==="square"){ roundRectPath(ctx,-w/2,-hh/2,w,hh,3); ctx.fill(); }
+  else if(e.kind==="bar"){ roundRectPath(ctx,-w/2,-hh/2,w,hh,2); ctx.fill(); }
+  else if(e.kind==="circle"){ ctx.arc(0,0,w/2,0,Math.PI*2); ctx.fill(); }
+  else if(e.kind==="ellipse"){ ctx.ellipse(0,0,w/2,hh/2,0,0,Math.PI*2); ctx.fill(); }
+  else if(e.kind==="semicircle"){ ctx.moveTo(-w/2,0); ctx.arc(0,0,w/2,Math.PI,0); ctx.closePath(); ctx.fill(); }
+  else if(e.kind==="triangle"){ ctx.moveTo(0,-hh/2); ctx.lineTo(-w/2,hh/2); ctx.lineTo(w/2,hh/2); ctx.closePath(); ctx.fill(); }
+  else if(e.kind==="diamond"){ ctx.moveTo(0,-hh/2); ctx.lineTo(w/2,0); ctx.lineTo(0,hh/2); ctx.lineTo(-w/2,0); ctx.closePath(); ctx.fill(); }
+  else if(e.kind==="waterdrop"){
+    ctx.moveTo(0,-hh/2);
+    ctx.quadraticCurveTo(w/2,-hh*0.05,w/2,hh*0.22);
+    ctx.ellipse(0,hh*0.22,w/2,hh*0.55,0,0,Math.PI*2);
+    ctx.quadraticCurveTo(-w/2,-hh*0.05,0,-hh/2);
+    ctx.closePath(); ctx.fill();
+  }
+  else if(e.kind==="cross"){
+    roundRectPath(ctx,-w/2,-hh/6,w,hh/3,1); ctx.fill();
+    roundRectPath(ctx,-w/6,-hh/2,w/3,hh,1); ctx.fill();
+  }
+  else if(e.kind==="arrow"){
+    roundRectPath(ctx,-w/2,-hh*0.12,w*0.72,hh*0.24,2); ctx.fill();
+    ctx.moveTo(w*0.22,-hh*0.42); ctx.lineTo(w/2,0); ctx.lineTo(w*0.22,hh*0.42); ctx.closePath(); ctx.fill();
+  }
+  else if(e.kind==="star"){
+    const sr=w/2, sir=sr*0.382;
+    for(let i=0;i<10;i++){
+      const a=(90+i*36)*Math.PI/180;
+      const rr=(i%2===0)?sr:sir;
+      const sx=rr*Math.cos(a), sy=-rr*Math.sin(a);
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* 导出 2:3 分享图（不含谜底，只含作品 + 引导语）；返回 JPEG dataURI */
+function exportShareImage(els, bg){
+  const W=720, H=1080;
+  const cv=document.createElement("canvas");
+  cv.width=W; cv.height=H;
+  const ctx=cv.getContext("2d");
+  /* 整体背景 */
+  ctx.fillStyle="#F6F3EC"; ctx.fillRect(0,0,W,H);
+  /* 顶部标题 */
+  ctx.textAlign="center";
+  ctx.fillStyle="#26303A";
+  ctx.font="bold 54px sans-serif";
+  ctx.fillText("巧手猜图",W/2,112);
+  ctx.fillStyle="#6B7280";
+  ctx.font="28px sans-serif";
+  ctx.fillText("看画猜词 · 你能猜中吗？",W/2,156);
+  /* 作品方形卡片 */
+  const pad=60, size=W-pad*2, py=210;
+  ctx.save();
+  roundRectPath(ctx,pad,py,size,size,24);
+  ctx.fillStyle=bg||"#FFFFFF"; ctx.fill();
+  ctx.clip();
+  /* 把 480 坐标作品映射到方形 */
+  const scale=size/STAGE;
+  ctx.translate(pad,py); ctx.scale(scale,scale);
+  els.forEach(e=>drawShape2D(ctx,e));
+  ctx.restore();
+  /* 底部引导 */
+  ctx.fillStyle="#3B5BDB";
+  ctx.font="bold 38px sans-serif";
+  ctx.fillText("评论区告诉我答案～",W/2,py+size+82);
+  ctx.fillStyle="#9AA5B1";
+  ctx.font="26px sans-serif";
+  ctx.fillText("小红书小工具 · 巧手猜图",W/2,H-68);
+  return cv.toDataURL("image/jpeg",0.9);
+}
+
+/* 离线发布弹窗：预览分享图 → 发小红书 / 存相册 / 回首页 / 再改改；同时存入谜题库 */
+function showOfflineShare(rec){
+  const dataURI=exportShareImage(rec.canvas, rec.bg);
+  const mask=html("div",{class:"mask"});
+  mask.innerHTML=`
+  <div class="modal" style="max-width:400px">
+    <h2 style="text-align:center">发布谜题</h2>
+    <div style="text-align:center">
+      <img src="${dataURI}" alt="分享图预览" style="width:220px;border-radius:14px;border:2px solid var(--line)">
+    </div>
+    <div class="note" style="text-align:center;margin:10px 0">分享图不含谜底；发布后朋友看画猜词，把答案留在评论区。</div>
+    <button class="primary" id="os-note" style="width:100%;margin-bottom:8px">📕 发小红书笔记</button>
+    <div class="row" style="gap:8px">
+      <button class="ghost" id="os-album" style="flex:1">保存到相册</button>
+      <button class="ghost" id="os-home" style="flex:1">回首页</button>
+      <button class="ghost" id="os-edit" style="flex:1">再改改</button>
+    </div>
+  </div>`;
+  $app.appendChild(mask);
+  const noteBtn=mask.querySelector("#os-note");
+  noteBtn.onclick=async()=>{
+    noteBtn.disabled=true; noteBtn.textContent="打开发布页…";
+    try{
+      await postNoteImage(dataURI,"巧手猜图","来猜猜我画的是什么？评论区等你的答案～");
+      mask.remove();
+    }catch(e){
+      noteBtn.disabled=false; noteBtn.textContent="📕 发小红书笔记";
+      toast("未能打开发布页，可先保存到相册");
+    }
+  };
+  mask.querySelector("#os-album").onclick=async()=>{
+    const b=mask.querySelector("#os-album"); b.disabled=true;
+    try{ await saveImageToAlbum(dataURI); toast("已保存到相册"); }
+    catch(e){ toast("保存失败，请截图保存"); }
+    b.disabled=false;
+  };
+  mask.querySelector("#os-home").onclick=()=>{ mask.remove(); location.hash="#/"; };
+  mask.querySelector("#os-edit").onclick=()=>mask.remove();
+}
+
